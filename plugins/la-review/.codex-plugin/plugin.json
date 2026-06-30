@@ -1,6 +1,6 @@
 {
   "name": "la-review",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Language-agnostic review workflows for Codex.",
   "author": {
     "name": "pallgeuer",
