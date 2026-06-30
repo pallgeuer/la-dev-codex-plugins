@@ -15,7 +15,7 @@ Tests must not be placed inside `plugins/<plugin-name>/` unless a test fixture i
 
 ## Release versioning
 
-Marketplace release refs are Git tags named `vX.Y.Z`, listed at https://github.com/pallgeuer/la-dev-codex-plugins/tags. By convention, plugin manifest versions are kept in sync with release tag versions without the leading `v`, so release tag `vX.Y.Z` corresponds to plugin manifest version `X.Y.Z`.
+Marketplace release refs should be annotated Git tags named `vX.Y.Z`, listed at https://github.com/pallgeuer/la-dev-codex-plugins/tags. By convention, plugin manifest versions are kept in sync with release tag versions without the leading `v`, so release tag `vX.Y.Z` corresponds to plugin manifest version `X.Y.Z`.
 
 ## Python runtime requirements for plugin scripts
 
