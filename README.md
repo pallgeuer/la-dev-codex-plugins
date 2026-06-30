@@ -18,21 +18,52 @@ codex plugin marketplace add pallgeuer/la-dev-codex-plugins --ref main    # <-- 
 codex plugin marketplace add pallgeuer/la-dev-codex-plugins --ref v0.1.1  # <-- Stable fixed version
 ```
 
-Then open Codex:
+Then install whichever plugins you want from that marketplace:
+
+```bash
+codex plugin add la-review@la-dev-codex-plugins
+```
+
+This installs the plugin into the user-level Codex space (i.e. `~/.codex/plugins/cache/`, along with a record in `~/.codex/config.toml`), not into any one project in particular.
+
+If you used `--ref main`, then you can update an installed plugin in future using:
+
+```bash
+codex plugin remove la-review@la-dev-codex-plugins
+codex plugin marketplace upgrade la-dev-codex-plugins
+codex plugin add la-review@la-dev-codex-plugins
+```
+
+If you used `--ref v0.1.1`, then `marketplace upgrade` keeps the version frozen at exactly that instead of actually upgrading, so you need to update the whole marketplace ref:
+
+```bash
+codex plugin remove la-review@la-dev-codex-plugins
+codex plugin marketplace remove la-dev-codex-plugins
+codex plugin marketplace add pallgeuer/la-dev-codex-plugins --ref vX.X.X  # <-- New version tag
+codex plugin add la-review@la-dev-codex-plugins
+```
+
+You can verify what ref the marketplace was added with in the past using:
+
+```bash
+cat ~/.codex/.tmp/marketplaces/la-dev-codex-plugins/.codex-marketplace-install.json
+```
+
+Open/restart Codex and try it all out:
 
 ```bash
 codex
 ```
 
-Open the plugin browser:
+You can check the available plugins using:
 
 ```text
 /plugins
 ```
 
-Select **Language-Agnostic Development Codex Plugins**, then install **Language-Agnostic Review**. This installs the plugin into the user-level Codex space (i.e. `~/.codex/plugins/cache/`, along with a record in `~/.codex/config.toml`), not into any one project in particular.
+You can check which skills are available by typing `$` and checking the autocompletion.
 
-Loupe calls a bundled Python script in order to run the external review commands. This script unavoidably requires escalated sandbox permissions because it triggers `codex` and/or `claude` subprocesses, which both need write access to their respective user-level directories (e.g. `~/.codex/`) in order to function. To avoid needing to accept the escalated sandbox permissions every time for that one particular script, you can add a rule that allows it by adding the following line to `~/.codex/rules/default.rules` (replace `YOUR_USER` as appropriate):
+The Loupe skill calls a bundled Python script in order to run the external review commands. This script unavoidably requires escalated sandbox permissions because it triggers `codex` and/or `claude` subprocesses, which both need write access to their respective user-level directories (e.g. `~/.codex/`) in order to function. To avoid needing to explicitly accept the escalated sandbox permissions every time for that particular script, you can add a rule that whitelists it by adding the following line to `~/.codex/rules/default.rules` (replace `YOUR_USER` as appropriate):
 
 ```text
 prefix_rule(pattern=["/home/YOUR_USER/.codex/plugins/cache/la-dev-codex-plugins/la-review/0.1.1/skills/loupe/scripts/run_reviewers.py"], decision="allow")
