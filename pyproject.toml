@@ -34,3 +34,6 @@ ignore = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = []
+
+[tool.ty.environment]
+python-version = "3.8"
