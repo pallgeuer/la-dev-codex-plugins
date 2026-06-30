@@ -1,21 +1,21 @@
 repos:
   - repo: local
     hooks:
-      - id: ruff-format
-        name: ruff format
-        entry: uvx --from ruff==0.15.20 ruff format --check
+      - id: ruff-check
+        name: ruff check
+        entry: uvx --python 3.8 --from ruff==0.15.20 ruff check --fix
         language: system
         types_or: [python, pyi]
 
-      - id: ruff-check
-        name: ruff check
-        entry: uvx --from ruff==0.15.20 ruff check
+      - id: ruff-format
+        name: ruff format
+        entry: uvx --python 3.8 --from ruff==0.15.20 ruff format
         language: system
         types_or: [python, pyi]
 
       - id: ty
         name: ty
-        entry: uvx --from ty==0.0.55 --with pytest==8.3.5 ty check --python-version 3.8 plugins tests
+        entry: uvx --python 3.8 --from ty==0.0.55 --with pytest==8.3.5 ty check plugins tests
         language: system
         pass_filenames: false
 
@@ -27,6 +27,6 @@ repos:
 
       - id: vermin
         name: vermin
-        entry: uvx --from vermin==1.8.0 vermin -t=3.6- --violations plugins
+        entry: uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins
         language: system
         pass_filenames: false
