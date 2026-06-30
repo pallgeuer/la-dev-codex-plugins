@@ -26,25 +26,25 @@ Verify:
 uvx --version
 ```
 
-## Format and lint Python
-
-Format:
-
-```bash
-uvx --from ruff==0.15.20 ruff format plugins tests
-```
+## Lint and format Python
 
 Lint and apply safe fixes:
 
 ```bash
-uvx --from ruff==0.15.20 ruff check --fix plugins tests
+uvx --python 3.8 --from ruff==0.15.20 ruff check --fix plugins tests
+```
+
+Format:
+
+```bash
+uvx --python 3.8 --from ruff==0.15.20 ruff format plugins tests
 ```
 
 Read-only checks:
 
 ```bash
-uvx --from ruff==0.15.20 ruff format --check plugins tests
-uvx --from ruff==0.15.20 ruff check plugins tests
+uvx --python 3.8 --from ruff==0.15.20 ruff check plugins tests
+uvx --python 3.8 --from ruff==0.15.20 ruff format --check plugins tests
 ```
 
 ## Type check
@@ -52,7 +52,7 @@ uvx --from ruff==0.15.20 ruff check plugins tests
 Run ty with Python 3.8 semantics:
 
 ```bash
-uvx --from ty==0.0.55 --with pytest==8.3.5 ty check --python-version 3.8 plugins tests
+uvx --python 3.8 --from ty==0.0.55 --with pytest==8.3.5 ty check plugins tests
 ```
 
 ## Run tests
@@ -74,13 +74,13 @@ uvx --python 3.8 --from pytest==8.3.5 pytest tests/plugins/la-review/skills/loup
 Run Vermin against the shipped plugin code:
 
 ```bash
-uvx --from vermin==1.8.0 vermin -t=3.6- --violations plugins
+uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins
 ```
 
 Run it only for Loupe scripts:
 
 ```bash
-uvx --from vermin==1.8.0 vermin -t=3.6- --violations plugins/la-review/skills/loupe/scripts
+uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins/la-review/skills/loupe/scripts
 ```
 
 Use `-t=3.6-` rather than trying to run the test suite under Python 3.6. The purpose here is to analyze the plugin scripts for minimum Python-version requirements; uv itself does not need to provide a Python 3.6 interpreter.
@@ -90,13 +90,13 @@ Use `-t=3.6-` rather than trying to run the test suite under Python 3.6. The pur
 Run the local hooks:
 
 ```bash
-uvx --from pre-commit==4.6.0 pre-commit run --all-files
+uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run --all-files
 ```
 
 Install the hook:
 
 ```bash
-uvx --from pre-commit==4.6.0 pre-commit install
+uvx --python 3.10 --from pre-commit==4.6.0 pre-commit install
 ```
 
 ## Recommended pre-commit check
@@ -106,9 +106,9 @@ Before committing changes to plugin scripts, run:
 ```bash
 python3 -m json.tool .agents/plugins/marketplace.json > /dev/null
 python3 -m json.tool plugins/la-review/.codex-plugin/plugin.json > /dev/null
-uvx --from ruff==0.15.20 ruff format --check plugins tests
-uvx --from ruff==0.15.20 ruff check plugins tests
-uvx --from ty==0.0.55 --with pytest==8.3.5 ty check --python-version 3.8 plugins tests
+uvx --python 3.8 --from ruff==0.15.20 ruff check --fix plugins tests
+uvx --python 3.8 --from ruff==0.15.20 ruff format plugins tests
+uvx --python 3.8 --from ty==0.0.55 --with pytest==8.3.5 ty check plugins tests
 uvx --python 3.8 --from pytest==8.3.5 pytest tests
-uvx --from vermin==1.8.0 vermin -t=3.6- --violations plugins
+uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins
 ```
