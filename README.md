@@ -6,7 +6,7 @@ It currently exposes the following plugins:
 
 - **Language-Agnostic Review** (`la-review`)
   - Includes the **Loupe** skill (`loupe`)
-  - Invoke with `$loupe`
+  - Invoke with `$la-review:loupe`
   - Default review scope: Current uncommitted changes
 
 ## Install
@@ -37,32 +37,34 @@ Select **Language-Agnostic Development Codex Plugins**, then install **Language-
 Default review of current uncommitted changes:
 
 ```text
-$loupe
+$la-review:loupe
 ```
+
+Tip: Typing `$lou` and then accepting the Codex autocomplete suggestion is usually enough to insert the full `$la-review:loupe` invocation without typing it out manually.
 
 Review just unstaged changes (should include untracked changes, but explicit is better than implicit):
 
 ```text
-$loupe unstaged changes
-$loupe unstaged and untracked changes
+$la-review:loupe unstaged changes
+$la-review:loupe unstaged and untracked changes
 ```
 
 Review the last commit:
 
 ```text
-$loupe last commit
+$la-review:loupe last commit
 ```
 
 Review a branch:
 
 ```text
-$loupe feature/loupe-plugin branch
+$la-review:loupe feature/loupe-plugin branch
 ```
 
 Review a pull request:
 
 ```text
-$loupe PR #123
+$la-review:loupe PR #123
 ```
 
 ## Development
