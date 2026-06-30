@@ -13,6 +13,10 @@ This repository is a Codex plugin marketplace.
 
 Tests must not be placed inside `plugins/<plugin-name>/` unless a test fixture is intentionally part of the runtime plugin payload.
 
+## Release versioning
+
+Marketplace release refs are Git tags named `vX.Y.Z`, listed at https://github.com/pallgeuer/la-dev-codex-plugins/tags. By convention, plugin manifest versions are kept in sync with release tag versions without the leading `v`, so release tag `vX.Y.Z` corresponds to plugin manifest version `X.Y.Z`.
+
 ## Python runtime requirements for plugin scripts
 
 Python scripts shipped inside any plugin must support Python 3.6+ and must run with only the Python standard library. Assume the runtime can be any system Python from Ubuntu 18.04 onward (Python 3.6+). Do not use syntax, standard-library APIs, or typing features that require Python 3.7+.
