@@ -2,7 +2,7 @@
 filterwarnings = ["error"]
 testpaths = ["tests"]
 markers = [
-    "isolated_cwd: run the test in a fresh writable temporary working directory",
+    "isolated_cwd: Run the test in a fresh writable temporary working directory",
 ]
 
 [tool.ruff]
