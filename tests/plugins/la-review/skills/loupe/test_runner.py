@@ -66,7 +66,7 @@ def test_dry_run_uses_expected_json_shape_and_reviewer_commands(capsys: pytest.C
     payload = json.loads(capsys.readouterr().out)
     assert list(payload) == ["review_scope", "git_root", "timeout_seconds", "reviewers"]
     assert payload["review_scope"] == "uncommitted changes"
-    assert payload["timeout_seconds"] == 1800
+    assert payload["timeout_seconds"] == 1200
     assert [list(reviewer) for reviewer in payload["reviewers"]] == [
         ["reviewer_name", "launched_command"],
         ["reviewer_name", "launched_command"],

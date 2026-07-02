@@ -22,7 +22,7 @@ Do not modify repository files, stage changes, commit, install dependencies, or 
    ```
 
    - Keep all Loupe artifacts in this directory: `review.diff` for the review-scope diff and `reviewers.json` for the exact reviewer JSON stdout.
-   - If the review is completed successfully, clean up the directory at the end of the skill run after all needed information has been extracted by deleting only the known Loupe artifact files and then removing the now-empty directory:
+   - If the review is completed successfully and no reviewer timed out, clean up the directory at the end of the skill run after all needed information has been extracted by deleting only the known Loupe artifact files and then removing the now-empty directory:
 
      ```bash
      rm "$LOUPE_ARTIFACT_DIR/review.diff" "$LOUPE_ARTIFACT_DIR/reviewers.json"
@@ -30,7 +30,7 @@ Do not modify repository files, stage changes, commit, install dependencies, or 
      ```
 
      Do not use recursive force deletion. After running these commands, report the temporary artifact directory path to the user only if the directory or either known artifact file still exists.
-   - If the review cannot be completed because of truncation, malformed JSON, verification blockers, or another unexpected issue, keep this directory and report its path to the user.
+   - If the review cannot be completed because of truncation, malformed JSON, verification blockers, reviewer timeout, or another unexpected issue, keep this directory and report its path to the user.
 
 3. Snapshot the diff corresponding to the target review scope before running the reviewers script:
 
@@ -55,7 +55,7 @@ Do not modify repository files, stage changes, commit, install dependencies, or 
    - The script has a shebang that ensures it is automatically run with whichever `python3` has highest priority in the current environment's `PATH`.
    - Request `sandbox_permissions: "require_escalated"` for this command, using the justification that the launched child `codex` and `claude` processes need to read and write their normal state to their respective home directory locations (`~/.codex` and `~/.claude`).
    - Run the command and all polling reads with `max_output_tokens` set to `30000`.
-   - The script may take a very long time to return (default timeout is 30 minutes). Never kill the script yourself; allow its own timeout to trigger if it takes too long.
+   - The script may take a very long time to return (default timeout is 20 minutes). Never kill the script yourself; allow its own timeout to trigger if it takes too long.
    - The script emits JSON that includes both general and reviewer-specific information, including in particular each reviewer name (`reviewer_name`) and full response (`stdout`).
    - Do not do anything other than keep the session alive until the script returns. Just say `Continuing to wait for the external reviews...` whenever needed to keep the session alive.
    - If the script exits nonzero, continue with any reviewer output it produced. A timeout or failure of one reviewer must not block you from using the analysis of the remaining reviewers.
@@ -72,7 +72,9 @@ Do not modify repository files, stage changes, commit, install dependencies, or 
    - Never reject findings simply because they are `cleanup only` or `performance only` or `not important/severe/impactful enough` (`Nit` and `Low` exist as severity categories for a reason).
    - Do not get rid of or omit rejected findings from the list; instead report them in the final review with a severity of `Unsure`.
 
-7. Organize all returned external reviewer findings into a coherent final review in chat. Do not edit repository files or write a persistent report file. After a successful final review, clean up `LOUPE_ARTIFACT_DIR` with the targeted cleanup command from step 2 so the temporary artifacts are gone as if they were never there.
+7. Organize all returned external reviewer findings into a coherent final review in chat. Do not edit repository files or write a persistent report file.
+   - For any reviewer with status `timed_out`, inspect that reviewer's `stdout` and `stderr` from `reviewers.json` before writing the final review. Explain any visible reason the reviewer may have hung, frozen, or failed in a way that caused the timeout, and note whether the latest output suggests the reviewer was still actively working when it timed out. Do not report `timed out` as the whole explanation for why that reviewer produced no findings.
+   - After a successful final review with no timed-out reviewers, clean up `LOUPE_ARTIFACT_DIR` with the targeted cleanup command from step 2 so the temporary artifacts are gone as if they were never there. If any reviewer timed out, keep `LOUPE_ARTIFACT_DIR` and report its path to the user.
 
 ## Final Review
 
@@ -104,5 +106,5 @@ Rules for final output:
 - Show all findings of all reviewers, whether they were rejected or not. Sort findings per reviewer by descending severity, then by likely fix order.
 - Number findings with one continuous global counter across every reviewer section. The first structured finding in the final review is `1.`, and each later structured finding uses the next integer even when it appears under a different reviewer, so every finding can be uniquely referenced by number. Failed-reviewer descriptions and `No findings.` sections do not consume a finding number.
 - Every finding must be self-contained and contain all information required for the user to understand the problem.
-- If a reviewer failed then provide a detailed description of what went wrong in place of the structured findings list.
+- If a reviewer failed then provide a detailed description of what went wrong in place of the structured findings list. For timed-out reviewers, this description must be based on the captured `stdout` and `stderr` and must not simply say that the reviewer timed out.
 - If a reviewer succeeded but produced no findings then just say `No findings.` in place of the structured findings list.

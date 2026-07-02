@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, List, Optional, Sequence
 
-DEFAULT_TIMEOUT_SECONDS = 30 * 60
+DEFAULT_TIMEOUT_SECONDS = 20 * 60
 PROCESS_TERMINATION_SECONDS = 5
 NO_LAUNCHABLE_REVIEWERS_MESSAGE = "No launchable reviewers are available."
 MISSING_ADDITIONAL_EXECUTABLE_MESSAGE_TEMPLATE = "Missing additional executable '{}' for {}. Please install {} and rerun Loupe."
