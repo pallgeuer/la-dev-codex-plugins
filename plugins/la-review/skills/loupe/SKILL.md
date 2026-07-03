@@ -63,8 +63,8 @@ Do not modify repository files, stage changes, commit, install dependencies, or 
 
 5. Decide how to use the diff artifact:
 
-   - If `$LOUPE_ARTIFACT_DIR/review.diff` is at most 200000 bytes, load the full file contents into chat once after the reviewers finish, using `cat` or explicit consecutive chunks that together cover the whole file. Do not use guessed line ranges such as `sed -n '1,220p'`; if any command output is truncated, keep reading non-overlapping later chunks until every byte of the diff has appeared in chat.
-   - If it is above 200000 bytes, do not load it wholesale. Use targeted reads from the diff artifact together with direct source-file reads for verification of the findings.
+   - Before validating reviewer findings, read as much of `$LOUPE_ARTIFACT_DIR/review.diff` as practical. Use successive sequential reads, and request `max_output_tokens: 30000` for each read. Remember that the model itself may still apply a lower effective truncation limit, often around 10000 tokens.
+   - If the diff is too large to read comfortably, or output is repeatedly truncated, switch to targeted reads from the diff artifact together with direct source-file reads during finding verification.
 
 6. Manually verify each candidate finding from each reviewer:
    - Confirm the cited code exists in the current working tree.
@@ -93,7 +93,7 @@ Use this structure for the final review in chat:
 
 **<Reviewer name>:** <status> in <elapsed_seconds>
 
-2. [<Severity>] <Concise summary sentence>. · `<path:line or symbol>` · Description: <Evidence and impact>. · Recommendation: <Concrete fix direction>.
+2. [<Severity>] Duplicate of #1. <Concise summary sentence>. · `<path:line or symbol>` · Description: <Evidence and impact>. · Recommendation: <Concrete fix direction>.
 
 ...
 ```
@@ -105,6 +105,7 @@ Rules for final output:
 - `<elapsed_seconds>` should be the elapsed time of that specific reviewer exactly as per the script JSON output, only rounded to the nearest second, e.g. `174s`.
 - Show all findings of all reviewers, whether they were rejected or not. Sort findings per reviewer by descending severity, then by likely fix order.
 - Number findings with one continuous global counter across every reviewer section. The first structured finding in the final review is `1.`, and each later structured finding uses the next integer even when it appears under a different reviewer, so every finding can be uniquely referenced by number. Failed-reviewer descriptions and `No findings.` sections do not consume a finding number.
+- If a finding is a duplicate of one or more other findings, write `Duplicate of #<number>` immediately after the severity and before the summary sentence, otherwise just continue directly with the summary sentence. Reference all duplicate findings with slash-separated numbers, e.g. `Duplicate of #1/#3`.
 - Every finding must be self-contained and contain all information required for the user to understand the problem.
 - If a reviewer failed then provide a detailed description of what went wrong in place of the structured findings list. For timed-out reviewers, this description must be based on the captured `stdout` and `stderr` and must not simply say that the reviewer timed out.
 - If a reviewer succeeded but produced no findings then just say `No findings.` in place of the structured findings list.

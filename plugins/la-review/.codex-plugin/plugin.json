@@ -27,9 +27,9 @@
       "Write"
     ],
     "defaultPrompt": [
-      "$loupe",
-      "$loupe last commit",
-      "$loupe feature/loupe-plugin branch"
+      "$la-review:loupe",
+      "$la-review:loupe last commit",
+      "$la-review:loupe feature/loupe-plugin branch"
     ]
   }
 }
