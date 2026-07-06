@@ -29,7 +29,7 @@ Do not modify repository files, stage changes, commit, install dependencies, or 
      rmdir "$LOUPE_ARTIFACT_DIR"
      ```
 
-     Do not use recursive force deletion. After running these commands, report the temporary artifact directory path to the user only if the directory or either known artifact file still exists.
+     Run these two cleanup commands individually and without escalated sandbox permissions first. If that unprivileged cleanup attempt is not allowed by the sandbox, retry the same targeted cleanup commands with escalated sandbox permissions. Do not use recursive force deletion. After running these commands, report the temporary artifact directory path to the user only if the directory or either known artifact file still exists.
    - If the review cannot be completed because of truncation, malformed JSON, verification blockers, reviewer timeout, or another unexpected issue, keep this directory and report its path to the user.
 
 3. Snapshot the diff corresponding to the target review scope before running the reviewers script:
