@@ -31,20 +31,20 @@ uvx --version
 Lint and apply safe fixes:
 
 ```bash
-uvx --python 3.8 --from ruff==0.15.20 ruff check --fix plugins tests
+uvx --python 3.8 --from ruff==0.15.22 ruff check --fix plugins src tests
 ```
 
 Format:
 
 ```bash
-uvx --python 3.8 --from ruff==0.15.20 ruff format plugins tests
+uvx --python 3.8 --from ruff==0.15.22 ruff format plugins src tests
 ```
 
 Read-only checks:
 
 ```bash
-uvx --python 3.8 --from ruff==0.15.20 ruff check plugins tests
-uvx --python 3.8 --from ruff==0.15.20 ruff format --check plugins tests
+uvx --python 3.8 --from ruff==0.15.22 ruff check plugins src tests
+uvx --python 3.8 --from ruff==0.15.22 ruff format --check plugins src tests
 ```
 
 ## Type check
@@ -52,7 +52,7 @@ uvx --python 3.8 --from ruff==0.15.20 ruff format --check plugins tests
 Run ty with Python 3.8 semantics:
 
 ```bash
-uvx --python 3.8 --from ty==0.0.55 --with pytest==8.3.5 ty check plugins tests
+uvx --python 3.8 --from ty==0.0.60 --with pytest==8.3.5 ty check plugins src tests
 ```
 
 ## Run tests
@@ -71,10 +71,10 @@ uvx --python 3.8 --from pytest==8.3.5 pytest tests/plugins/la-review/skills/loup
 
 ## Check Python 3.6+ compatibility
 
-Run Vermin against the shipped plugin code:
+Run Vermin against the shipped plugin and package code:
 
 ```bash
-uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins
+uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins src
 ```
 
 Run it only for Loupe scripts:
@@ -106,9 +106,12 @@ Before committing changes to plugin scripts, run:
 ```bash
 python3 -m json.tool .agents/plugins/marketplace.json > /dev/null
 python3 -m json.tool plugins/la-review/.codex-plugin/plugin.json > /dev/null
-uvx --python 3.8 --from ruff==0.15.20 ruff check --fix plugins tests
-uvx --python 3.8 --from ruff==0.15.20 ruff format plugins tests
-uvx --python 3.8 --from ty==0.0.55 --with pytest==8.3.5 ty check plugins tests
+python3 -m json.tool plugins/toolkit/.codex-plugin/plugin.json > /dev/null
+python3 -m json.tool plugins/toolkit/skills/perform/actions/plan.json > /dev/null
+python3 -m json.tool plugins/toolkit/skills/perform/actions/exec-plan.json > /dev/null
+uvx --python 3.8 --from ruff==0.15.22 ruff check --fix plugins src tests
+uvx --python 3.8 --from ruff==0.15.22 ruff format plugins src tests
+uvx --python 3.8 --from ty==0.0.60 --with pytest==8.3.5 ty check plugins src tests
 uvx --python 3.8 --from pytest==8.3.5 pytest tests
-uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins
+uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins src
 ```

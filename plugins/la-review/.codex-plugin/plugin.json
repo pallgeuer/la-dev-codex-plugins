@@ -9,11 +9,11 @@
   "repository": "https://github.com/pallgeuer/la-dev-codex-plugins",
   "license": "MIT",
   "keywords": [
-    "code-review",
+    "code review",
     "review",
     "verification",
     "language-agnostic",
-    "parallel-review"
+    "parallel review"
   ],
   "skills": "./skills/",
   "interface": {

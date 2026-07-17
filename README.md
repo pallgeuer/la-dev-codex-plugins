@@ -8,10 +8,16 @@ It currently exposes the following plugins:
   - Includes the **Loupe** skill (`loupe`)
   - Invoke with `$la-review:loupe`
   - Default review scope: Current uncommitted changes
+- **Action Toolkit** (`toolkit`)
+  - Includes the **Perform** skill (`perform`)
+  - Stores and retrieves configurable canned Codex actions from JSON file(s)
+  - Can be used with the optional `codex-perform` Python launcher
 
 ## Install
 
-Add this repository as a Codex marketplace:
+### Add the marketplace
+
+Choose whether to follow the latest repository state or pin the marketplace to a stable release, then run the corresponding command:
 
 ```bash
 codex plugin marketplace add pallgeuer/la-dev-codex-plugins --ref main    # <-- Latest version
@@ -20,7 +26,9 @@ codex plugin marketplace add pallgeuer/la-dev-codex-plugins --ref vX.Y.Z  # <-- 
 
 Marketplace refs are Git refs. Use `main` to follow the latest repository state, or use a release tag such as `vX.Y.Z` to pin to a stable fixed release. Available release tags are listed on the [GitHub tags page](https://github.com/pallgeuer/la-dev-codex-plugins/tags). By convention, plugin versions in manifests are kept in sync with release tag versions, without the leading `v`.
 
-Then install whichever plugins you want from that marketplace:
+### Install a plugin
+
+Install whichever plugins you want from the marketplace. For example, to install `la-review`:
 
 ```bash
 codex plugin add la-review@la-dev-codex-plugins
@@ -28,7 +36,37 @@ codex plugin add la-review@la-dev-codex-plugins
 
 This installs the plugin into the user-level Codex space (i.e. `~/.codex/plugins/cache/`, along with a record in `~/.codex/config.toml`), not into any one project in particular.
 
-If you used `--ref main`, then you can update an installed plugin in future using:
+### Start Codex and verify the installation
+
+Open Codex, or restart it if it is already running:
+
+```bash
+codex
+```
+
+Use `/plugins` to check the available plugins:
+
+```text
+/plugins
+```
+
+To check which skills are available, type `$` and inspect the autocompletion suggestions.
+
+### Optional: Auto-allow the Loupe review script
+
+The Loupe skill calls a bundled Python script in order to run the external review commands. This script unavoidably requires escalated sandbox permissions because it triggers `codex` and/or `claude` subprocesses, which both need write access to their respective user-level directories (e.g. `~/.codex/`) in order to function.
+
+To avoid explicitly accepting the escalated sandbox permissions every time for that particular script, add the following line to `~/.codex/rules/default.rules`, replacing `YOUR_USER` and `X.Y.Z` as appropriate:
+
+```text
+prefix_rule(pattern=["/home/YOUR_USER/.codex/plugins/cache/la-dev-codex-plugins/la-review/X.Y.Z/skills/loupe/scripts/run_reviewers.py"], decision="allow")
+```
+
+### Updating plugins
+
+The update procedure depends on the marketplace ref you chose.
+
+If you used `--ref main`, update an installed plugin with (example for just `la-review`):
 
 ```bash
 codex plugin remove la-review@la-dev-codex-plugins
@@ -36,7 +74,7 @@ codex plugin marketplace upgrade la-dev-codex-plugins
 codex plugin add la-review@la-dev-codex-plugins
 ```
 
-If you used `--ref vX.Y.Z`, then `marketplace upgrade` keeps the version frozen at exactly that instead of actually upgrading, so you need to update the whole marketplace ref:
+If you used `--ref vX.Y.Z`, `marketplace upgrade` keeps the marketplace frozen at exactly that ref instead of upgrading it. To move to a newer release, replace the whole marketplace ref:
 
 ```bash
 codex plugin remove la-review@la-dev-codex-plugins
@@ -45,33 +83,15 @@ codex plugin marketplace add pallgeuer/la-dev-codex-plugins --ref vX.Y.Z  # <-- 
 codex plugin add la-review@la-dev-codex-plugins
 ```
 
-You can verify what ref the marketplace was added with in the past using something like (exact path may change in future Codex releases):
+If you no longer know which ref you used, inspect the marketplace installation metadata with a command such as the following (the exact path may change in future Codex releases):
 
 ```bash
 cat ~/.codex/.tmp/marketplaces/la-dev-codex-plugins/.codex-marketplace-install.json
 ```
 
-Open/restart Codex and try it all out:
+## Using plugins
 
-```bash
-codex
-```
-
-You can check the available plugins using:
-
-```text
-/plugins
-```
-
-You can check which skills are available by typing `$` and checking the autocompletion.
-
-The Loupe skill calls a bundled Python script in order to run the external review commands. This script unavoidably requires escalated sandbox permissions because it triggers `codex` and/or `claude` subprocesses, which both need write access to their respective user-level directories (e.g. `~/.codex/`) in order to function. To avoid needing to explicitly accept the escalated sandbox permissions every time for that particular script, you can add a rule that whitelists it by adding the following line to `~/.codex/rules/default.rules` (replace `YOUR_USER` and `X.Y.Z` as appropriate):
-
-```text
-prefix_rule(pattern=["/home/YOUR_USER/.codex/plugins/cache/la-dev-codex-plugins/la-review/X.Y.Z/skills/loupe/scripts/run_reviewers.py"], decision="allow")
-```
-
-## Use
+### Loupe skill
 
 Default review of current uncommitted changes:
 
@@ -110,4 +130,4 @@ $la-review:loupe PR #123
 
 See `TESTING.md`.
 
-The shipped plugin scripts must support Python 3.6+ and must use only the Python standard library.
+The shipped plugin scripts and package source code must support Python 3.6+ and must use only the Python standard library.

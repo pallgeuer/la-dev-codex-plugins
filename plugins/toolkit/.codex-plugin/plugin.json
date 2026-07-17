@@ -1,0 +1,35 @@
+{
+  "name": "toolkit",
+  "version": "0.1.3",
+  "description": "Configurable Codex action toolkit.",
+  "author": {
+    "name": "pallgeuer",
+    "url": "https://github.com/pallgeuer"
+  },
+  "repository": "https://github.com/pallgeuer/la-dev-codex-plugins",
+  "license": "MIT",
+  "keywords": [
+    "actions",
+    "automation",
+    "toolkit",
+    "swiss army knife",
+    "perform"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Action Toolkit",
+    "shortDescription": "Configurable canned action workflows for Codex.",
+    "longDescription": "Provides Perform, a configuration-driven toolkit skill for running canned Codex actions.",
+    "developerName": "pallgeuer",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "$toolkit:perform",
+      "$toolkit:perform my-action",
+      "$toolkit:perform do action foo on the file bar"
+    ]
+  }
+}
