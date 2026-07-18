@@ -1,32 +1,66 @@
+minimum_pre_commit_version: "4.6.0"
+default_install_hook_types: [pre-commit, pre-push]
+
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-json
+        stages: [pre-commit, pre-push, manual]
+
+      - id: check-toml
+        stages: [pre-commit, pre-push, manual]
+
+      - id: check-yaml
+        stages: [pre-commit, pre-push, manual]
+
   - repo: local
     hooks:
-      - id: ruff-check
-        name: ruff check
+      - id: ruff-check-fix
+        name: ruff check (fix)
         entry: uvx --python 3.8 --from ruff==0.15.22 ruff check --fix
         language: system
         types_or: [python, pyi]
+        stages: [pre-commit]
 
-      - id: ruff-format
-        name: ruff format
+      - id: ruff-format-fix
+        name: ruff format (fix)
         entry: uvx --python 3.8 --from ruff==0.15.22 ruff format
         language: system
         types_or: [python, pyi]
+        stages: [pre-commit]
+
+      - id: ruff-check
+        name: ruff check
+        entry: uvx --python 3.8 --from ruff==0.15.22 ruff check
+        language: system
+        types_or: [python, pyi]
+        stages: [pre-push, manual]
+
+      - id: ruff-format-check
+        name: ruff format (check)
+        entry: uvx --python 3.8 --from ruff==0.15.22 ruff format --check
+        language: system
+        types_or: [python, pyi]
+        stages: [pre-push, manual]
 
       - id: ty
         name: ty
         entry: uvx --python 3.8 --from ty==0.0.60 --with pytest==8.3.5 ty check plugins src tests
         language: system
         pass_filenames: false
+        stages: [pre-commit, pre-push, manual]
 
       - id: pytest
         name: pytest
         entry: uvx --python 3.8 --from pytest==8.3.5 pytest tests
         language: system
         pass_filenames: false
+        stages: [pre-commit, pre-push, manual]
 
       - id: vermin
         name: vermin
         entry: uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins src
         language: system
         pass_filenames: false
+        stages: [pre-commit, pre-push, manual]

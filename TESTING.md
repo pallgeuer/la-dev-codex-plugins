@@ -1,6 +1,6 @@
 # Testing
 
-This repository uses fixed-version `uvx` commands for test tools.
+This repository uses fixed-version `uvx` commands for test tools. `uvx` runs each tool in an isolated cached environment; it does not create or use a project `.venv`.
 
 The shipped plugin scripts must support Python 3.6+ and must use only the Python standard library. Functional tests run with Python 3.8, and Vermin checks that shipped plugin code remains compatible with Python 3.6+.
 
@@ -31,20 +31,20 @@ uvx --version
 Lint and apply safe fixes:
 
 ```bash
-uvx --python 3.8 --from ruff==0.15.22 ruff check --fix plugins src tests
+uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run ruff-check-fix --all-files
 ```
 
 Format:
 
 ```bash
-uvx --python 3.8 --from ruff==0.15.22 ruff format plugins src tests
+uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run ruff-format-fix --all-files
 ```
 
 Read-only checks:
 
 ```bash
-uvx --python 3.8 --from ruff==0.15.22 ruff check plugins src tests
-uvx --python 3.8 --from ruff==0.15.22 ruff format --check plugins src tests
+uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run ruff-check --all-files --hook-stage manual
+uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run ruff-format-check --all-files --hook-stage manual
 ```
 
 ## Type check
@@ -52,7 +52,7 @@ uvx --python 3.8 --from ruff==0.15.22 ruff format --check plugins src tests
 Run ty with Python 3.8 semantics:
 
 ```bash
-uvx --python 3.8 --from ty==0.0.60 --with pytest==8.3.5 ty check plugins src tests
+uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run ty --all-files --hook-stage manual
 ```
 
 ## Run tests
@@ -60,7 +60,7 @@ uvx --python 3.8 --from ty==0.0.60 --with pytest==8.3.5 ty check plugins src tes
 Run all tests with Python 3.8:
 
 ```bash
-uvx --python 3.8 --from pytest==8.3.5 pytest tests
+uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run pytest --all-files --hook-stage manual
 ```
 
 Run only Loupe tests:
@@ -74,7 +74,7 @@ uvx --python 3.8 --from pytest==8.3.5 pytest tests/plugins/la-review/skills/loup
 Run Vermin against the shipped plugin and package code:
 
 ```bash
-uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins src
+uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run vermin --all-files --hook-stage manual
 ```
 
 Run it only for Loupe scripts:
@@ -87,31 +87,22 @@ Use `-t=3.6-` rather than trying to run the test suite under Python 3.6. The pur
 
 ## Pre-commit
 
-Run the local hooks:
+Run all local auto-fixing hooks:
 
 ```bash
 uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run --all-files
 ```
 
-Install the hook:
+Run the exact read-only checks used by CI:
 
 ```bash
-uvx --python 3.10 --from pre-commit==4.6.0 pre-commit install
+uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run --all-files --hook-stage manual
 ```
 
-## Recommended pre-commit check
+Pre-commit only considers files known to Git. Stage new files before running the all-files checks so that they are included. If an auto-fixing hook changes files, stage the fixes and run the checks again.
 
-Before committing changes to plugin scripts, run:
+Install both the auto-fixing pre-commit hook and the read-only pre-push hook:
 
 ```bash
-python3 -m json.tool .agents/plugins/marketplace.json > /dev/null
-python3 -m json.tool plugins/la-review/.codex-plugin/plugin.json > /dev/null
-python3 -m json.tool plugins/toolkit/.codex-plugin/plugin.json > /dev/null
-python3 -m json.tool plugins/toolkit/skills/perform/actions/plan.json > /dev/null
-python3 -m json.tool plugins/toolkit/skills/perform/actions/exec-plan.json > /dev/null
-uvx --python 3.8 --from ruff==0.15.22 ruff check --fix plugins src tests
-uvx --python 3.8 --from ruff==0.15.22 ruff format plugins src tests
-uvx --python 3.8 --from ty==0.0.60 --with pytest==8.3.5 ty check plugins src tests
-uvx --python 3.8 --from pytest==8.3.5 pytest tests
-uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins src
+uvx --python 3.10 --from pre-commit==4.6.0 pre-commit install --install-hooks
 ```
