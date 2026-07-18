@@ -55,6 +55,7 @@ Do not modify repository files, stage changes, commit, install dependencies, or 
    - The script has a shebang that ensures it is automatically run with whichever `python3` has highest priority in the current environment's `PATH`.
    - Request `sandbox_permissions: "require_escalated"` for this command, using the justification that the launched child `codex` and `claude` processes need to read and write their normal state to their respective home directory locations (`~/.codex` and `~/.claude`).
    - Run the command and all polling reads with `max_output_tokens` set to `30000`.
+   - After `exec_command` returns a session ID for the still-running script, poll it using empty `write_stdin` calls. For each poll, set `yield_time_ms` to `300000`. Continue polling until the process exits.
    - The script may take a very long time to return (default timeout is 20 minutes). Never kill the script yourself; allow its own timeout to trigger if it takes too long.
    - The script emits JSON that includes both general and reviewer-specific information, including in particular each reviewer name (`reviewer_name`) and full response (`stdout`).
    - Do not do anything other than keep the session alive until the script returns. Just say `Continuing to wait for the external reviews...` whenever needed to keep the session alive.
