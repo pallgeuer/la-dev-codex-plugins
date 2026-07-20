@@ -375,6 +375,6 @@ def test_explicit_ordered_directories_bypass_conventional_discovery(tmp_path, co
     write_file(first, file_data(actions={"test": {"agnostic": complete(gloss="first")}}))
     write_file(second, file_data(actions={"test": {"agnostic": complete(gloss="second")}}))
     catalog = runtime.load_action_catalog(action_directories=[str(first), str(second)], bundled_dir="/missing", cwd="/missing")
-    assert catalog.discovery.resolution_basis == "conventional_local"
     assert catalog.discovery.repository_resolution == "none"
+    assert [source.source_order for source in catalog.discovery.sources] == [0, 1]
     assert catalog.inspect("test[agnostic]").action.fields["gloss"] == "second"

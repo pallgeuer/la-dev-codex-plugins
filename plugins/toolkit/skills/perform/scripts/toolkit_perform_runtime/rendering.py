@@ -25,8 +25,8 @@ def validate_bindings(prompt_vars, variables):
     if extra:
         raise CatalogRequestError("extra_variables", "Undeclared prompt-variable bindings: {}.".format(", ".join(str(value) for value in extra)))
     for placeholder, value in variables.items():
-        if not isinstance(placeholder, str) or not isinstance(value, str) or value == "":
-            raise CatalogRequestError("invalid_variable_value", "Every prompt-variable binding must map a declared placeholder string to a nonempty string.")
+        if not isinstance(placeholder, str) or not isinstance(value, str) or value == "" or "\x00" in value:
+            raise CatalogRequestError("invalid_variable_value", "Every prompt-variable binding must map a declared placeholder string to a nonempty string without NUL characters.")
 
 
 def validate_qualification(qualification):
@@ -60,6 +60,10 @@ def render_prompt(fields, variables, placeholder_pattern, qualification=None):
     substituted = placeholder_pattern.sub(replace, fields["prompt"])
     rendered = build_base_prompt(substituted, fields["no_edits"])
     normalized_qualification = validate_qualification(qualification)
+    if not rendered.strip():
+        raise CatalogRequestError("empty_rendered_prompt", "Prompt-variable substitution produced an empty main prompt after trimming.")
     if normalized_qualification is not None:
-        rendered += "\n\nBUT: " + normalized_qualification
+        rendered = rendered.rstrip()
+        separator = "\n" if "\n" in rendered else " "
+        rendered += separator + "BUT: " + normalized_qualification
     return rendered, normalized_qualification

@@ -1,24 +1,20 @@
-"""Structured diagnostics and source provenance for Perform."""
+"""Structured errors and diagnostics for Perform."""
+
+
+def unicode_sort_key(value):
+    """Encode one string into a deterministic surrogate-safe sort key."""
+    return value.encode("utf-8", errors="surrogatepass")
 
 
 class CatalogRequestError(ValueError):
     """A catalog operation cannot safely fulfill the caller's request."""
 
-    def __init__(self, status, message, selector=None, alternatives=None):
-        """Store stable request status, explanation, and same-name alternatives."""
+    def __init__(self, status, message, alternatives=None):
+        """Store stable request status, explanation, and available alternatives."""
         super().__init__(message)
         self.status = status
         self.message = message
-        self.selector = selector
         self.alternatives = list(alternatives or [])
-
-    def to_dict(self):
-        """Return JSON-ready error details."""
-        return {
-            "message": self.message,
-            "selector": self.selector,
-            "available_variants": self.alternatives,
-        }
 
 
 class Diagnostic:
@@ -69,9 +65,9 @@ class Diagnostic:
         return (
             self.source_order,
             self.filename_sort_key,
-            (self.json_path or "").encode("utf-8"),
+            unicode_sort_key(self.json_path or ""),
             self.code.encode("ascii"),
-            self.message.encode("utf-8"),
+            unicode_sort_key(self.message),
         )
 
     def identity(self):
@@ -85,42 +81,6 @@ class Diagnostic:
             self.selector,
             self.fatality,
         )
-
-    def to_dict(self):
-        """Return a stable JSON-ready representation."""
-        return {
-            "severity": self.severity,
-            "code": self.code,
-            "message": self.message,
-            "source_file": self.source_file,
-            "json_path": self.json_path,
-            "selector": self.selector,
-            "fatality": self.fatality,
-        }
-
-
-class Provenance:
-    """Origin of one effective action field."""
-
-    __slots__ = ("json_path", "source_file", "source_kind", "source_order", "source_path")
-
-    def __init__(self, source_kind, source_path, source_file, json_path, source_order):
-        """Store normalized source identity and human-readable JSON location."""
-        self.source_kind = source_kind
-        self.source_path = source_path
-        self.source_file = source_file
-        self.json_path = json_path
-        self.source_order = source_order
-
-    def to_dict(self):
-        """Return JSON-ready provenance."""
-        return {
-            "source_kind": self.source_kind,
-            "source_path": self.source_path,
-            "source_file": self.source_file,
-            "json_path": self.json_path,
-            "source_order": self.source_order,
-        }
 
 
 def json_pointer_component(value):

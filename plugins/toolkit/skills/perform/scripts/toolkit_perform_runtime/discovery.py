@@ -7,7 +7,6 @@ from pathlib import Path
 
 from .diagnostics import Diagnostic, sorted_unique_diagnostics
 
-RESOLUTION_BASIS = "conventional_local"
 GIT_TIMEOUT_SECONDS = 5
 GIT_OUTPUT_LIMIT = 64 * 1024
 VCS_MARKERS = (".git", ".hg", ".sl")
@@ -69,15 +68,6 @@ class SourceDirectory:
         self.display_path = display_path if display_path is not None else normalized_path
         self.source_order = source_order
 
-    def to_dict(self):
-        """Return JSON-ready source metadata."""
-        return {
-            "kind": self.kind,
-            "normalized_path": self.normalized_path,
-            "display_path": self.display_path,
-            "source_order": self.source_order,
-        }
-
 
 class DiscoveryResult:
     """Ordered sources and metadata from conventional local discovery."""
@@ -87,7 +77,6 @@ class DiscoveryResult:
         "precedence_incomplete",
         "repository_resolution",
         "repository_root",
-        "resolution_basis",
         "sources",
     )
 
@@ -104,18 +93,7 @@ class DiscoveryResult:
         self.repository_resolution = repository_resolution
         self.repository_root = repository_root
         self.diagnostics = sorted_unique_diagnostics(diagnostics or [])
-        self.resolution_basis = RESOLUTION_BASIS
         self.precedence_incomplete = precedence_incomplete
-
-    def to_dict(self):
-        """Return stable JSON-ready discovery metadata."""
-        return {
-            "resolution_basis": self.resolution_basis,
-            "repository_resolution": self.repository_resolution,
-            "repository_root": self.repository_root,
-            "precedence_incomplete": self.precedence_incomplete,
-            "sources": [source.to_dict() for source in self.sources],
-        }
 
 
 class GitCommandResult:

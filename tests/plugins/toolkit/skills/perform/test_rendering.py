@@ -70,6 +70,7 @@ def test_substitution_is_one_pass_and_does_not_expand_introduced_placeholder(tmp
         ({"%X%": "x", "%Extra%": "extra"}, "extra_variables"),
         ({"%X%": ""}, "invalid_variable_value"),
         ({"%X%": 1}, "invalid_variable_value"),
+        ({"%X%": "has\x00nul"}, "invalid_variable_value"),
     ],
 )
 def test_missing_extra_and_invalid_bindings(tmp_path, complete, file_data, write_file, load_catalog, variables, status):
@@ -95,7 +96,7 @@ def test_qualification_is_trimmed_and_appended_with_exact_structure(tmp_path, co
     catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog)
     rendered = catalog.render("test[agnostic]", {}, qualification="  Restrict the scope.  ")
     assert rendered.qualification == "Restrict the scope."
-    assert rendered.prompt == "Perform the test action.\n\nBUT: Restrict the scope."
+    assert rendered.prompt == "Perform the test action. BUT: Restrict the scope."
 
 
 @pytest.mark.parametrize("qualification", ["BUT: Restrict the scope.", "  BUT:Restrict the scope.  "])
@@ -103,7 +104,41 @@ def test_qualification_but_prefix_is_silently_normalized(tmp_path, complete, fil
     catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog)
     rendered = catalog.render("test[agnostic]", {}, qualification=qualification)
     assert rendered.qualification == "Restrict the scope."
-    assert rendered.prompt == "Perform the test action.\n\nBUT: Restrict the scope."
+    assert rendered.prompt == "Perform the test action. BUT: Restrict the scope."
+
+
+@pytest.mark.parametrize(
+    ("prompt", "value", "expected"),
+    [
+        ("Line one.\nLine two.", None, "Line one.\nLine two.\nBUT: Restrict the scope."),
+        ("Line one.\nLine two. \n\t", None, "Line one.\nLine two.\nBUT: Restrict the scope."),
+        ("Use %X%.", "line one\nline two", "Use line one\nline two.\nBUT: Restrict the scope."),
+        ("Single line.  \t", None, "Single line. BUT: Restrict the scope."),
+    ],
+)
+def test_qualification_boundary_uses_final_main_prompt(tmp_path, complete, file_data, write_file, load_catalog, prompt, value, expected):
+    prompt_vars = {"%X%": "Value"} if value is not None else {}
+    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars=prompt_vars, prompt=prompt)
+    variables = {"%X%": value} if value is not None else {}
+    assert catalog.render("test[agnostic]", variables, qualification="Restrict the scope.").prompt == expected
+
+
+@pytest.mark.parametrize("qualification", [None, "Qualify the action."])
+def test_whitespace_only_final_main_prompt_is_rejected(tmp_path, complete, file_data, write_file, load_catalog, qualification):
+    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"%X%": "Value"}, prompt="%X%")
+    with pytest.raises(runtime.CatalogRequestError) as error:
+        catalog.render("test[agnostic]", {"%X%": " \t"}, qualification=qualification)
+    assert error.value.status == "empty_rendered_prompt"
+
+
+def test_whitespace_binding_is_valid_when_static_prompt_remains(tmp_path, complete, file_data, write_file, load_catalog):
+    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"%X%": "Value"}, prompt="Use %X% here.")
+    assert catalog.render("test[agnostic]", {"%X%": " \t"}).prompt == "Use  \t here."
+
+
+def test_no_edits_prefix_keeps_whitespace_substitution_nonempty(tmp_path, complete, file_data, write_file, load_catalog):
+    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"%X%": "Value"}, prompt="%X%", no_edits=True)
+    assert catalog.render("test[agnostic]", {"%X%": " \t"}).prompt == "No edits.  \t"
 
 
 @pytest.mark.parametrize("qualification", ["", "   ", "line one\nline two", "line\rbreak", "\x00control", "\x1fcontrol", "BUT:", "  BUT:  ", 1])
@@ -117,9 +152,9 @@ def test_invalid_qualification_structure_is_rejected(tmp_path, complete, file_da
 def test_qualification_placeholder_text_is_literal_and_notes_never_enter_prompt(tmp_path, complete, file_data, write_file, load_catalog):
     catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"%X%": "X"}, prompt="Use %X%.", notes="Follow-up %X%.")
     rendered = catalog.render("test[agnostic]", {"%X%": "value"}, qualification="Keep %X% literal.")
-    assert rendered.prompt == "Use value.\n\nBUT: Keep %X% literal."
+    assert rendered.prompt == "Use value. BUT: Keep %X% literal."
     assert "Follow-up" not in rendered.prompt
-    assert rendered.to_dict()["notes"] == "Follow-up %X%."
+    assert rendered.to_dict() == {"prompt": "Use value. BUT: Keep %X% literal."}
 
 
 def test_goal_mode_final_prompt_includes_every_rendering_transformation(tmp_path, complete, file_data, write_file, load_catalog):
@@ -141,8 +176,8 @@ def test_goal_mode_final_prompt_includes_every_rendering_transformation(tmp_path
         {"%Target%": "src/"},
         qualification="Only report confirmed findings.",
     )
-    assert inspection.to_dict()["goal_mode"] is True
-    assert rendered.prompt == "No edits. Inspect src/.\n\nBUT: Only report confirmed findings."
+    assert inspection.to_dict()["mode"] == "goal"
+    assert rendered.prompt == "No edits. Inspect src/. BUT: Only report confirmed findings."
     assert "Keep this separate." not in rendered.prompt
 
 

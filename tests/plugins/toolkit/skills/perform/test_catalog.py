@@ -100,8 +100,8 @@ def test_reserved_help_definition_and_ignore_do_not_affect_builtin(tmp_path, com
     catalog = load_catalog(source)
     help_summary = catalog.list_actions(name="help")
     assert len(help_summary) == 1
-    assert help_summary[0].built_in is True
     assert help_summary[0].gloss == runtime.HELP_GLOSS
+    assert help_summary[0].to_dict() == {"selector": "help[agnostic]", "gloss": runtime.HELP_GLOSS}
     assert sorted(diagnostic_codes(catalog)) == ["reserved_help_definition", "reserved_help_ignore", "reserved_help_ignore"]
 
 
@@ -118,6 +118,32 @@ def test_unknown_action_field_is_variant_local_and_unknown_root_is_file_fatal(tm
     by_code = {diagnostic.code: diagnostic for diagnostic in catalog.diagnostics}
     assert by_code["unknown_action_field"].fatality == "variant_fatal"
     assert by_code["unknown_root_field"].fatality == "file_fatal"
+
+
+def test_lone_surrogates_in_json_keys_remain_isolated_and_sortable(tmp_path, complete, file_data, write_file, load_catalog):
+    source = tmp_path / "source"
+    surrogate = chr(0xD800)
+    invalid_field = complete()
+    invalid_field[surrogate] = True
+    write_file(
+        source,
+        file_data(
+            actions={
+                "bad-field": {"agnostic": invalid_field},
+                "bad-language": {surrogate: complete()},
+                surrogate: {"agnostic": complete()},
+                "good": {"agnostic": complete()},
+            }
+        ),
+        "10-variants.json",
+    )
+    invalid_root = file_data(actions={"lost": {"agnostic": complete()}})
+    invalid_root[surrogate] = True
+    write_file(source, invalid_root, "20-root.json")
+    catalog = load_catalog(source)
+    assert selectors(catalog) == ["good[agnostic]", "help[agnostic]"]
+    assert set(diagnostic_codes(catalog)) == {"invalid_action_name", "invalid_language_name", "unknown_action_field", "unknown_root_field"}
+    assert any(surrogate in (diagnostic.json_path or "") for diagnostic in catalog.diagnostics)
 
 
 @pytest.mark.parametrize(
@@ -145,6 +171,17 @@ def test_each_action_field_rejects_wrong_type(tmp_path, complete, file_data, wri
     catalog = load_catalog(source)
     assert selectors(catalog, "test") == []
     assert expected_code in diagnostic_codes(catalog)
+
+
+@pytest.mark.parametrize("field", ["model", "reasoning_effort", "plan_reasoning_effort", "prefer_interactive", "custom_codex_args"])
+def test_future_standalone_launcher_fields_remain_required(tmp_path, complete, file_data, write_file, load_catalog, field):
+    source = tmp_path / field
+    action = complete()
+    del action[field]
+    write_file(source, file_data(actions={"test": {"agnostic": action}}))
+    catalog = load_catalog(source)
+    assert selectors(catalog, "test") == []
+    assert "incomplete_action" in diagnostic_codes(catalog)
 
 
 @pytest.mark.parametrize("model", ["default", "gpt-5", "gpt_5.1", "gpt:5+fast/max", "A0"])
@@ -325,4 +362,4 @@ def test_json_round_trip_preserves_prompt_content(tmp_path, complete, file_data,
     write_file(source, file_data(actions={"test": {"agnostic": complete(prompt=prompt)}}))
     catalog = load_catalog(source)
     assert catalog.inspect("test[agnostic]").action.fields["prompt"] == prompt
-    assert json.loads(json.dumps(catalog.inspect("test[agnostic]").to_dict()))["base_prompt"] == prompt
+    assert json.loads(json.dumps(catalog.inspect("test[agnostic]").to_dict()))["prompt"] == prompt

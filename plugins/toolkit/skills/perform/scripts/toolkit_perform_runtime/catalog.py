@@ -6,8 +6,9 @@ import re
 import unicodedata
 from pathlib import Path
 
+from . import diagnostics as diagnostics_module
 from . import rendering
-from .diagnostics import CatalogRequestError, Diagnostic, Provenance, json_pointer_component, sorted_unique_diagnostics
+from .diagnostics import CatalogRequestError, Diagnostic, json_pointer_component, sorted_unique_diagnostics
 from .discovery import discover_action_directories, explicit_discovery
 
 ACTION_NAME_REGEX = r"^[a-z0-9][a-z0-9._-]*$"
@@ -42,6 +43,7 @@ ACTION_FIELD_SET = frozenset(ACTION_FIELDS)
 ROOT_FIELDS = frozenset(("version", "ignore_actions", "actions"))
 HELP_SELECTOR = "help[agnostic]"
 HELP_GLOSS = "Explain Perform and its action-file format"
+HELP_MESSAGE = "Read references/action-files.md for the immutable built-in help action."
 RESERVED_CODEX_CONFIG_KEYS = frozenset(("model", "model_reasoning_effort", "plan_mode_reasoning_effort"))
 NO_EDITS_SENTENCE = "No edits."
 
@@ -77,7 +79,7 @@ def parse_selector(value):
         raise CatalogRequestError("invalid_selector", "The selector must be a string.")
     match = STRICT_SELECTOR_PATTERN.match(value)
     if match is None or match.end() != len(value):
-        raise CatalogRequestError("invalid_selector", "Expected a strict ACTION[LANGUAGE] selector using the documented ASCII grammar.", selector=value)
+        raise CatalogRequestError("invalid_selector", "Expected a strict ACTION[LANGUAGE] selector using the documented ASCII grammar.")
     return match.group(1), match.group(2), "{}[{}]".format(match.group(1), match.group(2))
 
 
@@ -156,86 +158,74 @@ def _has_manual_no_edits_prefix(prompt):
     return prompt.startswith(NO_EDITS_SENTENCE) and (len(prompt) == len(NO_EDITS_SENTENCE) or prompt[len(NO_EDITS_SENTENCE)].isspace())
 
 
+class _FieldOrigin:
+    """Internal source location for one applied action field or definition."""
+
+    __slots__ = ("filename", "filename_sort_key", "json_path", "source")
+
+    def __init__(self, source, filename, json_path):
+        """Store a coherent file and JSON location with precedence metadata."""
+        self.source = source
+        self.filename = filename
+        self.json_path = json_path
+        self.filename_sort_key = filename.encode("utf-8", errors="surrogateescape")
+
+    def rank(self):
+        """Return the deterministic application rank used for causal errors."""
+        return self.source.source_order, self.filename_sort_key
+
+
 class VariantPatch:
-    """Accumulated fields and per-field provenance for one selector identity."""
+    """Accumulated fields and latest definition origin for one selector."""
 
-    __slots__ = ("definition_path", "fields", "filename_sort_key", "provenance", "source_order")
+    __slots__ = ("definition_origin", "field_origins", "fields")
 
-    def __init__(self, fields=None, provenance=None, definition_path=None, source_order=-1, filename_sort_key=b""):
-        """Store accumulated overlay fields and their origins."""
+    def __init__(self, fields=None, field_origins=None, definition_origin=None):
+        """Store accumulated fields and the latest definition origin."""
         self.fields = copy.deepcopy(fields or {})
-        self.provenance = dict(provenance or {})
-        self.definition_path = definition_path
-        self.source_order = source_order
-        self.filename_sort_key = filename_sort_key
+        self.field_origins = dict(field_origins or {})
+        self.definition_origin = definition_origin
 
-    def overlay(self, fields, provenance, definition_path, source_order, filename_sort_key):
+    def overlay(self, fields, field_origins, definition_origin):
         """Replace supplied fields wholesale while retaining lower unspecified fields."""
         for field, value in fields.items():
             self.fields[field] = copy.deepcopy(value)
-            self.provenance[field] = provenance[field]
-        self.definition_path = definition_path
-        self.source_order = source_order
-        self.filename_sort_key = filename_sort_key
+            self.field_origins[field] = field_origins[field]
+        self.definition_origin = definition_origin
 
 
 class ActionSummary:
     """Selection metadata for one effective action variant."""
 
-    __slots__ = ("built_in", "gloss", "goal_mode", "language", "name", "notes_present", "plan_mode", "prompt_vars", "selector", "source")
+    __slots__ = ("gloss", "language", "name", "prompt_vars", "selector")
 
-    def __init__(self, name, language, gloss, prompt_vars, goal_mode, plan_mode, notes_present, source, built_in=False):
+    def __init__(self, name, language, gloss, prompt_vars):
         """Store the fields needed for deterministic narrowing and semantic selection."""
         self.name = name
         self.language = language
         self.selector = "{}[{}]".format(name, language)
         self.gloss = gloss
         self.prompt_vars = copy.deepcopy(prompt_vars)
-        self.goal_mode = goal_mode
-        self.plan_mode = plan_mode
-        self.notes_present = notes_present
-        self.source = source
-        self.built_in = built_in
 
     def to_dict(self):
-        """Return JSON-ready listing metadata."""
-        return {
-            "name": self.name,
-            "language": self.language,
-            "selector": self.selector,
-            "gloss": self.gloss,
-            "prompt_vars": copy.deepcopy(self.prompt_vars),
-            "goal_mode": self.goal_mode,
-            "plan_mode": self.plan_mode,
-            "notes_present": self.notes_present,
-            "source": self.source,
-            "built_in": self.built_in,
-        }
+        """Return only the metadata consumed during selection."""
+        result = {"selector": self.selector, "gloss": self.gloss}
+        if self.prompt_vars:
+            result["prompt_vars"] = copy.deepcopy(self.prompt_vars)
+        return result
 
 
 class EffectiveAction:
     """Fully materialized and validated action variant."""
 
-    __slots__ = ("fields", "language", "name", "provenance", "selector")
+    __slots__ = ("fields", "language", "name", "selector")
 
-    def __init__(self, name, language, fields, provenance):
+    def __init__(self, name, language, fields):
         """Store immutable-by-convention effective action data."""
         self.name = name
         self.language = language
         self.selector = "{}[{}]".format(name, language)
         self.fields = copy.deepcopy(fields)
-        self.provenance = dict(provenance)
-
-    def primary_source(self):
-        """Return the highest-precedence field origin for concise listings."""
-        if not self.provenance:
-            return None
-        provenance = max(self.provenance.values(), key=lambda item: (item.source_order, item.source_file.encode("utf-8"), item.json_path.encode("utf-8")))
-        return provenance.to_dict()
-
-    def provenance_dict(self):
-        """Return field-keyed JSON-ready provenance."""
-        return {field: self.provenance[field].to_dict() for field in sorted(self.provenance)}
 
     def summary(self):
         """Return selection metadata for this effective action."""
@@ -244,10 +234,6 @@ class EffectiveAction:
             language=self.language,
             gloss=self.fields["gloss"],
             prompt_vars=self.fields["prompt_vars"],
-            goal_mode=self.fields["goal_mode"],
-            plan_mode=self.fields["plan_mode"],
-            notes_present=bool(self.fields["notes"]),
-            source=self.primary_source(),
         )
 
 
@@ -262,26 +248,30 @@ class ActionInspection:
         self.base_prompt = base_prompt
 
     def to_dict(self):
-        """Return JSON-ready inspection details."""
+        """Return only the details consumed while preparing execution."""
         fields = self.action.fields
-        return {
-            "selector": self.action.selector,
-            "name": self.action.name,
-            "language": self.action.language,
-            "gloss": fields["gloss"],
-            "base_prompt": self.base_prompt,
-            "placeholders": sorted(fields["prompt_vars"], key=lambda value: value.encode("ascii")),
-            "prompt_vars": copy.deepcopy(fields["prompt_vars"]),
-            "goal_mode": fields["goal_mode"],
-            "plan_mode": fields["plan_mode"],
-            "model": fields["model"],
-            "reasoning_effort": fields["reasoning_effort"],
-            "plan_reasoning_effort": fields["plan_reasoning_effort"],
-            "prefer_interactive": fields["prefer_interactive"],
-            "custom_codex_args": copy.deepcopy(fields["custom_codex_args"]),
-            "notes": fields["notes"],
-            "provenance": self.action.provenance_dict(),
-        }
+        if fields["plan_mode"]:
+            mode = "plan"
+        elif fields["goal_mode"]:
+            mode = "goal"
+        else:
+            mode = "default"
+        result = {"prompt": self.base_prompt, "mode": mode}
+        if fields["prompt_vars"]:
+            result["prompt_vars"] = copy.deepcopy(fields["prompt_vars"])
+        if fields["notes"]:
+            result["notes"] = fields["notes"]
+        return result
+
+
+class BuiltInHelpResult:
+    """Normal inspection result for immutable built-in help."""
+
+    __slots__ = ()
+
+    def to_dict(self):
+        """Return the reference instruction consumed by Perform."""
+        return {"help": HELP_MESSAGE}
 
 
 class RenderedAction:
@@ -296,14 +286,8 @@ class RenderedAction:
         self.qualification = qualification
 
     def to_dict(self):
-        """Return JSON-ready render details without mixing notes into the prompt."""
-        return {
-            "selector": self.action.selector,
-            "prompt": self.prompt,
-            "qualification": self.qualification,
-            "notes": self.action.fields["notes"],
-            "provenance": self.action.provenance_dict(),
-        }
+        """Return the authoritative rendered prompt."""
+        return {"prompt": self.prompt}
 
 
 def _file_diagnostic(source, filename, code, message, severity="error", json_path=None, selector=None, fatality="file_fatal"):
@@ -321,17 +305,23 @@ def _file_diagnostic(source, filename, code, message, severity="error", json_pat
     )
 
 
-def _field_diagnostic(source, filename, action, language, field, code, message):
-    """Create one variant-local field diagnostic."""
-    action_component = json_pointer_component(action)
-    language_component = json_pointer_component(language)
-    path = "/actions/{}/{}".format(action_component, language_component)
-    if field is not None:
-        path += "/{}".format(json_pointer_component(field))
-    return _file_diagnostic(source, filename, code, message, json_path=path, selector="{}[{}]".format(action, language), fatality="variant_fatal")
+def _origin_for_fields(field_origins, definition_origin, implicated_fields):
+    """Choose the latest implicated origin, with later arguments breaking ties."""
+    selected = None
+    for field in implicated_fields:
+        origin = field_origins.get(field)
+        if origin is not None and (selected is None or origin.rank() >= selected.rank()):
+            selected = origin
+    return definition_origin if selected is None else selected
 
 
-def _validate_prompt_variables(prompt_vars, prompt, source, filename, action, language, diagnostics):
+def _origin_diagnostic(field_origins, definition_origin, implicated_fields, action, language, code, message):
+    """Create one variant-local diagnostic at a coherent causal location."""
+    origin = _origin_for_fields(field_origins, definition_origin, implicated_fields)
+    return _file_diagnostic(origin.source, origin.filename, code, message, json_path=origin.json_path, selector="{}[{}]".format(action, language), fatality="variant_fatal")
+
+
+def _validate_prompt_variables(prompt_vars, prompt, field_origins, definition_origin, action, language, diagnostics):
     """Validate declaration/use agreement in one materialized prompt."""
     declared = set(prompt_vars)
     used = set(PLACEHOLDER_PATTERN.findall(prompt))
@@ -339,85 +329,125 @@ def _validate_prompt_variables(prompt_vars, prompt, source, filename, action, la
     undeclared = sorted(used - declared, key=lambda value: value.encode("ascii"))
     for placeholder in missing_from_prompt:
         diagnostics.append(
-            _field_diagnostic(source, filename, action, language, "prompt_vars", "unused_prompt_variable", "Declared placeholder {} does not occur in the materialized prompt.".format(placeholder))
+            _origin_diagnostic(
+                field_origins,
+                definition_origin,
+                ("prompt", "prompt_vars"),
+                action,
+                language,
+                "unused_prompt_variable",
+                "Declared placeholder {} does not occur in the materialized prompt.".format(placeholder),
+            )
         )
     for placeholder in undeclared:
-        diagnostics.append(_field_diagnostic(source, filename, action, language, "prompt", "undeclared_prompt_variable", "Prompt placeholder {} is not declared in prompt_vars.".format(placeholder)))
+        diagnostics.append(
+            _origin_diagnostic(
+                field_origins, definition_origin, ("prompt_vars", "prompt"), action, language, "undeclared_prompt_variable", "Prompt placeholder {} is not declared in prompt_vars.".format(placeholder)
+            )
+        )
 
 
-def _validate_fields(fields, source, filename, action, language, complete):
+def _validate_fields(fields, field_origins, definition_origin, action, language, complete):
     """Validate supplied fields locally or a fully materialized action."""
     diagnostics = []
     selector = "{}[{}]".format(action, language)
-    unknown = sorted(set(fields) - ACTION_FIELD_SET, key=lambda value: str(value).encode("utf-8"))
-    diagnostics.extend(_field_diagnostic(source, filename, action, language, str(field), "unknown_action_field", "Unknown version 1 action field {!r}.".format(field)) for field in unknown)
+    unknown = sorted(set(fields) - ACTION_FIELD_SET, key=lambda value: diagnostics_module.unicode_sort_key(str(value)))
+    diagnostics.extend(
+        _origin_diagnostic(field_origins, definition_origin, (field,), action, language, "unknown_action_field", "Unknown version 1 action field {!r}.".format(field)) for field in unknown
+    )
     if unknown:
         return diagnostics
 
     if complete:
         missing = [field for field in ACTION_FIELDS if field not in fields]
         if missing:
-            diagnostics.append(_field_diagnostic(source, filename, action, language, None, "incomplete_action", "Materialized {} is missing required fields: {}.".format(selector, ", ".join(missing))))
+            diagnostics.append(
+                _origin_diagnostic(field_origins, definition_origin, (), action, language, "incomplete_action", "Materialized {} is missing required fields: {}.".format(selector, ", ".join(missing)))
+            )
             return diagnostics
 
     for field, value in fields.items():
         if field == "gloss":
             if not isinstance(value, str) or not value.strip() or _contains_display_control(value):
                 diagnostics.append(
-                    _field_diagnostic(source, filename, action, language, field, "invalid_gloss", "gloss must be a nonempty single-line string without Unicode control or separator characters.")
+                    _origin_diagnostic(
+                        field_origins, definition_origin, (field,), action, language, "invalid_gloss", "gloss must be a nonempty single-line string without Unicode control or separator characters."
+                    )
                 )
         elif field == "model":
             if not isinstance(value, str) or (value != "default" and not _full_match(MODEL_PATTERN, value)):
-                diagnostics.append(_field_diagnostic(source, filename, action, language, field, "invalid_model", "model must be exactly 'default' or match {} without trimming.".format(MODEL_REGEX)))
+                diagnostics.append(
+                    _origin_diagnostic(
+                        field_origins, definition_origin, (field,), action, language, "invalid_model", "model must be exactly 'default' or match {} without trimming.".format(MODEL_REGEX)
+                    )
+                )
         elif field in ("reasoning_effort", "plan_reasoning_effort"):
             if not isinstance(value, str) or not _full_match(EFFORT_PATTERN, value):
-                diagnostics.append(_field_diagnostic(source, filename, action, language, field, "invalid_effort", "{} must match {} without trimming.".format(field, EFFORT_REGEX)))
+                diagnostics.append(_origin_diagnostic(field_origins, definition_origin, (field,), action, language, "invalid_effort", "{} must match {} without trimming.".format(field, EFFORT_REGEX)))
         elif field in ("goal_mode", "plan_mode", "no_edits", "prefer_interactive"):
             if type(value) is not bool:
-                diagnostics.append(_field_diagnostic(source, filename, action, language, field, "invalid_boolean", "{} must be a JSON Boolean.".format(field)))
+                diagnostics.append(_origin_diagnostic(field_origins, definition_origin, (field,), action, language, "invalid_boolean", "{} must be a JSON Boolean.".format(field)))
         elif field == "prompt_vars":
             if not isinstance(value, dict):
-                diagnostics.append(_field_diagnostic(source, filename, action, language, field, "invalid_prompt_vars", "prompt_vars must be an object."))
+                diagnostics.append(_origin_diagnostic(field_origins, definition_origin, (field,), action, language, "invalid_prompt_vars", "prompt_vars must be an object."))
             else:
                 for placeholder, description in value.items():
                     if not isinstance(placeholder, str) or not _full_match(PLACEHOLDER_PATTERN, placeholder):
-                        diagnostics.append(_field_diagnostic(source, filename, action, language, field, "invalid_placeholder", "Prompt variable keys must match {}.".format(PLACEHOLDER_REGEX)))
+                        diagnostics.append(
+                            _origin_diagnostic(field_origins, definition_origin, (field,), action, language, "invalid_placeholder", "Prompt variable keys must match {}.".format(PLACEHOLDER_REGEX))
+                        )
                     if not isinstance(description, str) or not description.strip() or _contains_display_control(description):
                         diagnostics.append(
-                            _field_diagnostic(
-                                source,
-                                filename,
+                            _origin_diagnostic(
+                                field_origins,
+                                definition_origin,
+                                (field,),
                                 action,
                                 language,
-                                field,
                                 "invalid_placeholder_description",
                                 "Every prompt variable description must be a nonempty single-line string without Unicode control or separator characters.",
                             )
                         )
         elif field == "prompt":
             if not isinstance(value, str) or not value.strip():
-                diagnostics.append(_field_diagnostic(source, filename, action, language, field, "invalid_prompt", "prompt must be a nonempty string after trimming."))
+                diagnostics.append(_origin_diagnostic(field_origins, definition_origin, (field,), action, language, "invalid_prompt", "prompt must be a nonempty string after trimming."))
         elif field == "custom_codex_args":
             code, message = _validate_custom_codex_args(value)
             if code is not None:
-                diagnostics.append(_field_diagnostic(source, filename, action, language, field, code, message))
+                diagnostics.append(_origin_diagnostic(field_origins, definition_origin, (field,), action, language, code, message))
         elif field == "notes" and not isinstance(value, str):
-            diagnostics.append(_field_diagnostic(source, filename, action, language, field, "invalid_notes", "notes must be a string."))
+            diagnostics.append(_origin_diagnostic(field_origins, definition_origin, (field,), action, language, "invalid_notes", "notes must be a string."))
 
     goal_mode = fields.get("goal_mode")
     plan_mode = fields.get("plan_mode")
     if goal_mode is True and plan_mode is True:
-        diagnostics.append(_field_diagnostic(source, filename, action, language, None, "conflicting_modes", "goal_mode and plan_mode cannot both be true."))
+        diagnostics.append(_origin_diagnostic(field_origins, definition_origin, ("goal_mode", "plan_mode"), action, language, "conflicting_modes", "goal_mode and plan_mode cannot both be true."))
     if plan_mode is False and "reasoning_effort" in fields and "plan_reasoning_effort" in fields and fields["reasoning_effort"] != fields["plan_reasoning_effort"]:
         diagnostics.append(
-            _field_diagnostic(source, filename, action, language, None, "unequal_efforts_without_plan", "reasoning_effort and plan_reasoning_effort must be equal when plan_mode is false.")
+            _origin_diagnostic(
+                field_origins,
+                definition_origin,
+                ("plan_mode", "reasoning_effort", "plan_reasoning_effort"),
+                action,
+                language,
+                "unequal_efforts_without_plan",
+                "reasoning_effort and plan_reasoning_effort must be equal when plan_mode is false.",
+            )
         )
     if fields.get("no_edits") is True and isinstance(fields.get("prompt"), str) and _has_manual_no_edits_prefix(fields["prompt"]):
         diagnostics.append(
-            _field_diagnostic(source, filename, action, language, "prompt", "manual_no_edits_prefix", "Remove the manual 'No edits.' prefix; rendering adds it automatically when no_edits is true.")
+            _origin_diagnostic(
+                field_origins,
+                definition_origin,
+                ("no_edits", "prompt"),
+                action,
+                language,
+                "manual_no_edits_prefix",
+                "Remove the manual 'No edits.' prefix; rendering adds it automatically when no_edits is true.",
+            )
         )
     if complete and isinstance(fields.get("prompt_vars"), dict) and isinstance(fields.get("prompt"), str):
-        _validate_prompt_variables(fields["prompt_vars"], fields["prompt"], source, filename, action, language, diagnostics)
+        _validate_prompt_variables(fields["prompt_vars"], fields["prompt"], field_origins, definition_origin, action, language, diagnostics)
     return diagnostics
 
 
@@ -441,7 +471,7 @@ def _load_json_file(source, filename):
         return None, [_file_diagnostic(source, filename, "invalid_json", "Action file is not valid JSON: {}".format(exc))]
     if not isinstance(data, dict):
         return None, [_file_diagnostic(source, filename, "invalid_root", "The version 1 root must be a JSON object.", json_path="")]
-    unknown_root = sorted(set(data) - ROOT_FIELDS, key=lambda value: str(value).encode("utf-8"))
+    unknown_root = sorted(set(data) - ROOT_FIELDS, key=lambda value: diagnostics_module.unicode_sort_key(str(value)))
     if unknown_root:
         return None, [
             _file_diagnostic(source, filename, "unknown_root_field", "Unknown version 1 root fields make the file unusable: {}.".format(", ".join(repr(field) for field in unknown_root)), json_path="")
@@ -538,44 +568,23 @@ def _apply_file(data, source, filename, patches, diagnostics):
                     )
                 )
                 continue
+            definition_origin = _FieldOrigin(source, filename, language_path)
+            field_origins = {field: _FieldOrigin(source, filename, "{}/{}".format(language_path, json_pointer_component(str(field)))) for field in fields}
             complete = language == "agnostic"
-            field_diagnostics = _validate_fields(fields, source, filename, action, language, complete=complete)
+            field_diagnostics = _validate_fields(fields, field_origins, definition_origin, action, language, complete=complete)
             diagnostics.extend(field_diagnostics)
             if field_diagnostics:
                 continue
-            normalized_file = str(Path(source.normalized_path) / filename)
-            provenance = {
-                field: Provenance(
-                    source_kind=source.kind,
-                    source_path=source.normalized_path,
-                    source_file=normalized_file,
-                    json_path="{}/{}".format(language_path, json_pointer_component(field)),
-                    source_order=source.source_order,
-                )
-                for field in fields
-            }
             identity = (action, language)
             if language == "agnostic" or identity not in patches:
-                patches[identity] = VariantPatch(
-                    fields=fields,
-                    provenance=provenance,
-                    definition_path=language_path,
-                    source_order=source.source_order,
-                    filename_sort_key=filename.encode("utf-8"),
-                )
+                patches[identity] = VariantPatch(fields=fields, field_origins=field_origins, definition_origin=definition_origin)
             else:
-                patches[identity].overlay(fields, provenance, language_path, source.source_order, filename.encode("utf-8"))
+                patches[identity].overlay(fields, field_origins, definition_origin)
 
 
-def _source_for_patch(source_by_order, patch):
-    """Recover source metadata for materialized diagnostics."""
-    return source_by_order[patch.source_order]
-
-
-def _materialize(patches, sources, diagnostics):
+def _materialize(patches, diagnostics):
     """Apply agnostic inheritance and final validation to accumulated patches."""
     actions = {}
-    source_by_order = {source.source_order: source for source in sources}
     action_names = sorted({identity[0] for identity in patches}, key=lambda value: value.encode("ascii"))
     for action in action_names:
         languages = sorted((identity[1] for identity in patches if identity[0] == action), key=lambda value: value.encode("ascii"))
@@ -584,20 +593,18 @@ def _materialize(patches, sources, diagnostics):
             patch = patches[(action, language)]
             if language == "agnostic":
                 fields = copy.deepcopy(patch.fields)
-                provenance = dict(patch.provenance)
+                field_origins = dict(patch.field_origins)
             else:
                 fields = copy.deepcopy(base.fields) if base is not None else {}
-                provenance = dict(base.provenance) if base is not None else {}
+                field_origins = dict(base.field_origins) if base is not None else {}
                 for field, value in patch.fields.items():
                     fields[field] = copy.deepcopy(value)
-                    provenance[field] = patch.provenance[field]
-            source = _source_for_patch(source_by_order, patch)
-            filename = Path(next(iter(patch.provenance.values())).source_file).name
-            final_diagnostics = _validate_fields(fields, source, filename, action, language, complete=True)
+                    field_origins[field] = patch.field_origins[field]
+            final_diagnostics = _validate_fields(fields, field_origins, patch.definition_origin, action, language, complete=True)
             diagnostics.extend(final_diagnostics)
             if final_diagnostics:
                 continue
-            actions[(action, language)] = EffectiveAction(action, language, fields, provenance)
+            actions[(action, language)] = EffectiveAction(action, language, fields)
     return actions
 
 
@@ -616,10 +623,10 @@ class ActionCatalog:
     def list_actions(self, name=None):
         """Return all summaries or variants of one exact bare action name."""
         if name is not None and not is_action_name(name):
-            raise CatalogRequestError("invalid_name", "Action-name filters must match {}.".format(ACTION_NAME_REGEX), selector=name)
+            raise CatalogRequestError("invalid_name", "Action-name filters must match {}.".format(ACTION_NAME_REGEX))
         summaries = [action.summary() for action in self._actions.values() if name is None or action.name == name]
         if name is None or name == "help":
-            summaries.append(ActionSummary("help", "agnostic", HELP_GLOSS, {}, False, False, False, {"source_kind": "built_in"}, built_in=True))
+            summaries.append(ActionSummary("help", "agnostic", HELP_GLOSS, {}))
         return sorted(summaries, key=lambda summary: (summary.name.encode("ascii"), summary.language.encode("ascii")))
 
     def _require_complete_precedence(self):
@@ -631,17 +638,19 @@ class ActionCatalog:
         """Return the exact effective base prompt for one strict selector."""
         name, language, canonical = parse_selector(selector)
         if canonical == HELP_SELECTOR:
-            raise CatalogRequestError("built_in_help", "Read references/action-files.md for the immutable built-in help action.", selector=canonical)
+            return BuiltInHelpResult()
         self._require_complete_precedence()
         action = self._actions.get((name, language))
         if action is None:
             alternatives = [summary.selector for summary in self.list_actions(name=name)]
-            raise CatalogRequestError("not_found", "No effective action matches strict selector {}.".format(canonical), selector=canonical, alternatives=alternatives)
+            raise CatalogRequestError("not_found", "No effective action matches strict selector {}.".format(canonical), alternatives=alternatives)
         return ActionInspection(action, rendering.build_base_prompt(action.fields["prompt"], action.fields["no_edits"]))
 
     def render(self, selector, variables, qualification=None):
         """Render one exact action after binding and qualification validation."""
         inspection = self.inspect(selector)
+        if isinstance(inspection, BuiltInHelpResult):
+            raise CatalogRequestError("not_executable", "The immutable built-in help action cannot be rendered; inspect it instead.")
         prompt, normalized_qualification = rendering.render_prompt(inspection.action.fields, variables, PLACEHOLDER_PATTERN, qualification)
         return RenderedAction(inspection.action, prompt, normalized_qualification)
 
@@ -707,5 +716,5 @@ def load_action_catalog(bundled_dir=None, cwd=None, env=None, action_directories
             diagnostics.extend(file_diagnostics)
             if data is not None:
                 _apply_file(data, source, filename, patches, diagnostics)
-    actions = _materialize(patches, discovery.sources, diagnostics)
+    actions = _materialize(patches, diagnostics)
     return ActionCatalog(actions, diagnostics, discovery)

@@ -1,4 +1,4 @@
-"""Language inheritance, overrides, ignores, provenance, and precedence tests."""
+"""Language inheritance, overrides, ignores, and precedence tests."""
 
 from conftest import runtime
 
@@ -156,7 +156,7 @@ def test_filenames_sort_by_exact_utf8_bytes_and_later_file_wins(tmp_path, comple
     assert catalog.inspect("test[agnostic]").action.fields["gloss"] == "Lowercase"
 
 
-def test_bundled_system_user_repository_precedence_and_provenance(tmp_path, complete, file_data, write_file):
+def test_bundled_system_user_repository_precedence(tmp_path, complete, file_data, write_file):
     sources = []
     for kind in ("bundled", "system", "user", "repository"):
         directory = tmp_path / kind
@@ -165,20 +165,54 @@ def test_bundled_system_user_repository_precedence_and_provenance(tmp_path, comp
     catalog = runtime.load_action_catalog(action_directories=sources)
     action = catalog.inspect("test[agnostic]").action
     assert action.fields["gloss"] == "repository"
-    assert action.provenance["gloss"].source_kind == "repository"
-    assert action.primary_source()["source_kind"] == "repository"
+    assert not hasattr(action, "provenance")
 
 
-def test_effective_variant_has_per_field_provenance_from_base_and_overlay(tmp_path, complete, file_data, write_file):
+def test_effective_variant_inherits_base_and_overlays_higher_precedence_fields(tmp_path, complete, file_data, write_file):
     bundled = tmp_path / "bundled"
     user = tmp_path / "user"
-    write_file(bundled, file_data(actions={"test": {"agnostic": complete(gloss="Base"), "python": {"gloss": "Python"}}}))
+    write_file(bundled, file_data(actions={"test": {"agnostic": complete(gloss="Base", model="bundled-model"), "python": {"gloss": "Python"}}}))
     write_file(user, file_data(actions={"test": {"python": {"prompt": "User Python."}}}))
     catalog = runtime.load_action_catalog(action_directories=[("bundled", str(bundled)), ("user", str(user))])
     action = catalog.inspect("test[python]").action
-    assert action.provenance["model"].source_kind == "bundled"
-    assert action.provenance["gloss"].source_kind == "bundled"
-    assert action.provenance["prompt"].source_kind == "user"
+    assert action.fields["model"] == "bundled-model"
+    assert action.fields["gloss"] == "Python"
+    assert action.fields["prompt"] == "User Python."
+
+
+def test_materialized_diagnostic_ignores_later_unrelated_override_origin(tmp_path, complete, file_data, write_file, load_catalog):
+    source = tmp_path / "source"
+    write_file(
+        source,
+        file_data(actions={"test": {"agnostic": complete(prompt_vars={"%X%": "X"}, prompt="Use %X%."), "python": {"prompt_vars": {}}}}),
+        "10-fields.json",
+    )
+    write_file(source, file_data(actions={"test": {"python": {"gloss": "Later gloss"}}}), "20-gloss.json")
+    catalog = load_catalog(source)
+    diagnostic = next(diagnostic for diagnostic in catalog.diagnostics if diagnostic.code == "undeclared_prompt_variable")
+    assert diagnostic.source_file.endswith("10-fields.json")
+    assert diagnostic.json_path == "/actions/test/agnostic/prompt"
+    assert diagnostic.selector == "test[python]"
+
+
+def test_cross_field_diagnostic_uses_latest_implicated_field_origin(tmp_path, complete, file_data, write_file, load_catalog):
+    low = tmp_path / "low"
+    high = tmp_path / "high"
+    write_file(low, file_data(actions={"test": {"agnostic": complete(no_edits=False, prompt="No edits. Check Python."), "python": {"gloss": "Python"}}}))
+    write_file(high, file_data(actions={"test": {"python": {"no_edits": True}}}))
+    catalog = load_catalog(low, high)
+    diagnostic = next(diagnostic for diagnostic in catalog.diagnostics if diagnostic.code == "manual_no_edits_prefix")
+    assert diagnostic.source_file == str(high / "actions.json")
+    assert diagnostic.json_path == "/actions/test/python/no_edits"
+    assert diagnostic.selector == "test[python]"
+
+
+def test_cross_field_same_origin_tie_uses_correction_target_path(tmp_path, complete, file_data, write_file, load_catalog):
+    source = tmp_path / "source"
+    write_file(source, file_data(actions={"test": {"agnostic": complete(), "python": {"goal_mode": True, "plan_mode": True}}}))
+    catalog = load_catalog(source)
+    diagnostic = next(diagnostic for diagnostic in catalog.diagnostics if diagnostic.code == "conflicting_modes")
+    assert diagnostic.json_path == "/actions/test/python/plan_mode"
 
 
 def test_ignore_agnostic_leaves_only_independently_complete_specific_variant(tmp_path, complete, file_data, write_file, load_catalog):

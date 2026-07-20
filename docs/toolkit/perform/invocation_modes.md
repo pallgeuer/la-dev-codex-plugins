@@ -1,195 +1,190 @@
 # Perform invocation behavior
 
-This document is the maintainer-facing behavioral map for `$toolkit:perform`. It explains how an invocation is routed, selected, prepared, and executed by the current skill. User-facing action creation and customization belong in the skill's [action-file guide](../../../plugins/toolkit/skills/perform/references/action-files.md).
+This document is the maintainer-facing behavioral map for `$toolkit:perform`. User-facing action configuration belongs in the skill's [action-file guide](../../../plugins/toolkit/skills/perform/references/action-files.md).
 
-Perform does not launch another Codex process or invoke another skill as its dispatch mechanism. Codex selects and prepares an action in the current chat, while the bundled scripts provide deterministic discovery, validation, inspection, and prompt rendering.
+Perform executes configured prompts in the current chat. Codex performs semantic selection and small qualification decisions; the bundled Python scripts provide deterministic discovery, validation, inheritance, substitution, and prompt assembly. They use only direct command arguments and compact JSON stdout.
 
 ## Invocation forms
 
-| Form             | Example                                       | Behavior                                                                                 |
-|------------------|-----------------------------------------------|------------------------------------------------------------------------------------------|
-| No arguments     | `$toolkit:perform`                            | List all effective variants and stop.                                                    |
-| Strict selector  | `$toolkit:perform find-todos[agnostic] [...]` | Select exactly that action and language.                                                 |
-| Bare action name | `$toolkit:perform find-todos [...]`           | Consider only variants of that known action.                                             |
-| Natural language | `$toolkit:perform list the todos in tools/`   | Select semantically across the effective catalog.                                        |
-| Help             | `$toolkit:perform help [...]`                 | Read the user-facing action-file guide and answer without executing a configured prompt. |
+| Form             | Example                                       | Behavior                                                        |
+|------------------|-----------------------------------------------|-----------------------------------------------------------------|
+| No arguments     | `$toolkit:perform`                            | List all effective variants and stop.                           |
+| Strict selector  | `$toolkit:perform find-todos[agnostic] [...]` | Select exactly that action and language.                        |
+| Bare action name | `$toolkit:perform find-todos [...]`           | Consider only variants of that known action.                    |
+| Natural language | `$toolkit:perform list the todos in tools/`   | Select semantically across the effective catalog.               |
+| Help             | `$toolkit:perform help [...]`                 | Read the bundled action-file guide without loading the catalog. |
 
-The full text after `$toolkit:perform` is preserved. `[...]` represents optional text, usable to qualify or narrow the invocation. The first token controls routing, while the full text remains available for semantic selection, prompt-variable binding, and one optional compatible qualification.
+Preserve the full text after `$toolkit:perform`. The first token controls routing; the complete text remains available for selection, variable binding, and at most one qualification.
 
-## Routing algorithm
-
-Routing uses the first token exactly as written.
+## Routing and selection
 
 ### No arguments
 
-List the complete effective catalog, including immutable `help[agnostic]`, and display every variant as `ACTION[LANGUAGE]: GLOSS`. Explain strict selectors, bare names, and natural-language selection briefly. Surface diagnostics and stop without inspecting or executing an action.
+Run the unfiltered listing script, display every effective variant, explain strict selectors, bare names, and natural-language selection briefly, surface diagnostics, and stop.
+
+### Help first
+
+When the first token is exactly `help` or `help[agnostic]`, including when a question follows it, bypass mutable catalog discovery and answer from `references/action-files.md`. A natural-language configuration question can still select `help[agnostic]` from a normal full listing.
 
 ### Strict selector first
 
-A first token matching `ACTION[LANGUAGE]` is strict even when more text follows. Resolve only that exact selector. A missing selector produces an error and same-name alternatives when available; it never falls back to another language or action.
-
-Examples:
-
-```text
-$toolkit:perform find-todos[agnostic]
-$toolkit:perform find-todos[agnostic] only scan tools/
-```
-
-In the second form, the remainder may qualify the exact selected action but cannot alter the selector.
+A first token matching `ACTION[LANGUAGE]` is strict even when text follows. Inspect only that selector. A missing selector reports same-name alternatives when available and never falls back.
 
 ### Bare action-name first
 
-A lowercase first token matching the bare action-name grammar is initially looked up as an exact action name.
+Run one combined exact-name/fallback query:
 
-- If the name exists, selection is restricted to its variants. The remainder supplies language evidence, variable values, or a possible qualification.
-- If the name does not exist, the failed name probe is not terminal. List the full catalog and use the complete original invocation for general semantic selection.
+```text
+list_perform_actions.py --name='ACTION' --fallback
+```
 
-For example, `audit compliance with AGENTS.md` first probes an action named `audit`; if that name is absent, it can still soft-select `agents-md[agnostic]` from the full request.
+If exact-name variants exist, the response contains only them and selection remains permanently narrowed. If none exists, the same catalog load returns the full catalog for general semantic selection. This replaces the former failed-name call followed by a second unfiltered call.
 
 ### Any other first token
 
-If the first token contains uppercase letters, punctuation, whitespace-invalid syntax, or anything else outside the bare-name and strict-selector grammars, list the full catalog directly and use the complete invocation for general semantic selection.
+Run the unfiltered listing once and select semantically from all returned variants.
 
-For example:
+For a known bare action, select its sole variant automatically. With multiple variants, use positive language evidence from the invocation and relevant file/repository context; otherwise prefer `agnostic` when available or ask for the language. General soft selection compares selectors, glosses, prompt-variable descriptions, and explicit scope, and declines weak matches. Wording consumed only to select an action does not itself create a qualification.
 
-```text
-$toolkit:perform Please audit compliance with AGENTS.md
+## Compact script protocol
+
+Once started, both entry scripts emit exactly one compact JSON value followed by one LF for every supported success and failure path. They write explicitly encoded UTF-8 bytes, independent of the ambient stdout codec: ordinary Unicode remains literal UTF-8, while lone surrogates are represented as JSON `\uXXXX` escapes. There is no `--json` switch, human result mode, stdin request, response envelope, success status, or schema version. The operating system can reject an invocation before process startup when platform-specific per-argument or aggregate argument-and-environment limits are exceeded; that external launch failure cannot emit JSON.
+
+Both scripts accept `-h` and `--help`. An exact help flag anywhere in the argument vector, including alongside other arguments, returns exit code 0 and short-circuits to a compact JSON object containing argparse-formatted help:
+
+```json
+{"help":"usage: list_perform_actions.py ...\n"}
 ```
 
-### Help
+The `help` string is intended for display; its exact whitespace is not a stable machine schema. Long-option abbreviations are disabled. Repeating a singleton option is an `invalid_arguments` error; only `--var` is repeatable, and each placeholder may still be bound only once.
 
-Exact `help` and `help[agnostic]` bypass mutable catalog resolution. Strict help with a remainder also stays on the immutable help path:
+### List actions
 
 ```text
-$toolkit:perform help[agnostic] explain repository overrides
+list_perform_actions.py [--name ACTION] [--fallback] [--cwd DIRECTORY]
 ```
 
-`help` followed by a question uses the normal bare-name listing first, selects the sole built-in help variant, and then answers from the action-file guide. A natural-language configuration question may also soft-select help.
+`--fallback` requires `--name`. A success response contains only `variants` and optional `diagnostics`. Each variant contains `selector`, `gloss`, and nonempty `prompt_vars` when applicable. The complete response is one compact physical line:
 
-Help never enters the executable-action pipeline and cannot be replaced or disabled by action files.
+```json
+{"variants":[{"selector":"find-todos[agnostic]","gloss":"Enumerate all kinds of discernible TODOs in a repo"},{"selector":"md-goal[agnostic]","gloss":"Execute a markdown implementation plan in goal mode","prompt_vars":{"%MarkdownPlanFile%":"Markdown file containing details of the plan to implement."}}]}
+```
 
-## Selection behavior
+### Inspect or render an action
 
-The scripts narrow exact names and return deterministic action metadata; Codex performs semantic selection.
+```text
+get_perform_action.py --inspect='ACTION[LANGUAGE]' [--cwd DIRECTORY]
+get_perform_action.py --render='ACTION[LANGUAGE]' [--var='%Name%=VALUE' ...] [--qualification='TEXT'] [--cwd DIRECTORY]
+```
 
-For a known bare action:
+An inspection response contains the exact automatically prefixed prompt and one mode enum. Empty optional keys are omitted:
 
-- Select its only variant automatically.
-- With several variants, use positive evidence from the invocation and relevant repository or file context.
-- Prefer `agnostic` when no language is positively identified and that variant exists.
-- Ask for the missing language when several language-specific variants remain plausible and no `agnostic` variant exists.
-- Never consider unrelated actions after a known name has narrowed the catalog.
+```json
+{"prompt":"No edits. Inspect this repository.","mode":"default"}
+```
 
-For general soft selection, compare the complete request with action names, languages, glosses, prompt-variable descriptions, and explicit scope. Select only when the semantic fit is sufficient. Otherwise decline and explain why; mention a nearest action only when it is genuinely close.
+Parameterized actions add `prompt_vars`; actions with notes add `notes`:
 
-Notes do not participate in selection beyond the listing metadata indicating that a note exists. Their contents are not action instructions.
+```json
+{"prompt":"Implement %PlanFile%.","mode":"goal","prompt_vars":{"%PlanFile%":"Markdown implementation plan."},"notes":"Follow the goal-resume procedure."}
+```
 
-Once a variant is selected, every later operation uses only its canonical selector.
+Inspecting immutable built-in help is also a normal successful result, available even when catalog precedence is incomplete:
+
+```json
+{"help":"Read references/action-files.md for the immutable built-in help action."}
+```
+
+A successful render response contains only the authoritative prompt, plus diagnostics when present:
+
+```json
+{"prompt":"Implement docs/plan.md. BUT: Limit changes to tools/."}
+```
+
+Repeat `--var` for every binding. Split each binding at its first `=`, so subsequent equals signs remain in the value. Reject malformed or duplicate arguments, missing or extra variables, empty values, and NUL. Values otherwise remain literal, including spaces, leading dashes, quotes, Unicode, newlines, dollar signs, backticks, percent signs, and placeholder-looking text. After substitution and the automatic no-edits prefix, reject a rendered main prompt that contains only whitespace; individual whitespace-only values remain valid when other prompt text remains.
+
+When composing a shell command, pass every dynamic option value in `--option='value'` form as one POSIX single-quoted argument and replace an embedded `'` with `'"'"'`. Never interpolate an unquoted value, use `eval`, evaluate it as shell syntax, or send JSON through stdin. Prefer a direct argument-vector API when one is available. Using the `--option=value` form ensures option-looking values remain data.
+
+Argument values are observable through process inspection and may be captured by command launchers, audit systems, or process monitors. They are not a secret transport: callers must pass nonsecret references such as environment-variable names, credential-store identifiers, or protected file paths rather than credentials or tokens themselves. The runtime does not attempt unreliable secret-pattern detection.
+
+### Errors and diagnostics
+
+Failures add a compact structured error:
+
+```json
+{"error":{"code":"not_found","message":"No effective action matches strict selector example[rust]."},"available_variants":["example[python]"]}
+```
+
+Rendering `help[agnostic]` fails with `not_executable`. A render whose complete main prompt becomes whitespace fails with `empty_rendered_prompt`; neither failure appends or executes a qualification.
+
+Warnings and errors from discovery/catalog validation are flattened into deduplicated human-ready strings containing severity, message, file, and JSON location:
+
+```json
+{"diagnostics":["error: Unknown version 1 action field 'promt'. (/path/actions.json/actions/check/agnostic/promt)"]}
+```
+
+Discovery structures, source metadata, reserved standalone-launcher settings, redundant names/languages, and empty optionals never cross the current compact CLI boundary. Materialization retains only effective field values, not per-field provenance. Model, effort, interactivity, and custom Codex argument fields remain required and validated for a future standalone CLI that runs actions outside a Codex chat.
+
+Exit codes retain their behavioral classes:
+
+- `0`: successful result, direct script help, or immutable built-in help result.
+- `2`: invalid request, missing selector/action, or render validation failure.
+- `3`: fatal catalog precedence state; never execute a configured action.
+- `4`: unexpected runtime failure.
 
 ## Executable-action pipeline
 
-Every configured action follows the same lifecycle.
+1. Select one canonical selector using the routing rules above.
+2. Inspect it with one direct `--inspect` call.
+3. Check the required chat mode and ensure no unfinished goal is active.
+4. Bind every declared prompt variable and decide whether one compatible qualification is needed.
+5. When there are no variables and no qualification, treat the inspected prompt as final and skip rendering.
+6. Otherwise render once with direct `--var` and optional `--qualification` arguments.
+7. Show nonempty notes, then the exact final prompt as an unlabeled Markdown blockquote.
+8. Create an exact Goal objective when required, then execute the prompt immediately and completely.
 
-1. **Inspect the exact variant.** Ask the bundled runtime for its materialized base prompt, prompt-variable descriptions, mode fields, notes, provenance, and diagnostics. The base prompt already contains the automatic `No edits. ` prefix when configured.
-2. **Check execution prerequisites.** Confirm that the current chat is in the required Default or Plan mode and that no unfinished goal is active. Stop before binding or rendering if either condition fails.
-3. **Bind all prompt variables.** Determine each value from explicit user text and the inspected variable description. Ask for any value that cannot be determined reliably.
-4. **Prepare at most one qualification.** Use none when the base prompt already covers the request. Otherwise allow only one small compatible scope or detail adjustment.
-5. **Render deterministically.** Submit the canonical selector, the exact variable map, and either the one qualification or no qualification. The runtime performs literal one-pass substitution and final prompt assembly.
-6. **Show notes.** Display nonempty notes verbatim before execution and repeat any still-relevant part in a final or blocked response. Keep them outside the prompt and do not treat them as Codex instructions.
-7. **Enter Goal mode if required.** Create a goal only after the final prompt is known, using that prompt alone as the objective.
-8. **Execute exactly.** Follow the returned prompt without rewriting it, adding wrappers, or weakening its constraints.
+The prompt returned by inspection is already final for an unparameterized, unqualified action because the only remaining render transformations would be no-ops. Parameterized or qualified actions retain deterministic rendering.
 
-Inspection must succeed before Codex prepares variable bindings or a qualification. Rendering is authoritative: the returned final prompt, rather than the inspected base prompt or the original invocation, is what Codex executes.
+## Modes and goals
 
-The current skill must not change or comment on `model`, `reasoning_effort`, `plan_reasoning_effort`, `prefer_interactive`, or `custom_codex_args`. Those action fields do not create an informational mismatch branch in the current in-chat workflow.
+Inspection maps action flags to one `mode` value:
 
-## Execution modes
+| `plan_mode` | `goal_mode` | Inspection mode | Required behavior                                                  |
+|-------------|-------------|-----------------|--------------------------------------------------------------------|
+| false       | false       | `default`       | Default mode must already be active; execute directly.             |
+| true        | false       | `plan`          | Plan mode must already be active; execute directly in Plan mode.   |
+| false       | true        | `goal`          | Default mode must be active; create an exact goal after rendering. |
+| true        | true        | Invalid         | Exclude the action variant during catalog validation.              |
 
-The two action flags select one valid execution path:
+Perform never changes between Default and Plan mode. Any unfinished goal blocks every executable action. It does not compare, reuse, complete, replace, or repurpose that goal.
 
-| `plan_mode` | `goal_mode` | Required state and behavior |
-| --- | --- | --- |
-| false | false | Default mode must already be active; execute the rendered prompt directly. |
-| true | false | Plan mode must already be active; execute the rendered prompt directly in Plan mode. |
-| false | true | Default mode must be active; render first, then initialize Goal mode with the exact final prompt. |
-| true | true | Invalid action configuration. |
-
-Perform never changes between Default and Plan mode itself. On a mismatch, ask the user to switch modes and invoke the action again, then stop.
-
-An unfinished goal blocks **every** executable action, regardless of its requested mode and regardless of whether a Goal-mode action might render to the same objective. Perform does not compare objectives, reuse an active goal, complete it, replace it, or repurpose it. Ask the user to finish or clear the goal and invoke the action again. A completed goal does not block execution.
-
-For `goal_mode: true`, the exact rendered prompt is the sole goal objective. It already includes the automatic no-edits prefix, all variable substitutions, and any appended qualification. Do not add the selector, notes, diagnostics, a token budget, or explanatory text.
-
-If goal creation is unavailable, do not execute the action outside Goal mode. Show any still-relevant notes, explain the limitation, and provide `/goal ` followed by the exact rendered prompt for manual submission.
+For `goal`, the exact final prompt is the sole objective. It includes substitutions, the optional automatic `No edits. ` prefix, and any `BUT:` clause, but excludes the selector, notes, diagnostics, and quote markers. If goal creation is unavailable, stop and provide `/goal ` followed by the exact prompt rather than running outside Goal mode.
 
 ## Variables and qualifications
 
-Bind every declared prompt variable and no others. Values come from explicit invocation text interpreted using the inspected placeholder description. Missing information causes a user question and stops the current attempt before rendering.
+Bind all declared variables and no others. Substitution is literal and one-pass. Prompt-variable-looking text introduced by a value is not expanded recursively. Variables affect only the configured prompt, never notes or qualification text. Rendering stops with `empty_rendered_prompt` if substitution leaves the complete main prompt blank after trimming.
 
-Variable values are literal data. They may contain shell-like text, quotes, Unicode, newlines, percent signs, or placeholder-shaped text without execution or recursive expansion.
+A qualification is one short, standalone imperative for a compatible scope/detail adjustment. Supply it without `BUT:`. After substitution and the automatic no-edits prefix, trim trailing whitespace only at the qualification boundary. Append exactly:
 
-A qualification is appropriate only for one small change that remains within the selected action's intent. It should be a short, standalone imperative rooted in the inspected base prompt.
+- ` BUT: QUALIFICATION` when the resulting main prompt contains no newline.
+- `\nBUT: QUALIFICATION` when the resulting main prompt contains a newline, including one introduced by a variable.
 
-Example:
+Never use a qualification to add a second task, change the action's purpose, weaken constraints, restate the full prompt, or hide a missing variable.
 
-```text
-$toolkit:perform find-todos[agnostic] only scan tools/
-```
+## Prompt display and execution
 
-The repository-wide TODO audit may be qualified with:
+Show notes verbatim first. Then show the exact final prompt with no label or selection narration. Prefix each nonempty line with `> ` and each blank line with `>` so the whole prompt is one Markdown blockquote. These prefixes are display-only.
 
-```text
-Restrict the scan to tools/ rather than the entire repository.
-```
-
-The renderer appends the qualification as a `BUT:` clause. Codex supplies only the sentence, without the prefix.
-
-Do not use a qualification to:
-
-- Add a second task.
-- Change the action's core purpose.
-- Weaken `No edits.`, safety requirements, acceptance criteria, or other constraints.
-- Restate or rewrite the entire prompt.
-- Smuggle missing prompt-variable values into an unrelated instruction.
-
-If the request cannot be expressed as one compatible small qualification, reject the selected action for that request rather than rendering a changed action.
-
-## Help, failures, and diagnostics
-
-Surface every unique warning or error returned by the scripts, including its file and JSON location when available. Keep diagnostics separate from prompts and notes.
-
-A fatal catalog state means action precedence cannot be known safely, commonly because an explicitly configured root is missing or an applicable source is invalid or unreadable. Listing may still show partial results, but no configured action may be inspected, rendered, or executed. Immutable help remains available.
-
-Nonfatal problems are isolated where possible. A malformed file can be ignored while valid sibling files remain usable; an invalid variant can be excluded while independent variants continue to work. Diagnostics unrelated to the selected action are still surfaced but never enter its prompt.
-
-Strict-selector failure, ambiguous language selection, missing variables, mode mismatch, an active unfinished goal, an incompatible qualification, and unavailable goal creation all stop execution cleanly. None authorizes fallback to a different action or silent relaxation of the request.
-
-## Behavioral examples
-
-| Invocation or state | Result |
-| --- | --- |
-| `$toolkit:perform` | List variants and stop. |
-| `$toolkit:perform find-todos[python]` when only `agnostic` exists | Report the strict miss and available same-name variants; do not fall back. |
-| `$toolkit:perform check-config inspect JSON files` with `agnostic`, `json`, and `yaml` variants | Restrict to `check-config` and select `json` from positive language evidence. |
-| `$toolkit:perform check-config` with the same variants | Select `agnostic` because no language is identified. |
-| `$toolkit:perform format-source` with only `python` and `rust` variants | Ask for the language and wait. |
-| `$toolkit:perform deploy production` with no adequate action | Decline without inspecting or executing an action. |
-| `$toolkit:perform md-goal plans/implementation.md` in Default mode with no active goal | Bind the filename, render, show notes, create the exact goal, and execute. |
-| `$toolkit:perform md-goal` | Inspect, discover the required filename is missing, and ask for it before rendering. |
-| Any executable invocation while an unfinished goal is active | Ask the user to finish or clear the goal; do not render or execute. |
-| A Plan-mode action invoked in Default mode | Ask the user to enter Plan mode and invoke it again. |
-| A Default- or Goal-mode action invoked in Plan mode | Ask the user to return to Default mode and invoke it again. |
-| `$toolkit:perform find-todos[agnostic] fix every TODO` | Reject the incompatible editing request because it changes the no-edits audit into another task. |
+Begin the action immediately after the quote. A complex action may start with a detailed task list. Collect nonfatal diagnostics across calls, deduplicate them, and report them as a compact side note in the final or blocked response; surface fatal diagnostics immediately.
 
 ## Invariants
 
-- Explicit invocation is required; Perform does not trigger configured actions on its own.
-- Strict selectors never fall back.
-- A known bare name narrows selection permanently for that invocation.
-- Mutable action prompts are always inspected before binding and rendered before execution.
-- User-derived bindings and qualifications are passed as data, never interpolated into shell commands.
-- The final rendered prompt is authoritative and is executed in the current chat.
-- `No edits.`, prompt-variable substitution, qualification assembly, inheritance, and validation are deterministic runtime behavior.
+- Explicit `$toolkit:perform` invocation is required.
+- Strict selectors never fall back, and a known bare name narrows permanently.
+- Explicit help avoids mutable catalog work.
+- Unknown bare-name probing and full fallback use one catalog load.
+- Unparameterized, unqualified actions do not perform a redundant render call.
+- All user-derived render data travels in directly quoted nonsecret command arguments, never stdin JSON.
+- The final prompt is authoritative, visible as a blockquote, and executed in the current chat.
 - Notes, diagnostics, selectors, and setting metadata never enter the action prompt or Goal objective.
-- No unfinished goal may coexist with execution of any Perform action.
-- The current skill does not launch a child Codex session, enforce launcher settings, or report setting mismatches.
+- Action-file version 1 and all configured fields remain unchanged.

@@ -60,6 +60,8 @@ Selection follows these rules:
 - An unknown name or a natural-language request is matched against action names, languages, glosses, variable descriptions, and the requested scope. Perform declines instead of running a weak match.
 - Extra wording may supply prompt variables or make one small compatible qualification, such as limiting a repository-wide audit to `tools/`. It cannot turn the action into a different task or weaken its constraints.
 
+Words used only to select an action are not automatically repeated as a qualification. Once selection and prerequisites succeed, Perform shows the exact final prompt as an unlabeled Markdown blockquote and immediately starts its work.
+
 ## Create your first action
 
 Create a direct `*.json` file in your user action directory:
@@ -108,7 +110,7 @@ Then invoke it with the variable value in the request:
 $toolkit:perform review-tests src/auth/
 ```
 
-Perform inspects the selected action before binding `%Area%`. If the request does not provide a value that can be determined reliably, Codex asks for it instead of inventing one.
+Perform inspects the selected action before binding `%Area%`. If the request does not provide a value that can be determined reliably, Codex asks for it instead of inventing one. An action without prompt variables or a qualification can execute its inspected prompt directly; actions needing either transformation use one deterministic render pass.
 
 ## Choose where actions live
 
@@ -191,7 +193,7 @@ A complete variant contains every field below. An `agnostic` variant must always
 
 When `no_edits` is true, do not start `prompt` with `No edits.`; Perform adds that sentence exactly once.
 
-The current in-chat perform skill does not change or comment on `model`, `reasoning_effort`, `plan_reasoning_effort`, `prefer_interactive`, or `custom_codex_args`. These fields remain required action metadata. `custom_codex_args` cannot override `model`, `model_reasoning_effort`, `plan_mode_reasoning_effort`, or any descendant of those configuration keys; use the structured fields instead. It also cannot contain empty strings, NUL characters, malformed `-c`/`--config` assignments, or `-m`/`--model` overrides.
+The current in-chat perform skill does not change or comment on `model`, `reasoning_effort`, `plan_reasoning_effort`, `prefer_interactive`, or `custom_codex_args`. These fields remain required, validated launcher metadata for a future standalone CLI that runs actions outside a Codex chat. `custom_codex_args` cannot override `model`, `model_reasoning_effort`, `plan_mode_reasoning_effort`, or any descendant of those configuration keys; use the structured fields instead. It also cannot contain empty strings, NUL characters, malformed `-c`/`--config` assignments, or `-m`/`--model` overrides.
 
 Invalid fields usually remove only the affected variant, allowing independent valid variants and files to remain usable. Root-level file errors make the whole file unusable.
 
@@ -257,9 +259,13 @@ Repeated variables and multiple variables are supported:
 "prompt": "Read %InputFile%, summarize it for %Audience%, and cite %InputFile%."
 ```
 
-Bindings must provide every declared variable as a nonempty string and cannot introduce undeclared variables. Substitution is literal and happens once. Quotes, backticks, dollar signs, percent signs, Unicode, newlines, and placeholder-looking text inside a supplied value are not evaluated or expanded again.
+Bindings must provide every declared variable as a nonempty string without NUL characters and cannot introduce undeclared variables. Substitution is literal and happens once. Quotes, backticks, dollar signs, percent signs, Unicode, newlines, additional equals signs, option-looking text, and placeholder-looking text inside a supplied value are not evaluated or expanded again. A whitespace-only binding is allowed when other prompt text remains, but rendering fails if the complete substituted main prompt is blank after trimming.
+
+Perform passes bindings and qualifications as direct process arguments. These values can be visible to process inspection and launch or audit tooling, so they must not contain credentials, tokens, or other secrets. Pass a nonsecret reference to an environment variable, credential-store entry, or protected file instead. Operating systems also impose platform-specific per-argument and aggregate argument-and-environment limits; an oversized invocation can fail before Perform starts and therefore produce no JSON response.
 
 Variables are substituted only in `prompt`, not in `notes` or in an invocation qualification.
+
+A qualification is at most one short compatible scope or detail adjustment. It is assembled after variable substitution and the automatic `No edits. ` prefix. After trimming trailing whitespace at the join boundary, Perform appends ` BUT: QUALIFICATION` when the main prompt is single-line, or `\nBUT: QUALIFICATION` when the final main prompt contains a newline. The qualification cannot add a second task, change the action's purpose, or weaken constraints.
 
 ## Execution modes and notes
 
@@ -277,7 +283,9 @@ Any unfinished goal blocks every executable Perform action, including Default-mo
 
 For a Goal-mode action, the exact goal objective includes variable substitutions, the automatic `No edits. ` prefix when configured, and any compatible qualification. It never includes the selector, notes, diagnostics, or explanatory text. If the current surface cannot create a goal, Perform stops and provides the exact `/goal` prompt for manual submission instead of running the action outside Goal mode.
 
-Nonempty `notes` are displayed verbatim before execution and may be repeated when still relevant in a final or blocked response. Notes are operational guidance for the user, not instructions for Codex: they do not affect selection, are not obeyed as part of the action, and never enter the rendered prompt. Keep actual action requirements in `prompt`.
+Nonempty `notes` are displayed verbatim before execution and may be repeated when still relevant in a final or blocked response. Perform then displays the exact final prompt as an unlabeled Markdown blockquote immediately before starting the action. The quote markers are presentation only and never enter the prompt or Goal objective.
+
+Notes are operational guidance for the user, not instructions for Codex: they do not affect selection, are not obeyed as part of the action, and never enter the rendered prompt. Keep actual action requirements in `prompt`.
 
 ## Override or remove actions
 

@@ -162,7 +162,7 @@ $toolkit:perform help
 $toolkit:perform help How can I define custom repo-specific actions?
 ```
 
-Perform loads direct `*.json` files from these `toolkit_perform_actions` directories, in increasing precedence:
+Perform discovers direct `*.json` files from these `toolkit_perform_actions` directories, in increasing precedence:
 
 - The action directory bundled with the installed skill
 - On Unix, `/etc/codex/toolkit_perform_actions/`, when `/etc/codex/config.toml` is a regular file
