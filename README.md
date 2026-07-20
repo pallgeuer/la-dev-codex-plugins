@@ -1,6 +1,6 @@
 # Language-Agnostic Development Codex Plugins
 
-This repository is a Codex plugin marketplace.
+This repository is a Codex plugin marketplace, version 0.1.5.
 
 It currently exposes the following plugins:
 
@@ -25,7 +25,7 @@ codex plugin marketplace add pallgeuer/la-dev-codex-plugins --ref main    # <-- 
 codex plugin marketplace add pallgeuer/la-dev-codex-plugins --ref vX.Y.Z  # <-- Stable fixed release tag
 ```
 
-Marketplace refs are Git refs. Use `main` to follow the latest repository state, or use a release tag such as `vX.Y.Z` to pin to a stable fixed release. Available release tags are listed on the [GitHub tags page](https://github.com/pallgeuer/la-dev-codex-plugins/tags). By convention, plugin versions in manifests are kept in sync with release tag versions, without the leading `v`.
+Marketplace refs are Git refs. Use `main` to follow the latest repository state, or use a release tag such as `vX.Y.Z` to pin to a stable fixed release. A `vX.Y.Z` tag identifies version `X.Y.Z` of the repository and therefore one fixed marketplace snapshot. Each plugin has an independent version in its manifest, so plugins in the same repository release may have different versions from each other and from the repository. Available repository release tags are listed on the [GitHub tags page](https://github.com/pallgeuer/la-dev-codex-plugins/tags).
 
 ### Install a plugin
 
@@ -58,7 +58,7 @@ To check which skills are available, type `$` and inspect the autocompletion sug
 
 The Loupe skill calls a bundled Python script in order to run the external review commands. This script unavoidably requires escalated sandbox permissions because it triggers `codex` and/or `claude` subprocesses, which both need write access to their respective user-level directories (e.g. `~/.codex/`) in order to function.
 
-To avoid explicitly accepting the escalated sandbox permissions every time for that particular script, add the following line to `~/.codex/rules/default.rules`, replacing `YOUR_USER` and `X.Y.Z` as appropriate:
+To avoid explicitly accepting the escalated sandbox permissions every time for that particular script, add the following line to `~/.codex/rules/default.rules`, replacing `YOUR_USER` with your user name and `X.Y.Z` with the installed `la-review` plugin version:
 
 ```text
 prefix_rule(pattern=["/home/YOUR_USER/.codex/plugins/cache/la-dev-codex-plugins/la-review/X.Y.Z/skills/loupe/scripts/run_reviewers.py"], decision="allow")
