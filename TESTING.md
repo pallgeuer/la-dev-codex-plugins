@@ -69,6 +69,18 @@ Run only Loupe tests:
 uvx --python 3.8 --from pytest==8.3.5 pytest tests/plugins/la-review/skills/loupe
 ```
 
+Run only Perform tests:
+
+```bash
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/plugins/toolkit/skills/perform
+```
+
+Validate the bundled Perform catalog after editing it:
+
+```bash
+python3 -m json.tool plugins/toolkit/skills/perform/assets/toolkit_perform_actions/generic_actions.json > /dev/null
+```
+
 ## Check Python 3.6+ compatibility
 
 Run Vermin against the shipped plugin and package code:

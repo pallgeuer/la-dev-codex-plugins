@@ -6,4 +6,5 @@
 __pycache__/
 *.py[cod]
 /.codex-*
+/docs/plans/
 /TODO.txt

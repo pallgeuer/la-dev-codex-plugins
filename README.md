@@ -6,12 +6,13 @@ It currently exposes the following plugins:
 
 - **Language-Agnostic Review** (`la-review`)
   - Includes the **Loupe** skill (`loupe`)
-  - Invoke with `$la-review:loupe`
-  - Default review scope: Current uncommitted changes
+    - Invoke with `$la-review:loupe`
+    - Default review scope is current uncommitted changes, unless otherwise specified
 - **Action Toolkit** (`toolkit`)
   - Includes the **Perform** skill (`perform`)
-  - Stores and retrieves configurable canned Codex actions from JSON file(s)
-  - Can be used with the optional `codex-perform` Python launcher
+    - Runs reusable, configurable Codex actions from layered JSON action files
+    - Invoke with `$toolkit:perform`
+    - Select an exact `ACTION[LANGUAGE]` variant, use a bare action name, or describe a task that clearly matches an available action
 
 ## Install
 
@@ -28,13 +29,14 @@ Marketplace refs are Git refs. Use `main` to follow the latest repository state,
 
 ### Install a plugin
 
-Install whichever plugins you want from the marketplace. For example, to install `la-review`:
+Install whichever plugins you want from the marketplace. For example:
 
 ```bash
 codex plugin add la-review@la-dev-codex-plugins
+codex plugin add toolkit@la-dev-codex-plugins
 ```
 
-This installs the plugin into the user-level Codex space (i.e. `~/.codex/plugins/cache/`, along with a record in `~/.codex/config.toml`), not into any one project in particular.
+Each command installs that plugin into the user-level Codex space (i.e. `~/.codex/plugins/cache/`, along with a record in `~/.codex/config.toml`), not into any one project in particular.
 
 ### Start Codex and verify the installation
 
@@ -125,6 +127,49 @@ Review a pull request:
 ```text
 $la-review:loupe PR #123
 ```
+
+### Perform skill
+
+List the configured actions without executing one:
+
+```text
+$toolkit:perform
+```
+
+Run a known action by its bare name:
+
+```text
+$toolkit:perform find-todos
+$toolkit:perform find-todos in tools/
+```
+
+Select an exact language variant (`agnostic` means language-independent; another action might provide variants such as `python`):
+
+```text
+$toolkit:perform find-todos[agnostic]
+```
+
+Select an action with a clear natural-language request:
+
+```text
+$toolkit:perform list the todos in tools/
+```
+
+Read or query the built-in action-file help with:
+
+```text
+$toolkit:perform help
+$toolkit:perform help How can I define custom repo-specific actions?
+```
+
+Perform loads direct `*.json` files from these `toolkit_perform_actions` directories, in increasing precedence:
+
+- The action directory bundled with the installed skill
+- On Unix, `/etc/codex/toolkit_perform_actions/`, when `/etc/codex/config.toml` is a regular file
+- `$CODEX_HOME/toolkit_perform_actions/`, defaulting to `~/.codex/toolkit_perform_actions/` when `CODEX_HOME` is unset or empty
+- `<repository-root>/.codex/toolkit_perform_actions/`, when `<repository-root>/.codex/config.toml` is a regular file
+
+See the [complete Perform user guide](plugins/toolkit/skills/perform/references/action-files.md) for action creation, fields, precedence, variants, inheritance, variables, execution modes, overrides, ignores, and troubleshooting. The installed skill exposes the same guide interactively through `$toolkit:perform help`.
 
 ## Development
 
