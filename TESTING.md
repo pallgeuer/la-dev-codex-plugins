@@ -97,7 +97,7 @@ uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins/la-rev
 
 Use `-t=3.6-` rather than trying to run the test suite under Python 3.6. The purpose here is to analyze the plugin scripts for minimum Python-version requirements; uv itself does not need to provide a Python 3.6 interpreter.
 
-## Pre-commit
+## Recommended pre-commit check
 
 Run all local auto-fixing hooks:
 
