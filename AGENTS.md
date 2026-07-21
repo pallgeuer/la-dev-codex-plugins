@@ -45,7 +45,7 @@ Refer to `TESTING.md` for more details on linting, formatting, type checking, un
 
 - NEVER manually wrap code/comments/docstrings during code writing and edits; allow the formatters to later enforce line length.
 - Use ASCII-only project source; represent required non-ASCII values with escapes. Markdown files may use literal non-ASCII when required.
-- Avoid unqualified function imports like `from X.Y import func`; use `import X.Y` or `import X.Y as Y` and call via the module. Classes, exceptions, types, and constants may be imported directly.
+- Avoid unqualified function imports like `from X.Y import func`; use `import X.Y` or `import X.Y as Y` and call via the module. Classes, exceptions, types, and constants may be imported directly. Unqualified imports may be acceptable in `__init__.py` files if they are used to define a clean public API interface.
 - Write concise, meaningful docstrings. Module docstrings should identify what the file/package is, not say that it "provides support" or "implements" something. Attribute documentation must explain the role, semantics, units, source, or downstream use of the attribute; never restate the identifier with filler like "The foo value" or "The FOO enum member."
 
 ## Workflows

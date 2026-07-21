@@ -6,7 +6,8 @@ import sys
 from pathlib import Path
 
 from . import api
-from .catalog import CatalogRequestError, load_action_catalog
+from . import catalog as catalog_module
+from .catalog import CatalogRequestError
 
 _SEEN_ARGUMENTS_ATTRIBUTE = "_json_argument_parser_seen"
 
@@ -89,7 +90,7 @@ class CliContext:
 
     def load_catalog(self, cwd):
         """Load and retain the conventional Perform catalog."""
-        self.catalog = load_action_catalog(bundled_dir=bundled_actions_dir(), cwd=cwd)
+        self.catalog = catalog_module.load_action_catalog(bundled_dir=bundled_actions_dir(), cwd=cwd)
         return self.catalog
 
 

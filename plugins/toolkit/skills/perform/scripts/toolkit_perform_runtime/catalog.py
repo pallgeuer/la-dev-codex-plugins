@@ -7,9 +7,9 @@ import unicodedata
 from pathlib import Path
 
 from . import diagnostics as diagnostics_module
+from . import discovery as discovery_module
 from . import rendering
-from .diagnostics import CatalogRequestError, Diagnostic, json_pointer_component, sorted_unique_diagnostics
-from .discovery import discover_action_directories, explicit_discovery
+from .diagnostics import CatalogRequestError, Diagnostic
 
 ACTION_NAME_REGEX = r"^[a-z0-9][a-z0-9._-]*$"
 LANGUAGE_NAME_REGEX = r"^[a-z0-9][a-z0-9.+_-]*$"
@@ -517,7 +517,7 @@ def _apply_file(data, source, filename, patches, diagnostics):
             patches.pop((action, language), None)
 
     for action, languages in data["actions"].items():
-        action_path = "/actions/{}".format(json_pointer_component(str(action)))
+        action_path = "/actions/{}".format(diagnostics_module.json_pointer_component(str(action)))
         if not is_action_name(action):
             diagnostics.append(
                 _file_diagnostic(
@@ -546,7 +546,7 @@ def _apply_file(data, source, filename, patches, diagnostics):
             )
             continue
         for language, fields in languages.items():
-            language_path = "{}/{}".format(action_path, json_pointer_component(str(language)))
+            language_path = "{}/{}".format(action_path, diagnostics_module.json_pointer_component(str(language)))
             selector = "{}[{}]".format(action, language)
             if not is_language_name(language):
                 diagnostics.append(
@@ -569,7 +569,7 @@ def _apply_file(data, source, filename, patches, diagnostics):
                 )
                 continue
             definition_origin = _FieldOrigin(source, filename, language_path)
-            field_origins = {field: _FieldOrigin(source, filename, "{}/{}".format(language_path, json_pointer_component(str(field)))) for field in fields}
+            field_origins = {field: _FieldOrigin(source, filename, "{}/{}".format(language_path, diagnostics_module.json_pointer_component(str(field)))) for field in fields}
             complete = language == "agnostic"
             field_diagnostics = _validate_fields(fields, field_origins, definition_origin, action, language, complete=complete)
             diagnostics.extend(field_diagnostics)
@@ -616,7 +616,7 @@ class ActionCatalog:
     def __init__(self, actions, diagnostics, discovery, precedence_incomplete=False):
         """Store fully materialized variants and deterministic diagnostics."""
         self._actions = dict(actions)
-        self.diagnostics = sorted_unique_diagnostics(list(discovery.diagnostics) + list(diagnostics))
+        self.diagnostics = diagnostics_module.sorted_unique_diagnostics(list(discovery.diagnostics) + list(diagnostics))
         self.discovery = discovery
         self.precedence_incomplete = precedence_incomplete or discovery.precedence_incomplete or any(diagnostic.fatal for diagnostic in self.diagnostics)
 
@@ -696,11 +696,11 @@ def _list_source_files(source, diagnostics):
 def load_action_catalog(bundled_dir=None, cwd=None, env=None, action_directories=None, filesystem=None, git_runner=None, system_config_path="/etc/codex/config.toml"):
     """Discover or explicitly load action directories into one effective catalog."""
     if action_directories is not None:
-        discovery = explicit_discovery(action_directories)
+        discovery = discovery_module.explicit_discovery(action_directories)
     else:
         if bundled_dir is None:
             raise ValueError("bundled_dir is required when action_directories is not supplied")
-        discovery = discover_action_directories(
+        discovery = discovery_module.discover_action_directories(
             bundled_dir=bundled_dir,
             cwd=cwd,
             env=env,

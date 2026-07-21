@@ -40,11 +40,6 @@ def run_git(args: Sequence[str], *, cwd: Optional[str] = None, allowed_returncod
     return completed.stdout
 
 
-def get_git_root() -> str:
-    """Return the current Git repository root."""
-    return run_git(["rev-parse", "--show-toplevel"]).decode("utf-8", errors="replace").strip()
-
-
 def untracked_paths(git_root: str) -> List[str]:
     """Return untracked, non-ignored paths relative to the Git root."""
     output = run_git(["ls-files", "--others", "--exclude-standard", "-z"], cwd=git_root)
@@ -83,7 +78,7 @@ def write_diff_artifact(chunks: Sequence[bytes], output_path: str) -> int:
 
 def collect_default_diff(output_path: str) -> Dict[str, Any]:
     """Collect the default review diff and return artifact metadata."""
-    git_root = get_git_root()
+    git_root = run_git(["rev-parse", "--show-toplevel"]).decode("utf-8", errors="replace").strip()
     byte_count = write_diff_artifact(diff_chunks(git_root), output_path)
     return {
         "review_scope": DEFAULT_REVIEW_SCOPE,

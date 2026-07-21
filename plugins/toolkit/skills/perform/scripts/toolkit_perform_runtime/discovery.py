@@ -5,7 +5,8 @@ import subprocess
 import threading
 from pathlib import Path
 
-from .diagnostics import Diagnostic, sorted_unique_diagnostics
+from . import diagnostics as diagnostics_module
+from .diagnostics import Diagnostic
 
 GIT_TIMEOUT_SECONDS = 5
 GIT_OUTPUT_LIMIT = 64 * 1024
@@ -92,7 +93,7 @@ class DiscoveryResult:
         self.sources = list(sources)
         self.repository_resolution = repository_resolution
         self.repository_root = repository_root
-        self.diagnostics = sorted_unique_diagnostics(diagnostics or [])
+        self.diagnostics = diagnostics_module.sorted_unique_diagnostics(diagnostics or [])
         self.precedence_incomplete = precedence_incomplete
 
 
@@ -248,11 +249,6 @@ def _resolve_repository(filesystem, cwd, git_runner):
     return None, "none", diagnostics
 
 
-def _normalize_source(filesystem, kind, path):
-    """Create one source using resolved identity and the conventional display path."""
-    return SourceDirectory(kind=kind, normalized_path=filesystem.realpath(path), display_path=filesystem.abspath(path))
-
-
 def discover_action_directories(
     bundled_dir,
     cwd=None,
@@ -293,7 +289,7 @@ def discover_action_directories(
             )
             precedence_incomplete = True
             return
-        source = _normalize_source(filesystem, kind, action_dir)
+        source = SourceDirectory(kind=kind, normalized_path=filesystem.realpath(action_dir), display_path=filesystem.abspath(action_dir))
         duplicate_index = None
         for index, existing in enumerate(sources):
             if existing.normalized_path == source.normalized_path:
