@@ -68,12 +68,14 @@ prefix_rule(pattern=["/home/YOUR_USER/.codex/plugins/cache/la-dev-codex-plugins/
 
 The update procedure depends on the marketplace ref you chose.
 
-If you used `--ref main`, update an installed plugin with (example for just `la-review`):
+If you used `--ref main`, then Codex will auto-update and reinstall the latest versions of the plugins on startup, so simply restarting `codex` will often suffice. If not, you can manually update your installed plugins from this marketplace with for example:
 
 ```bash
 codex plugin remove la-review@la-dev-codex-plugins
+codex plugin remove toolkit@la-dev-codex-plugins
 codex plugin marketplace upgrade la-dev-codex-plugins
 codex plugin add la-review@la-dev-codex-plugins
+codex plugin add toolkit@la-dev-codex-plugins
 ```
 
 If you used `--ref vX.Y.Z`, `marketplace upgrade` keeps the marketplace frozen at exactly that ref instead of upgrading it. To move to a newer release, replace the whole marketplace ref:
