@@ -93,6 +93,8 @@ If you no longer know which ref you used, inspect the marketplace installation m
 cat ~/.codex/.tmp/marketplaces/la-dev-codex-plugins/.codex-marketplace-install.json
 ```
 
+Remember to check after an update whether you need to update `~/.codex/rules/default.rules` with the latest `la-review` semantic version!
+
 ## Using plugins
 
 ### Loupe skill
