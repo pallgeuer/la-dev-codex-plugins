@@ -95,6 +95,16 @@ cat ~/.codex/.tmp/marketplaces/la-dev-codex-plugins/.codex-marketplace-install.j
 
 Remember to check after an update whether you need to update `~/.codex/rules/default.rules` with the latest `la-review` semantic version!
 
+## Recommended further setup
+
+This repository includes a recommended [user-level AGENTS.md file](AGENTS_user.md) with global Codex instructions that complement the plugins. Review and adapt it as desired, or directly copy it into your Codex home directory:
+
+```bash
+cp AGENTS_user.md ~/.codex/AGENTS.md
+```
+
+Codex applies `~/.codex/AGENTS.md` as user-level guidance across all your projects. If that file already exists, merge the recommendations into it instead of overwriting your existing instructions.
+
 ## Using plugins
 
 ### Loupe skill
