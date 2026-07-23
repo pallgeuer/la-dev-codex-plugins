@@ -55,10 +55,10 @@ Do not modify repository files, stage changes, commit, install dependencies, or 
    - The script has a shebang that ensures it is automatically run with whichever `python3` has highest priority in the current environment's `PATH`.
    - Request `sandbox_permissions: "require_escalated"` for this command, using the justification that the launched child `codex` and `claude` processes need to read and write their normal state to their respective home directory locations (`~/.codex` and `~/.claude`).
    - Run the command and all polling reads with `max_output_tokens` set to `30000`.
-   - After `exec_command` returns a session ID for the still-running script, poll it using empty `write_stdin` calls. For each poll, set `yield_time_ms` to `300000`. Continue polling until the process exits.
+   - After `exec_command` returns a `session_id` for the still-running script, poll it using empty `write_stdin` calls. For each poll, set `yield_time_ms` to the longest interval supported by the active `write_stdin` tool and permitted by higher-priority instructions (currently `300000`). Do not voluntarily shorten this interval just to provide more frequent progress updates. Continue polling until the process exits. Use this direct `exec_command`/`write_stdin` flow rather than wrapping it in `exec`.
    - The script may take a very long time to return (default timeout is 20 minutes). Never kill the script yourself; allow its own timeout to trigger if it takes too long.
    - The script emits JSON that includes both general and reviewer-specific information, including in particular each reviewer name (`reviewer_name`) and full response (`stdout`).
-   - Do not do anything other than keep the session alive until the script returns. Just say `Continuing to wait for the external reviews...` whenever needed to keep the session alive.
+   - Do not do anything else while waiting for the script to return. Polling waits for process output or completion. When a polling call returns while the script is still running, just say `Continuing to wait for the external reviews...`.
    - If the script exits nonzero, continue with any reviewer output it produced. A timeout or failure of one reviewer must not block you from using the analysis of the remaining reviewers.
    - Never automatically rerun this reviewers script. If the tool output is truncated, malformed, or otherwise unusable, read `$LOUPE_ARTIFACT_DIR/reviewers.json` instead. If that artifact is missing or unreadable, stop and report the artifact directory path to the user.
 
