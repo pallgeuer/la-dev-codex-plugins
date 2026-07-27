@@ -147,6 +147,38 @@ def test_reserved_help_definition_and_ignore_do_not_affect_builtin(tmp_path, com
     assert sorted(diagnostic_codes(catalog)) == ["reserved_help_definition", "reserved_help_ignore", "reserved_help_ignore"]
 
 
+@pytest.mark.parametrize("install_name", ["install-\u00e4", "%Env%", "install with spaces"])
+def test_builtin_help_paths_are_literal_unicode_json_strings(monkeypatch, tmp_path, load_catalog, install_name):
+    module_path = tmp_path / install_name / "skills" / "perform" / "scripts" / "toolkit_perform_runtime" / "catalog.py"
+    monkeypatch.setattr(catalog_module, "__file__", str(module_path))
+    catalog = load_catalog(tmp_path)
+    configured_prompt = catalog.launch_config("help[agnostic]").prompt
+    guide_paths = [json.loads(line[2:]) for line in configured_prompt.splitlines() if line.startswith("- ")]
+    references = module_path.resolve().parents[2] / "references"
+    assert guide_paths == [str(references / filename) for filename in ("action_files.md", "codex_skill.md", "standalone_cli.md")]
+    assert install_name in configured_prompt
+    if install_name == "install-\u00e4":
+        assert "\\u00e4" not in configured_prompt
+
+    rendered = catalog.render("help[agnostic]", {}, qualification="Where are the guides?")
+    assert install_name in rendered.prompt
+    assert rendered.prompt.endswith("\n\nUser question: Where are the guides?")
+
+
+def test_invalid_builtin_action_fields_fail_fast(complete):
+    invalid_fields = complete(model="not a model")
+    spec = catalog_module._BuiltInActionSpec(
+        "broken",
+        "agnostic",
+        lambda: invalid_fields,
+        catalog_module.rendering.render_prompt,
+        "reserved_broken_ignore",
+        "reserved_broken_definition",
+    )
+    with pytest.raises(RuntimeError, match=r"Invalid built-in action broken\[agnostic\]: invalid_model:"):
+        spec.build_entry()
+
+
 def test_unknown_action_field_is_variant_local_and_unknown_root_is_file_fatal(tmp_path, complete, file_data, write_file, load_catalog):
     source = tmp_path / "source"
     invalid_variant = complete()

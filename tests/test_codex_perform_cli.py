@@ -41,7 +41,10 @@ def local_arguments(*arguments):
         (["catalogue"], ["catalogue"]),
         (["--output", "/tmp/actions.md", "catalogue"], ["--output", "/tmp/actions.md", "catalogue"]),
         (["list", "ensure-ascii-only"], ["list", "ensure-ascii-only"]),
-        (["help"], ["--help"]),
+        (["help"], ["run", "help"]),
+        (["help[agnostic]"], ["run", "help[agnostic]"]),
+        (["--qualification", "Question?", "help"], ["--qualification", "Question?", "run", "help"]),
+        (["--help"], ["--help"]),
     ],
 )
 def test_normalize_argv(arguments, expected):
@@ -56,6 +59,15 @@ def test_normalize_argv_derives_value_options_from_parser():
             continue
         for option in action.option_strings:
             assert perform.normalize_argv([option, "value", "ensure-ascii-only"], parser=parser) == [option, "value", "run", "ensure-ascii-only"]
+
+
+def test_explicit_help_option_remains_cli_help(capsys):
+    with pytest.raises(SystemExit) as raised:
+        perform.main(["--help"])
+    assert raised.value.code == 0
+    captured = capsys.readouterr()
+    assert captured.out.startswith("usage: codex-perform ")
+    assert captured.err == ""
 
 
 def test_catalogue_command_writes_without_launching_codex(monkeypatch, tmp_path, capsys):
@@ -164,27 +176,44 @@ def test_list_and_show_json_use_local_plugin(capsys):
 
     assert perform.main(local_arguments("show", "help", "--json")) == 0
     help_payload = json.loads(capsys.readouterr().out)
-    assert help_payload == {
-        "selector": "help[agnostic]",
-        "help": "Read the installed Perform guides.",
-        "guides": [
-            {
-                "name": "action_files",
-                "description": "Define, discover, layer, validate, and catalogue Perform actions.",
-                "path": str(PLUGIN_ROOT / "skills" / "perform" / "references" / "action_files.md"),
-            },
-            {
-                "name": "codex_skill",
-                "description": "Select and run Perform actions inside an existing Codex chat.",
-                "path": str(PLUGIN_ROOT / "skills" / "perform" / "references" / "codex_skill.md"),
-            },
-            {
-                "name": "standalone_cli",
-                "description": "Select and launch Perform actions with codex-perform or its Python API.",
-                "path": str(PLUGIN_ROOT / "skills" / "perform" / "references" / "standalone_cli.md"),
-            },
-        ],
+    assert help_payload["selector"] == "help[agnostic]"
+    assert help_payload["name"] == "help"
+    assert help_payload["language"] == "agnostic"
+    assert help_payload["action"] == {
+        "gloss": "Explain Perform action files and launch methods",
+        "model": "default",
+        "reasoning_effort": "medium",
+        "goal_mode": False,
+        "plan_mode": False,
+        "plan_reasoning_effort": "medium",
+        "no_edits": True,
+        "prompt_vars": {},
+        "prompt": help_payload["action"]["prompt"],
+        "requires_interactive": False,
+        "custom_codex_args": [],
+        "notes": "",
     }
+    for filename in ("action_files.md", "codex_skill.md", "standalone_cli.md"):
+        assert str(PLUGIN_ROOT / "skills" / "perform" / "references" / filename) in help_payload["action"]["prompt"]
+
+
+def test_help_shorthand_explicit_run_and_question_are_launchable(capsys):
+    assert perform.main(local_arguments("help", "--dry-run", "--json")) == 0
+    shorthand = json.loads(capsys.readouterr().out)
+    assert perform.main(local_arguments("run", "help", "--dry-run", "--json")) == 0
+    explicit = json.loads(capsys.readouterr().out)
+    assert shorthand == explicit
+    assert shorthand["launch_spec"]["selector"] == "help[agnostic]"
+    assert shorthand["launch_spec"]["qualification"] is None
+    assert shorthand["submitted_prompt"].startswith("No edits. Read the following installed Perform guides")
+    assert "If no user question is supplied" in shorthand["submitted_prompt"]
+
+    question = "How do repository overrides work?"
+    assert perform.main(local_arguments("help", "--qualification", question, "--dry-run", "--json")) == 0
+    qualified = json.loads(capsys.readouterr().out)
+    assert qualified["launch_spec"]["qualification"] == question
+    assert qualified["submitted_prompt"].endswith("\n\nUser question: " + question)
+    assert "BUT: " not in qualified["submitted_prompt"]
 
 
 @pytest.mark.parametrize(
@@ -248,6 +277,7 @@ def test_default_run_is_interactive(monkeypatch, capsys):
     assert captured.out == ""
     assert "PERFORM: ensure-ascii-only[agnostic]" in captured.err
     assert "PROMPT:" not in captured.err
+    assert captured.err.endswith("\n\n")
 
 
 def test_noninteractive_alias_selects_final_only(capsys):

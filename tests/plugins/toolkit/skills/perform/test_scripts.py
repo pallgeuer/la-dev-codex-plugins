@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import SCRIPTS_ROOT
+from conftest import SCRIPTS_ROOT, SKILL_ROOT
 
 LIST_SCRIPT = SCRIPTS_ROOT / "list_perform_actions.py"
 GET_SCRIPT = SCRIPTS_ROOT / "get_perform_action.py"
@@ -580,18 +580,23 @@ def test_builtin_help_is_listed_and_inspected_as_a_normal_result(tmp_path):
         }
     ]
     assert get_help.returncode == 0
-    assert response == {
-        "help": "Read references/action_files.md for action-file configuration, discovery, layering, and catalogue generation. Read references/codex_skill.md for launching with $toolkit:perform inside Codex. Read references/standalone_cli.md for launching with codex-perform and using its Python API."
-    }
+    assert response["mode"] == "default"
+    assert response["prompt"].startswith("No edits. Read the following installed Perform guides")
+    assert "If no user question is supplied" in response["prompt"]
+    for filename in ("action_files.md", "codex_skill.md", "standalone_cli.md"):
+        assert str(SKILL_ROOT / "references" / filename) in response["prompt"]
 
 
-def test_builtin_help_cannot_be_rendered(tmp_path):
+def test_builtin_help_renders_an_optional_question(tmp_path):
     cwd = tmp_path / "outside"
     cwd.mkdir()
-    completed = run_script(GET_SCRIPT, ["--render=help[agnostic]"], cwd, clean_environment(tmp_path))
+    question = "How do repository overrides work?"
+    completed = run_script(GET_SCRIPT, ["--render=help[agnostic]", "--qualification=  BUT: {}  ".format(question)], cwd, clean_environment(tmp_path))
     response = parse_stdout(completed)
-    assert completed.returncode == 2
-    assert response["error"]["code"] == "not_executable"
+    assert completed.returncode == 0
+    assert response["prompt"].startswith("No edits. Read the following installed Perform guides")
+    assert response["prompt"].endswith("\n\nUser question: " + question)
+    assert "BUT: " not in response["prompt"]
 
 
 def test_builtin_help_remains_available_when_catalog_precedence_is_fatal(tmp_path):
@@ -602,8 +607,11 @@ def test_builtin_help_remains_available_when_catalog_precedence_is_fatal(tmp_pat
     completed = run_script(GET_SCRIPT, ["--inspect=help[agnostic]"], cwd, env)
     response = parse_stdout(completed)
     assert completed.returncode == 0
-    assert (
-        response["help"]
-        == "Read references/action_files.md for action-file configuration, discovery, layering, and catalogue generation. Read references/codex_skill.md for launching with $toolkit:perform inside Codex. Read references/standalone_cli.md for launching with codex-perform and using its Python API."
-    )
+    assert response["prompt"].startswith("No edits. Read the following installed Perform guides")
     assert response["diagnostics"]
+
+    rendered = run_script(GET_SCRIPT, ["--render=help[agnostic]", "--qualification=What failed?"], cwd, env)
+    rendered_response = parse_stdout(rendered)
+    assert rendered.returncode == 0
+    assert rendered_response["prompt"].endswith("\n\nUser question: What failed?")
+    assert rendered_response["diagnostics"]

@@ -71,7 +71,16 @@ def test_prelaunch_display_can_omit_prompt(capsys):
     perform_output.display_prelaunch(spec, include_prompt=False)
     captured = capsys.readouterr()
     assert captured.out == ""
-    assert captured.err == "NOTES TO USER:\nremember this\n\nPERFORM: test[agnostic]\n"
+    assert captured.err == "NOTES TO USER:\nremember this\n\nPERFORM: test[agnostic]\n\n"
+
+
+def test_prelaunch_display_separates_interactive_codex_after_action_args(capsys):
+    config = types.SimpleNamespace(notes="", selector="test[agnostic]", custom_codex_args=("--search",))
+    spec = types.SimpleNamespace(config=config, rendered_prompt="prompt text")
+    perform_output.display_prelaunch(spec, include_prompt=False)
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "PERFORM: test[agnostic]\nCODEX ACTION ARGS: --search\n\n"
 
 
 def test_human_dry_run_and_json_escape_terminal_controls(capsys):

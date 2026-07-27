@@ -253,6 +253,8 @@ When supplied, a qualification must be one nonempty line without Unicode control
 
 The launchers require a qualification to be one short compatible scope or detail adjustment. It must not add a second task, change the action's purpose, weaken constraints, or hide a missing variable.
 
+The immutable `help[agnostic]` action is the exception to the appended `BUT:` form. Its qualification is an optional Perform documentation question. The same structural validation and normalization apply, but rendering appends the normalized text after a blank line as `User question: QUESTION`. Without a question, help requests a concise practical overview of the installed guides.
+
 Bindings and qualifications travel as direct process arguments. They can be visible to process inspection, launchers, audit systems, or process monitors, so they must not contain credentials, tokens, or other secrets. Pass a nonsecret reference such as an environment-variable name, credential-store identifier, or protected file path. Platform-specific argument and environment limits can reject an oversized invocation before a Perform process starts.
 
 ## Override or remove actions
@@ -307,12 +309,12 @@ Import the runtime from the resolved plugin's `skills/perform/scripts` directory
 
 Important catalog operations are:
 
-- `ActionCatalog.list_actions(name=None)` returns stable `ActionSummary` values and includes immutable `help[agnostic]` when applicable.
+- `ActionCatalog.list_actions(name=None)` returns stable `ActionSummary` values and includes immutable `help[agnostic]`.
 - `ActionCatalog.inspect(selector)` returns an `ActionInspection`; its `base_prompt` is automatically prefixed, and `to_dict()` adds the execution mode plus nonempty variables or notes.
-- `ActionCatalog.render(selector, variables, qualification=None)` accepts a dictionary keyed by bare variable names, performs literal binding, and returns a `RenderedAction` whose `prompt` is authoritative.
+- `ActionCatalog.render(selector, variables, qualification=None)` accepts a dictionary keyed by bare variable names, performs literal binding, and returns a `RenderedAction` whose `prompt` is authoritative. For built-in help, the qualification is rendered as a user question.
 - `ActionCatalog.launch_config(selector)` returns an `ActionLaunchConfig` snapshot containing identity and every materialized action field.
 - `ActionCatalog.prepare_launch(selector, variables, qualification=None)` returns an `ActionLaunchSpec` pairing the rendered prompt with that configuration.
-- `ActionCatalog.precedence_incomplete` identifies catalogs that may be listed partially but cannot safely support prompt-sensitive operations.
+- `ActionCatalog.precedence_incomplete` identifies catalogs that may be listed partially but cannot safely support mutable prompt-sensitive operations. Immutable built-in help remains inspectable, renderable, and launchable.
 
 `discover_action_directories(..., system_actions_dir="/etc/codex/toolkit_perform_actions")` exposes conventional discovery metadata and allows callers to replace the system action directory directly. `load_action_catalog(...)` accepts the same `system_actions_dir` keyword when it performs conventional discovery. The optional environment mapping controls home resolution and is forwarded to bounded Git discovery without consulting process globals. `run_bounded_git_root(cwd, popen_factory=None, timeout=5, env=None)` accepts the same explicit environment. `explicit_discovery(...)` constructs metadata for caller-supplied ordered sources. Lower-level consumers can inspect `DiscoveryResult`, `SourceDirectory`, diagnostics, action summaries, inspections, rendered actions, and the exported selector grammars.
 
@@ -397,7 +399,7 @@ This removes every inherited `ensure-ascii-only` variant, removes only `find-tod
 
 ## Troubleshooting
 
-Use `$toolkit:perform` or `codex-perform list` to inspect the effective catalog. Use `$toolkit:perform help` or `codex-perform show help` to locate all installed guides. Diagnostics include the relevant source file and JSON location whenever possible.
+Use `$toolkit:perform` or `codex-perform list` to inspect the effective catalog. Use `$toolkit:perform help` or `codex-perform help` to read or query the installed guides, and `codex-perform show help` to inspect the generated immutable help configuration without launching. Diagnostics include the relevant source file and JSON location whenever possible.
 
 Common causes of missing or blocked actions include:
 
@@ -410,4 +412,4 @@ Common causes of missing or blocked actions include:
 - A higher-precedence ignore or override removed or replaced the expected variant.
 - An applicable source path cannot be read safely. Listing may show partial results, but prompt-sensitive operations are blocked because final precedence is unknown.
 
-The immutable `help[agnostic]` entry remains available even when mutable action configuration has fatal problems.
+The immutable `help[agnostic]` entry remains listable, inspectable, renderable, and launchable even when mutable action configuration has fatal problems.

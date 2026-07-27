@@ -24,9 +24,7 @@ PLACEHOLDER_PATTERN = re.compile(PLACEHOLDER_REGEX)
 STRICT_SELECTOR_PATTERN = re.compile(STRICT_SELECTOR_REGEX)
 
 ROOT_FIELDS = frozenset(("version", "ignore_actions", "actions"))
-HELP_SELECTOR = "help[agnostic]"
 HELP_GLOSS = "Explain Perform action files and launch methods"
-HELP_MESSAGE = "Read references/action_files.md for action-file configuration, discovery, layering, and catalogue generation. Read references/codex_skill.md for launching with $toolkit:perform inside Codex. Read references/standalone_cli.md for launching with codex-perform and using its Python API."
 NO_EDITS_SENTENCE = "No edits."
 
 
@@ -166,6 +164,18 @@ class EffectiveAction:
         )
 
 
+class _ActionEntry:
+    """Effective action paired with its rendering and precedence policies."""
+
+    __slots__ = ("action", "precedence_independent", "renderer")
+
+    def __init__(self, action, renderer, precedence_independent):
+        """Store one action and the policies needed to select and render it."""
+        self.action = action
+        self.renderer = renderer
+        self.precedence_independent = precedence_independent
+
+
 class ActionInspection:
     """Exact base prompt and metadata shown before semantic binding."""
 
@@ -191,16 +201,6 @@ class ActionInspection:
         if fields["notes"]:
             result["notes"] = fields["notes"]
         return result
-
-
-class BuiltInHelpResult:
-    """Normal inspection result for immutable built-in help."""
-
-    __slots__ = ()
-
-    def to_dict(self):
-        """Return the reference instruction consumed by Perform."""
-        return {"help": HELP_MESSAGE}
 
 
 class RenderedAction:
@@ -250,36 +250,31 @@ def _origin_diagnostic(field_origins, definition_origin, implicated_fields, acti
     return _file_diagnostic(origin.source, origin.filename, code, message, json_path=origin.json_path, selector="{}[{}]".format(action, language), fatality="variant_fatal")
 
 
-def _validate_prompt_variables(prompt_vars, prompt, field_origins, definition_origin, action, language, diagnostics):
-    """Validate declaration/use agreement in one materialized prompt."""
+def _prompt_variable_issues(prompt_vars, prompt):
+    """Return declaration/use agreement issues in one materialized prompt."""
     declared = set(prompt_vars)
     used = {placeholder[1:-1] for placeholder in PLACEHOLDER_PATTERN.findall(prompt)}
     missing_from_prompt = sorted(declared - used, key=diagnostics_module.unicode_sort_key)
     undeclared = sorted(used - declared, key=lambda value: value.encode("ascii"))
-    for name in missing_from_prompt:
-        diagnostics.append(
-            _origin_diagnostic(
-                field_origins,
-                definition_origin,
-                ("prompt", "prompt_vars"),
-                action,
-                language,
-                "unused_prompt_variable",
-                "Declared prompt variable {} does not occur as %{}% in the materialized prompt.".format(name, name),
-            )
+    issues = [
+        (
+            ("prompt", "prompt_vars"),
+            "unused_prompt_variable",
+            "Declared prompt variable {} does not occur as %{}% in the materialized prompt.".format(name, name),
         )
-    for name in undeclared:
-        diagnostics.append(
-            _origin_diagnostic(
-                field_origins,
-                definition_origin,
+        for name in missing_from_prompt
+    ]
+    issues.extend(
+        (
+            (
                 ("prompt_vars", "prompt"),
-                action,
-                language,
                 "undeclared_prompt_variable",
                 "Prompt placeholder %{}% has no prompt_vars declaration for variable {}.".format(name, name),
             )
+            for name in undeclared
         )
+    )
+    return issues
 
 
 def _validate_gloss_field(_field, value):
@@ -414,37 +409,135 @@ _CROSS_FIELD_VALIDATORS = (
 )
 
 
-def _validate_fields(fields, field_origins, definition_origin, action, language, complete):
-    """Validate supplied fields locally or a fully materialized action."""
-    diagnostics = []
+def _field_issues(fields, action, language, complete, validate_prompt_variables=True):
+    """Return field and cross-field issues for one action definition."""
+    issues = []
     selector = "{}[{}]".format(action, language)
     unknown = sorted(set(fields) - validation.ACTION_FIELD_SET, key=lambda value: diagnostics_module.unicode_sort_key(str(value)))
-    diagnostics.extend(
-        _origin_diagnostic(field_origins, definition_origin, (field,), action, language, "unknown_action_field", "Unknown version 1 action field {!r}.".format(field)) for field in unknown
-    )
+    issues.extend(((field,), "unknown_action_field", "Unknown version 1 action field {!r}.".format(field)) for field in unknown)
     if unknown:
-        return diagnostics
+        return issues
 
     if complete:
         missing = [field for field in validation.ACTION_FIELDS if field not in fields]
         if missing:
-            diagnostics.append(
-                _origin_diagnostic(field_origins, definition_origin, (), action, language, "incomplete_action", "Materialized {} is missing required fields: {}.".format(selector, ", ".join(missing)))
-            )
-            return diagnostics
+            issues.append(((), "incomplete_action", "Materialized {} is missing required fields: {}.".format(selector, ", ".join(missing))))
+            return issues
 
     for field, value in fields.items():
         for code, message in _FIELD_VALIDATORS[field](field, value):
-            diagnostics.append(_origin_diagnostic(field_origins, definition_origin, (field,), action, language, code, message))
+            issues.append(((field,), code, message))
 
     for validator in _CROSS_FIELD_VALIDATORS:
         issue = validator(fields)
         if issue is not None:
-            implicated_fields, code, message = issue
-            diagnostics.append(_origin_diagnostic(field_origins, definition_origin, implicated_fields, action, language, code, message))
-    if complete and isinstance(fields.get("prompt_vars"), dict) and isinstance(fields.get("prompt"), str):
-        _validate_prompt_variables(fields["prompt_vars"], fields["prompt"], field_origins, definition_origin, action, language, diagnostics)
-    return diagnostics
+            issues.append(issue)
+    if validate_prompt_variables and complete and isinstance(fields.get("prompt_vars"), dict) and isinstance(fields.get("prompt"), str):
+        issues.extend(_prompt_variable_issues(fields["prompt_vars"], fields["prompt"]))
+    return issues
+
+
+def _validate_fields(fields, field_origins, definition_origin, action, language, complete):
+    """Validate fields and attach each issue to its causal file origin."""
+    return [
+        _origin_diagnostic(field_origins, definition_origin, implicated_fields, action, language, code, message)
+        for implicated_fields, code, message in _field_issues(fields, action, language, complete)
+    ]
+
+
+class _BuiltInActionSpec:
+    """Code-defined immutable action and its catalog policies."""
+
+    __slots__ = (
+        "definition_code",
+        "fields_factory",
+        "ignore_code",
+        "language",
+        "name",
+        "precedence_independent",
+        "renderer",
+        "selector",
+        "validate_prompt_variables",
+    )
+
+    def __init__(self, name, language, fields_factory, renderer, ignore_code, definition_code, precedence_independent=True, validate_prompt_variables=True):
+        """Store one built-in definition and its validation and runtime policies."""
+        self.name = name
+        self.language = language
+        self.selector = "{}[{}]".format(name, language)
+        self.fields_factory = fields_factory
+        self.renderer = renderer
+        self.ignore_code = ignore_code
+        self.definition_code = definition_code
+        self.precedence_independent = precedence_independent
+        self.validate_prompt_variables = validate_prompt_variables
+
+    def build_entry(self):
+        """Materialize and validate one built-in action entry."""
+        if not is_action_name(self.name) or not is_language_name(self.language):
+            raise RuntimeError("Invalid built-in action identity {}.".format(self.selector))
+        if not callable(self.renderer):
+            raise RuntimeError("Built-in action {} renderer must be callable.".format(self.selector))
+        if type(self.precedence_independent) is not bool or type(self.validate_prompt_variables) is not bool:
+            raise RuntimeError("Built-in action {} policies must be Boolean.".format(self.selector))
+        fields = self.fields_factory()
+        if not isinstance(fields, dict):
+            raise RuntimeError("Built-in action {} fields factory must return a dictionary.".format(self.selector))
+        issues = _field_issues(fields, self.name, self.language, complete=True, validate_prompt_variables=self.validate_prompt_variables)
+        if issues:
+            details = "; ".join("{}: {}".format(code, message) for _implicated_fields, code, message in issues)
+            raise RuntimeError("Invalid built-in action {}: {}".format(self.selector, details))
+        return _ActionEntry(EffectiveAction(self.name, self.language, fields), self.renderer, self.precedence_independent)
+
+
+def _built_in_help_fields():
+    """Return immutable help fields with resolved literal guide paths."""
+    references = Path(__file__).resolve().parents[2] / "references"
+    guide_paths = (
+        references / "action_files.md",
+        references / "codex_skill.md",
+        references / "standalone_cli.md",
+    )
+    prompt_lines = [
+        "Read the following installed Perform guides completely and use them as authoritative documentation:",
+        *("- {}".format(json.dumps(str(path), ensure_ascii=False)) for path in guide_paths),
+        "Answer questions about Perform action files, discovery, layering, catalogues, the in-chat skill, the standalone CLI, and its Python API. If no user question is supplied, give a concise practical overview of those topics, include the main commands and selection forms, and explain which guide contains further details.",
+    ]
+    return {
+        "gloss": HELP_GLOSS,
+        "model": "default",
+        "reasoning_effort": "medium",
+        "goal_mode": False,
+        "plan_mode": False,
+        "plan_reasoning_effort": "medium",
+        "no_edits": True,
+        "prompt_vars": {},
+        "prompt": "\n".join(prompt_lines),
+        "requires_interactive": False,
+        "custom_codex_args": [],
+        "notes": "",
+    }
+
+
+_HELP_SPEC = _BuiltInActionSpec(
+    "help",
+    "agnostic",
+    _built_in_help_fields,
+    rendering.render_help_prompt,
+    "reserved_help_ignore",
+    "reserved_help_definition",
+    validate_prompt_variables=False,
+)
+_BUILT_IN_SPECS = (_HELP_SPEC,)
+HELP_SELECTOR = _HELP_SPEC.selector
+
+
+def _built_in_spec_for_name(name):
+    """Return the built-in specification reserving one action name."""
+    for spec in _BUILT_IN_SPECS:
+        if spec.name == name:
+            return spec
+    return None
 
 
 def _load_json_file(source, filename):
@@ -501,9 +594,18 @@ def _apply_file(data, source, filename, patches, diagnostics):
                 )
             )
             continue
-        if action == "help":
+        built_in_spec = _built_in_spec_for_name(action)
+        if built_in_spec is not None:
             diagnostics.append(
-                _file_diagnostic(source, filename, "reserved_help_ignore", "The immutable built-in help action cannot be ignored.", json_path=path, selector=ignore_selector, fatality="nonfatal")
+                _file_diagnostic(
+                    source,
+                    filename,
+                    built_in_spec.ignore_code,
+                    "The immutable built-in {} action cannot be ignored.".format(action),
+                    json_path=path,
+                    selector=ignore_selector,
+                    fatality="nonfatal",
+                )
             )
             continue
         if language is None:
@@ -521,10 +623,17 @@ def _apply_file(data, source, filename, patches, diagnostics):
                 )
             )
             continue
-        if action == "help":
+        built_in_spec = _built_in_spec_for_name(action)
+        if built_in_spec is not None:
             diagnostics.append(
                 _file_diagnostic(
-                    source, filename, "reserved_help_definition", "The immutable built-in help action cannot be defined or overridden.", json_path=action_path, selector="help", fatality="nonfatal"
+                    source,
+                    filename,
+                    built_in_spec.definition_code,
+                    "The immutable built-in {} action cannot be defined or overridden.".format(action),
+                    json_path=action_path,
+                    selector=action,
+                    fatality="nonfatal",
                 )
             )
             continue
@@ -610,11 +719,21 @@ def _materialize(patches, diagnostics):
 class ActionCatalog:
     """Effective Perform actions, diagnostics, discovery, and rendering API."""
 
-    __slots__ = ("_actions", "diagnostics", "discovery", "precedence_incomplete")
+    __slots__ = ("_entries", "diagnostics", "discovery", "precedence_incomplete")
 
     def __init__(self, actions, diagnostics, discovery, precedence_incomplete=False):
-        """Store fully materialized variants and deterministic diagnostics."""
-        self._actions = dict(actions)
+        """Store validated action entries and deterministic diagnostics."""
+        built_in_names = {spec.name for spec in _BUILT_IN_SPECS}
+        mutable_built_in_names = sorted({action.name for action in actions.values()} & built_in_names, key=lambda value: value.encode("ascii"))
+        if mutable_built_in_names:
+            raise RuntimeError("Mutable actions cannot use reserved built-in names: {}.".format(", ".join(mutable_built_in_names)))
+        self._entries = {identity: _ActionEntry(action, rendering.render_prompt, False) for identity, action in actions.items()}
+        for spec in _BUILT_IN_SPECS:
+            entry = spec.build_entry()
+            identity = (entry.action.name, entry.action.language)
+            if identity in self._entries:
+                raise RuntimeError("Built-in action {} conflicts with a mutable action.".format(entry.action.selector))
+            self._entries[identity] = entry
         self.diagnostics = diagnostics_module.sorted_unique_diagnostics(list(discovery.diagnostics) + list(diagnostics))
         self.discovery = discovery
         self.precedence_incomplete = precedence_incomplete or discovery.precedence_incomplete or any(diagnostic.fatal for diagnostic in self.diagnostics)
@@ -623,49 +742,59 @@ class ActionCatalog:
         """Return all summaries or variants of one exact bare action name."""
         if name is not None and not is_action_name(name):
             raise PerformRequestError("invalid_name", "Action-name filters must match {}.".format(ACTION_NAME_REGEX))
-        summaries = [action.summary() for action in self._actions.values() if name is None or action.name == name]
-        if name is None or name == "help":
-            summaries.append(ActionSummary("help", "agnostic", HELP_GLOSS, {}))
+        summaries = [entry.action.summary() for entry in self._entries.values() if name is None or entry.action.name == name]
         return sorted(summaries, key=lambda summary: (summary.name.encode("ascii"), summary.language.encode("ascii")))
 
     def _require_complete_precedence(self):
         """Reject prompt-sensitive operations when an override source is unknowable."""
         if self.precedence_incomplete:
-            raise PerformRequestError("fatal_catalog", "Catalog precedence is incomplete; fix the fatal discovery or file diagnostic before inspecting or rendering an action.")
+            raise PerformRequestError("fatal_catalog", "Catalog precedence is incomplete; fix the fatal discovery or file diagnostic before selecting or using a mutable action.")
 
-    def _resolve_action(self, selector):
+    def _select_entry(self, name, requested_selector=None):
+        """Select one action entry after request syntax has been normalized."""
+        available = sorted((entry for entry in self._entries.values() if entry.action.name == name), key=lambda entry: entry.action.language.encode("ascii"))
+        independent = bool(available) and all(entry.precedence_independent for entry in available)
+        alternatives = [entry.action.selector for entry in available]
+        if requested_selector is not None:
+            for entry in available:
+                if entry.action.selector == requested_selector:
+                    if not entry.precedence_independent:
+                        self._require_complete_precedence()
+                    return entry
+            if not independent:
+                self._require_complete_precedence()
+            raise PerformRequestError("not_found", "No effective action matches strict selector {}.".format(requested_selector), alternatives=alternatives)
+        if not independent:
+            self._require_complete_precedence()
+        if len(available) == 1:
+            return available[0]
+        agnostic = "{}[agnostic]".format(name)
+        for entry in available:
+            if entry.action.selector == agnostic:
+                return entry
+        if not available:
+            raise PerformRequestError("not_found", "No effective action is named {!r}.".format(name))
+        raise PerformRequestError("ambiguous_language", "Action {!r} has multiple language variants; use --language or a strict selector.".format(name), alternatives=alternatives)
+
+    def _resolve_entry(self, selector):
         """Resolve one strict selector without constructing derived prompt data."""
-        name, language, canonical = parse_selector(selector)
-        if canonical == HELP_SELECTOR:
-            return BuiltInHelpResult()
-        self._require_complete_precedence()
-        action = self._actions.get((name, language))
-        if action is None:
-            alternatives = [summary.selector for summary in self.list_actions(name=name)]
-            raise PerformRequestError("not_found", "No effective action matches strict selector {}.".format(canonical), alternatives=alternatives)
-        return action
+        name, _language, canonical = parse_selector(selector)
+        return self._select_entry(name, requested_selector=canonical)
 
     def inspect(self, selector):
         """Return the exact effective base prompt for one strict selector."""
-        action = self._resolve_action(selector)
-        if isinstance(action, BuiltInHelpResult):
-            return action
+        action = self._resolve_entry(selector).action
         return ActionInspection(action, rendering.build_base_prompt(action.fields["prompt"], action.fields["no_edits"]))
 
     def launch_config(self, selector):
         """Return every effective field needed by a standalone launcher."""
-        action = self._resolve_action(selector)
-        if isinstance(action, BuiltInHelpResult):
-            raise PerformRequestError("not_executable", "The immutable built-in help action has no launch configuration.")
-        return launching_module.ActionLaunchConfig(action)
+        return launching_module.ActionLaunchConfig(self._resolve_entry(selector).action)
 
     def render(self, selector, variables, qualification=None):
         """Render one exact action after binding and qualification validation."""
-        action = self._resolve_action(selector)
-        if isinstance(action, BuiltInHelpResult):
-            raise PerformRequestError("not_executable", "The immutable built-in help action cannot be rendered; inspect it instead.")
-        prompt, normalized_qualification = rendering.render_prompt(action.fields, variables, PLACEHOLDER_PATTERN, qualification)
-        return RenderedAction(action, prompt, normalized_qualification)
+        entry = self._resolve_entry(selector)
+        prompt, normalized_qualification = entry.renderer(entry.action.fields, variables, PLACEHOLDER_PATTERN, qualification)
+        return RenderedAction(entry.action, prompt, normalized_qualification)
 
     def prepare_launch(self, selector, variables, qualification=None):
         """Render one action and retain its complete launcher configuration."""

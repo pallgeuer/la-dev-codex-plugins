@@ -1,6 +1,7 @@
 """High-level standalone launcher facade tests."""
 
 import importlib
+import json
 from pathlib import Path
 
 import pytest
@@ -46,18 +47,25 @@ def test_facade_lists_shows_and_prepares_actions(tmp_path, complete, file_data, 
     assert spec.config.selector == "test[agnostic]"
 
 
-def test_facade_returns_complete_builtin_help_payload(tmp_path, load_catalog):
+def test_facade_shows_and_prepares_complete_builtin_help(tmp_path, load_catalog):
     launcher = standalone_module.StandaloneLauncher(load_catalog(tmp_path))
     payload = launcher.show_action("help")
     assert payload["selector"] == "help[agnostic]"
-    assert payload["help"] == "Read the installed Perform guides."
-    assert [(guide["name"], guide["description"]) for guide in payload["guides"]] == [
-        ("action_files", "Define, discover, layer, validate, and catalogue Perform actions."),
-        ("codex_skill", "Select and run Perform actions inside an existing Codex chat."),
-        ("standalone_cli", "Select and launch Perform actions with codex-perform or its Python API."),
-    ]
-    assert [Path(guide["path"]).name for guide in payload["guides"]] == ["action_files.md", "codex_skill.md", "standalone_cli.md"]
-    assert all(Path(guide["path"]).is_absolute() and Path(guide["path"]).is_file() for guide in payload["guides"])
+    assert payload["action"]["gloss"] == catalog_module.HELP_GLOSS
+    assert payload["action"]["reasoning_effort"] == "medium"
+    assert payload["action"]["no_edits"] is True
+    assert payload["action"]["requires_interactive"] is False
+    guide_paths = [Path(json.loads(line[2:])) for line in payload["action"]["prompt"].splitlines() if line.startswith("- ")]
+    assert [path.name for path in guide_paths] == ["action_files.md", "codex_skill.md", "standalone_cli.md"]
+    assert all(path.is_absolute() and path.is_file() for path in guide_paths)
+
+    question = "How do repository overrides work?"
+    spec = launcher.prepare_launch("help", qualification="  BUT: " + question + "  ")
+    assert spec.config.selector == "help[agnostic]"
+    assert spec.qualification == question
+    assert spec.rendered_prompt.startswith("No edits. Read the following installed Perform guides")
+    assert spec.rendered_prompt.endswith("\n\nUser question: " + question)
+    assert "BUT: " not in spec.rendered_prompt
 
 
 def test_facade_resolves_languages_and_reports_ambiguity(tmp_path, complete, file_data, write_file, load_catalog):
@@ -87,6 +95,19 @@ def test_facade_preserves_partial_listing_when_precedence_is_incomplete():
         launcher.prepare_launch("missing")
     assert error.value.status == "fatal_catalog"
     assert error.value.diagnostics == ["error: The source is broken. (discovery)"]
+
+    help_payload = launcher.show_action("help")
+    assert help_payload["selector"] == "help[agnostic]"
+    assert help_payload["diagnostics"] == ["error: The source is broken. (discovery)"]
+    assert launcher.prepare_launch("help", qualification="What is broken?").qualification == "What is broken?"
+    with pytest.raises(diagnostics_module.PerformRequestError) as invalid_help:
+        launcher.prepare_launch("help[python]")
+    assert invalid_help.value.status == "not_found"
+    assert invalid_help.value.alternatives == ["help[agnostic]"]
+    with pytest.raises(diagnostics_module.PerformRequestError) as invalid_catalog_help:
+        catalog.inspect("help[python]")
+    assert invalid_catalog_help.value.status == "not_found"
+    assert invalid_catalog_help.value.alternatives == ["help[agnostic]"]
 
 
 @pytest.mark.parametrize(

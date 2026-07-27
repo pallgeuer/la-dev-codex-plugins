@@ -39,8 +39,6 @@ def normalize_argv(argv, parser=None):
     arguments = list(argv)
     argument_parser = build_parser() if parser is None else parser
     options_with_values = frozenset(option for action in argument_parser._actions if action.nargs != 0 for option in action.option_strings)
-    if arguments == ["help"]:
-        return ["--help"]
     positional_index = None
     index = 0
     while index < len(arguments):
@@ -87,7 +85,7 @@ def build_parser():
     parser.add_argument("--cwd", help="Directory used for action discovery and the launched Codex working root.")
     parser.add_argument("-l", "--language", help="Exact language variant or listing filter.")
     parser.add_argument("--var", dest="variables", action="append", default=[], metavar="NAME=VALUE", help="Bind one prompt variable; repeat for multiple variables.")
-    parser.add_argument("--qualification", help="Append one compatible qualification while rendering.")
+    parser.add_argument("--qualification", help="Append one compatible qualification, or ask built-in help one question.")
     parser.add_argument("--model", help="Override the action model.")
     parser.add_argument("--effort", help="Override normal model reasoning effort.")
     parser.add_argument("--plan-effort", help="Override Plan-mode reasoning effort.")
@@ -180,7 +178,7 @@ def _run_final_only(invocation, spec, environment):
 
 
 def _show_command(args, launcher):
-    """Show built-in help or one complete effective action."""
+    """Show one complete effective action."""
     if args.action is None:
         raise launcher_runtime.CliError("show requires an action name or strict selector.", code="invalid_arguments")
     payload = launcher.show_action(args.action, language=args.language)

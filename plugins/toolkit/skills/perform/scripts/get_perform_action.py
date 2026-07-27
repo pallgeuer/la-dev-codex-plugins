@@ -15,7 +15,7 @@ def _parser():
     operation.add_argument("--inspect", action="store_once", metavar="ACTION[LANGUAGE]", help="Inspect one canonical strict selector.")
     operation.add_argument("--render", action="store_once", metavar="ACTION[LANGUAGE]", help="Render one canonical strict selector.")
     parser.add_argument("--var", action="append", default=[], metavar="NAME=VALUE", help="Bind one prompt variable; repeat for multiple variables.")
-    parser.add_argument("--qualification", action="store_once", help="Append one compatible qualification during rendering.")
+    parser.add_argument("--qualification", action="store_once", help="Append one compatible qualification, or ask built-in help one question.")
     parser.add_argument("--cwd", action="store_once", default=str(Path.cwd()), help="Working directory used for conventional local discovery.")
     return parser
 

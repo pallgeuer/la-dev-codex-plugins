@@ -94,31 +94,7 @@ codex-perform show 'check-config[rust]'
 codex-perform show help
 ```
 
-`show help` returns the installed action-file, Codex-skill, and standalone-CLI guides as named records with descriptions and absolute paths.
-
-```json
-{
-  "selector": "help[agnostic]",
-  "help": "Read the installed Perform guides.",
-  "guides": [
-    {
-      "name": "action_files",
-      "description": "Define, discover, layer, validate, and catalogue Perform actions.",
-      "path": "/RESOLVED/toolkit/skills/perform/references/action_files.md"
-    },
-    {
-      "name": "codex_skill",
-      "description": "Select and run Perform actions inside an existing Codex chat.",
-      "path": "/RESOLVED/toolkit/skills/perform/references/codex_skill.md"
-    },
-    {
-      "name": "standalone_cli",
-      "description": "Select and launch Perform actions with codex-perform or its Python API.",
-      "path": "/RESOLVED/toolkit/skills/perform/references/standalone_cli.md"
-    }
-  ]
-}
-```
+`show help` returns the same complete action-configuration schema as any other action. Its immutable configured prompt contains the absolute installed paths of the action-file, Codex-skill, and standalone-CLI guides. It uses the default model at medium effort, enforces no edits, and supports both interactive and noninteractive launches.
 
 Run is the default when the first positional argument is not `catalogue`, `list`, `show`, or `run`:
 
@@ -126,11 +102,14 @@ Run is the default when the first positional argument is not `catalogue`, `list`
 codex-perform check-config
 codex-perform 'check-config[rust]'
 codex-perform run check-config --language rust
+codex-perform help
+codex-perform run help
+codex-perform help --qualification 'How do repository action overrides work?'
 ```
 
 A strict `ACTION[LANGUAGE]` selector must exist exactly. It can be combined with `--language` only when both specify the same language. A bare action with one variant selects it. A bare action with several variants selects `agnostic` when available; otherwise the launcher reports every alternative and requires an explicit language.
 
-Unlike the in-chat skill, the standalone launcher performs no semantic natural-language selection. Help is not executable, so `run help` fails.
+Unlike the in-chat skill, the standalone launcher performs no semantic natural-language selection. Bare `help`, `run help`, and strict `help[agnostic]` select the same executable immutable action. With no question, it reads the three installed guides and requests a concise practical overview. `-h` and `--help` remain the launcher CLI help options and never select the Perform help action.
 
 ## Render and override an action
 
@@ -139,9 +118,10 @@ Bind every declared prompt variable with a repeatable literal argument and optio
 ```bash
 codex-perform exec-md-goal --var 'MarkdownPlanFile=docs/plans/plan.md'
 codex-perform check-config --language rust --qualification 'Limit the audit to crates/core.'
+codex-perform help --qualification 'How do repository action overrides work?'
 ```
 
-The launcher requires every variable exactly once using a bare `Name=VALUE` binding. It treats binding values literally and applies the shared rules in [Prompt variables and rendering](action_files.md#prompt-variables-and-rendering).
+The launcher requires every variable exactly once using a bare `Name=VALUE` binding. It treats binding values literally and applies the shared rules in [Prompt variables and rendering](action_files.md#prompt-variables-and-rendering). For configured actions, `--qualification` is a compatible scope or detail adjustment appended with `BUT:`. For built-in help, it is an optional documentation question appended as `User question:` after normal structural validation and normalization.
 
 Structured overrides replace settings owned by action definitions:
 
@@ -266,12 +246,12 @@ The API builds data only; it never starts Codex. A caller can inspect `invocatio
 
 - `load_standalone_launcher(cwd, env=None)` performs conventional discovery and returns one `StandaloneLauncher` that owns the loaded catalog. The optional environment mapping supplies the exact environment used for home resolution and bounded Git discovery without mutating process globals; missing `HOME` never falls back to the host process.
 - `StandaloneLauncher.list_actions(action=None, language=None)` applies standalone filtering and returns the complete JSON-ready variants and diagnostics payload.
-- `StandaloneLauncher.show_action(action, language=None)` deterministically selects an action and returns its complete JSON-ready configuration, or returns the three installed guide records for built-in help.
+- `StandaloneLauncher.show_action(action, language=None)` deterministically selects an action and returns its complete JSON-ready configuration, including the generated immutable configuration for built-in help.
 - `StandaloneLauncher.write_action_catalogue(output=None)` safely writes the stable Markdown catalogue and returns its absolute path, changed status, action count, variant count, and diagnostics.
 - `StandaloneLauncher.prepare_launch(action, language=None, variable_bindings=None, qualification=None)` validates selection and `Name=VALUE` bindings, renders the action, and returns an `ActionLaunchSpec`.
 - `StandaloneLauncher.precedence_incomplete` reports whether a partial listing requires exit code 3.
 
-These methods own the standalone selector grammar, bare-action preference for `agnostic`, ambiguity handling, help selection, diagnostics, binding parsing, and catalog-precedence checks. They raise `PerformRequestError`; its `status`, `message`, `alternatives`, and `diagnostics` attributes are the structured error interface. `diagnostics` contains the same stable human-ready catalog strings returned at the top level of successful response payloads. The bundled CLI preserves that list as a top-level `diagnostics` field for JSON errors and as escaped `Diagnostic:` lines on stderr for human errors.
+These methods own the standalone selector grammar, bare-action preference for `agnostic`, ambiguity handling, help selection, diagnostics, binding parsing, and catalog-precedence checks. Immutable help remains available when mutable catalog precedence is incomplete. The methods raise `PerformRequestError`; its `status`, `message`, `alternatives`, and `diagnostics` attributes are the structured error interface. `diagnostics` contains the same stable human-ready catalog strings returned at the top level of successful response payloads. The bundled CLI preserves that list as a top-level `diagnostics` field for JSON errors and as escaped `Diagnostic:` lines on stderr for human errors.
 
 ### Launch value objects
 

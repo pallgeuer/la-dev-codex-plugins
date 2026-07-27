@@ -52,21 +52,40 @@ def validate_qualification(qualification):
     return normalized
 
 
-def render_prompt(fields, variables, placeholder_pattern, qualification=None):
-    """Substitute placeholders once, apply no-edits, and append an optional qualification."""
+def _render_main_prompt(fields, variables, placeholder_pattern=None):
+    """Validate bindings and render the main prompt with optional substitution."""
     prompt_vars = fields["prompt_vars"]
     validate_bindings(prompt_vars, variables)
 
-    def replace(match):
-        return variables[match.group(0)[1:-1]]
+    if placeholder_pattern is None:
+        substituted = fields["prompt"]
+    else:
 
-    substituted = placeholder_pattern.sub(replace, fields["prompt"])
+        def replace(match):
+            return variables[match.group(0)[1:-1]]
+
+        substituted = placeholder_pattern.sub(replace, fields["prompt"])
     rendered = build_base_prompt(substituted, fields["no_edits"])
-    normalized_qualification = validate_qualification(qualification)
     if not rendered.strip():
         raise PerformRequestError("empty_rendered_prompt", "Prompt-variable substitution produced an empty main prompt after trimming.")
+    return rendered
+
+
+def render_prompt(fields, variables, placeholder_pattern, qualification=None):
+    """Substitute placeholders once, apply no-edits, and append an optional qualification."""
+    rendered = _render_main_prompt(fields, variables, placeholder_pattern=placeholder_pattern)
+    normalized_qualification = validate_qualification(qualification)
     if normalized_qualification is not None:
         rendered = rendered.rstrip()
         separator = "\n" if "\n" in rendered else " "
         rendered += separator + "BUT: " + normalized_qualification
     return rendered, normalized_qualification
+
+
+def render_help_prompt(fields, variables, _placeholder_pattern, qualification=None):
+    """Render literal immutable help and append an optional normalized question."""
+    rendered = _render_main_prompt(fields, variables)
+    normalized_question = validate_qualification(qualification)
+    if normalized_question is not None:
+        rendered = rendered.rstrip() + "\n\nUser question: " + normalized_question
+    return rendered, normalized_question

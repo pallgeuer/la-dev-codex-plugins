@@ -80,11 +80,31 @@ def test_prepare_launch_keeps_configured_and_rendered_prompts_separate(tmp_path,
     assert payload["action"]["notes"] == "Separate."
 
 
-def test_builtin_help_has_no_launch_configuration(tmp_path, load_catalog):
+def test_builtin_help_has_normal_launch_configuration_and_question_rendering(tmp_path, load_catalog):
     catalog = load_catalog(tmp_path)
-    with pytest.raises(diagnostics_module.PerformRequestError) as error:
-        catalog.launch_config("help[agnostic]")
-    assert error.value.status == "not_executable"
+    config = catalog.launch_config("help[agnostic]")
+    assert config.selector == "help[agnostic]"
+    assert config.model == "default"
+    assert config.reasoning_effort == "medium"
+    assert config.no_edits is True
+    assert config.prompt_vars == {}
+    assert config.requires_interactive is False
+
+    question = "How do repository overrides work?"
+    spec = catalog.prepare_launch("help[agnostic]", {}, qualification="  BUT: " + question + "  ")
+    assert spec.config.selector == "help[agnostic]"
+    assert spec.qualification == question
+    assert spec.rendered_prompt.startswith("No edits. Read the following installed Perform guides")
+    assert spec.rendered_prompt.endswith("\n\nUser question: " + question)
+    assert "BUT: " not in spec.rendered_prompt
+
+    with pytest.raises(diagnostics_module.PerformRequestError) as extra_variable:
+        catalog.render("help[agnostic]", {"Question": question})
+    assert extra_variable.value.status == "extra_variables"
+
+    with pytest.raises(diagnostics_module.PerformRequestError) as invalid_question:
+        catalog.render("help[agnostic]", {}, qualification="first\nsecond")
+    assert invalid_question.value.status == "invalid_qualification"
 
 
 def test_launch_config_does_not_construct_a_base_prompt(monkeypatch, tmp_path, complete, file_data, write_file, load_catalog):

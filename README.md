@@ -311,8 +311,12 @@ This provides the `codex-perform` command, which you can then use. Runs are inte
 
 ```bash
 codex-perform
+codex-perform --help
 codex-perform catalogue
 codex-perform show find-todos
+codex-perform show help
+codex-perform help
+codex-perform help --qualification 'How do repository action overrides work?'
 codex-perform find-todos
 codex-perform find-todos --qualification 'Limit the search to tools/'
 codex-perform find-todos --ni
@@ -338,7 +342,7 @@ For help and documentation on the Perform skill, see:
 - [Codex Perform skill guide](plugins/toolkit/skills/perform/references/codex_skill.md) for in-chat selection and execution.
 - [Standalone Perform CLI guide](plugins/toolkit/skills/perform/references/standalone_cli.md) for activation, process launching, output modes, and the runtime API.
 
-The installed help also exposes the information from all three guides through `$toolkit:perform help` and `codex-perform show help`.
+The installed help exposes the information from all three guides through `$toolkit:perform help` and the executable `codex-perform help` action. Supply a focused standalone question with `--qualification`; use `codex-perform show help` to inspect its immutable generated configuration, and `codex-perform --help` for launcher syntax and options.
 
 ## Development
 
