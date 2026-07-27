@@ -95,7 +95,7 @@ def test_scripts_have_portable_shebang_and_executable_mode():
     ("script", "mixed_arguments", "documented_option"),
     [
         (LIST_SCRIPT, ["--name=first", "--name=second", "--invalid", "--help", "-h"], "--fallback"),
-        (GET_SCRIPT, ["--inspect=first[agnostic]", "--inspect=second[agnostic]", "--invalid", "-h", "--help"], "--qualification"),
+        (GET_SCRIPT, ["--inspect=first[agnostic]", "--inspect=second[agnostic]", "--invalid", "-h", "--help"], "--question"),
         (CATALOGUE_SCRIPT, ["--output=first", "--output=second", "--invalid", "-h", "--help"], "--output"),
     ],
 )
@@ -191,6 +191,7 @@ def test_invalid_direct_arguments_are_json_errors(tmp_path, script, arguments, c
         (GET_SCRIPT, ["--inspect=find-todos[agnostic]", "--inspect=exec-md-goal[agnostic]"]),
         (GET_SCRIPT, ["--render=find-todos[agnostic]", "--render=exec-md-goal[agnostic]"]),
         (GET_SCRIPT, ["--render=find-todos[agnostic]", "--qualification=first", "--qualification=second"]),
+        (GET_SCRIPT, ["--render=find-todos[agnostic]", "--qualification=first", "--question=second"]),
         (GET_SCRIPT, ["--inspect=find-todos[agnostic]", "--cwd=/first", "--cwd=/second"]),
         (CATALOGUE_SCRIPT, ["--output=/first", "--output=/second"]),
         (CATALOGUE_SCRIPT, ["--cwd=/first", "--cwd=/second"]),
@@ -591,7 +592,7 @@ def test_builtin_help_renders_an_optional_question(tmp_path):
     cwd = tmp_path / "outside"
     cwd.mkdir()
     question = "How do repository overrides work?"
-    completed = run_script(GET_SCRIPT, ["--render=help[agnostic]", "--qualification=  BUT: {}  ".format(question)], cwd, clean_environment(tmp_path))
+    completed = run_script(GET_SCRIPT, ["--render=help[agnostic]", "--question=  BUT: {}  ".format(question)], cwd, clean_environment(tmp_path))
     response = parse_stdout(completed)
     assert completed.returncode == 0
     assert response["prompt"].startswith("No edits. Read the following installed Perform guides")
@@ -610,7 +611,7 @@ def test_builtin_help_remains_available_when_catalog_precedence_is_fatal(tmp_pat
     assert response["prompt"].startswith("No edits. Read the following installed Perform guides")
     assert response["diagnostics"]
 
-    rendered = run_script(GET_SCRIPT, ["--render=help[agnostic]", "--qualification=What failed?"], cwd, env)
+    rendered = run_script(GET_SCRIPT, ["--render=help[agnostic]", "--question=What failed?"], cwd, env)
     rendered_response = parse_stdout(rendered)
     assert rendered.returncode == 0
     assert rendered_response["prompt"].endswith("\n\nUser question: What failed?")

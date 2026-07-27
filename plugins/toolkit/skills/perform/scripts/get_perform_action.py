@@ -15,7 +15,7 @@ def _parser():
     operation.add_argument("--inspect", action="store_once", metavar="ACTION[LANGUAGE]", help="Inspect one canonical strict selector.")
     operation.add_argument("--render", action="store_once", metavar="ACTION[LANGUAGE]", help="Render one canonical strict selector.")
     parser.add_argument("--var", action="append", default=[], metavar="NAME=VALUE", help="Bind one prompt variable; repeat for multiple variables.")
-    parser.add_argument("--qualification", action="store_once", help="Append one compatible qualification, or ask built-in help one question.")
+    parser.add_argument("--qualification", "--question", dest="qualification", action="store_once", help="Append one compatible qualification, or ask built-in help one question.")
     parser.add_argument("--cwd", action="store_once", default=str(Path.cwd()), help="Working directory used for conventional local discovery.")
     return parser
 
@@ -25,7 +25,7 @@ def main(argv=None):
     parser = _parser()
     args = parser.parse_args(argv)
     if args.inspect is not None and (args.var or args.qualification is not None):
-        parser.error("--var and --qualification are valid only with --render.")
+        parser.error("--var, --qualification, and --question are valid only with --render.")
 
     def command(context):
         variables = validation.parse_variable_bindings(args.var)

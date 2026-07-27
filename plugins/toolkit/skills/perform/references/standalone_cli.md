@@ -104,7 +104,7 @@ codex-perform 'check-config[rust]'
 codex-perform run check-config --language rust
 codex-perform help
 codex-perform run help
-codex-perform help --qualification 'How do repository action overrides work?'
+codex-perform help --question 'How do repository action overrides work?'
 ```
 
 A strict `ACTION[LANGUAGE]` selector must exist exactly. It can be combined with `--language` only when both specify the same language. A bare action with one variant selects it. A bare action with several variants selects `agnostic` when available; otherwise the launcher reports every alternative and requires an explicit language.
@@ -118,10 +118,10 @@ Bind every declared prompt variable with a repeatable literal argument and optio
 ```bash
 codex-perform exec-md-goal --var 'MarkdownPlanFile=docs/plans/plan.md'
 codex-perform check-config --language rust --qualification 'Limit the audit to crates/core.'
-codex-perform help --qualification 'How do repository action overrides work?'
+codex-perform help --question 'How do repository action overrides work?'
 ```
 
-The launcher requires every variable exactly once using a bare `Name=VALUE` binding. It treats binding values literally and applies the shared rules in [Prompt variables and rendering](action_files.md#prompt-variables-and-rendering). For configured actions, `--qualification` is a compatible scope or detail adjustment appended with `BUT:`. For built-in help, it is an optional documentation question appended as `User question:` after normal structural validation and normalization.
+The launcher requires every variable exactly once using a bare `Name=VALUE` binding. It treats binding values literally and applies the shared rules in [Prompt variables and rendering](action_files.md#prompt-variables-and-rendering). For configured actions, `--qualification` is a compatible scope or detail adjustment appended with `BUT:`. The synonymous `--question` spelling is preferred for built-in help, where the value is an optional documentation question appended as `User question:` after normal structural validation and normalization.
 
 Structured overrides replace settings owned by action definitions:
 

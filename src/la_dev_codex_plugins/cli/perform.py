@@ -85,7 +85,7 @@ def build_parser():
     parser.add_argument("--cwd", help="Directory used for action discovery and the launched Codex working root.")
     parser.add_argument("-l", "--language", help="Exact language variant or listing filter.")
     parser.add_argument("--var", dest="variables", action="append", default=[], metavar="NAME=VALUE", help="Bind one prompt variable; repeat for multiple variables.")
-    parser.add_argument("--qualification", help="Append one compatible qualification, or ask built-in help one question.")
+    parser.add_argument("--qualification", "--question", dest="qualification", help="Append one compatible qualification, or ask built-in help one question.")
     parser.add_argument("--model", help="Override the action model.")
     parser.add_argument("--effort", help="Override normal model reasoning effort.")
     parser.add_argument("--plan-effort", help="Override Plan-mode reasoning effort.")

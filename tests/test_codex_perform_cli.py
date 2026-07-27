@@ -44,6 +44,7 @@ def local_arguments(*arguments):
         (["help"], ["run", "help"]),
         (["help[agnostic]"], ["run", "help[agnostic]"]),
         (["--qualification", "Question?", "help"], ["--qualification", "Question?", "run", "help"]),
+        (["--question", "Question?", "help"], ["--question", "Question?", "run", "help"]),
         (["--help"], ["--help"]),
     ],
 )
@@ -209,7 +210,7 @@ def test_help_shorthand_explicit_run_and_question_are_launchable(capsys):
     assert "If no user question is supplied" in shorthand["submitted_prompt"]
 
     question = "How do repository overrides work?"
-    assert perform.main(local_arguments("help", "--qualification", question, "--dry-run", "--json")) == 0
+    assert perform.main(local_arguments("help", "--question", question, "--dry-run", "--json")) == 0
     qualified = json.loads(capsys.readouterr().out)
     assert qualified["launch_spec"]["qualification"] == question
     assert qualified["submitted_prompt"].endswith("\n\nUser question: " + question)
@@ -450,7 +451,7 @@ def test_invalid_language_and_run_only_list_option_are_usage_errors(capsys):
 
 
 @pytest.mark.parametrize(("command", "extra"), [("list", []), ("show", ["ensure-ascii-only"])])
-@pytest.mark.parametrize(("option", "value"), [("--model", ""), ("--effort", ""), ("--plan-effort", ""), ("--qualification", "")])
+@pytest.mark.parametrize(("option", "value"), [("--model", ""), ("--effort", ""), ("--plan-effort", ""), ("--qualification", ""), ("--question", "")])
 def test_list_and_show_reject_explicit_empty_run_only_options(capsys, command, extra, option, value):
     assert perform.main(local_arguments(command, *extra, option, value, "--json")) == 2
     assert json.loads(capsys.readouterr().out)["error"]["code"] == "invalid_arguments"
