@@ -288,10 +288,11 @@ def validate_versions(repository_root, tag, repository_change, plugin_changes):
     expected_repository = _format_version(_bump_version(baseline.repository_version, repository_level))
     actual_repository_versions = _repository_versions_from_worktree(baseline.repository_root)
     _require_versions(actual_repository_versions, expected_repository, "working-tree repository declarations")
+    actual_repository = actual_repository_versions["setup.cfg"]
     mismatches = ["{}: expected {}, found {}".format(name, expected, worktree_plugins[name]) for name, expected in sorted(expected_plugins.items()) if worktree_plugins[name] != expected]
     if mismatches:
         raise ReleaseValidationError("working-tree plugin version mismatches: {}".format("; ".join(mismatches)))
-    print("repository: class={}, old={}, expected={}, actual={}".format(repository_change, _format_version(baseline.repository_version), expected_repository, expected_repository))
+    print("repository: class={}, old={}, expected={}, actual={}".format(repository_change, _format_version(baseline.repository_version), expected_repository, actual_repository))
     for line in summary:
         print(line)
     return expected_repository

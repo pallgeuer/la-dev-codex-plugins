@@ -124,7 +124,7 @@ def test_versions_combine_repository_feature_plugin_fix_and_stable_plugin_breaki
     completed = run_validator(repository, "versions", tag, "--repository-change", "feature", "--plugin-change", "alpha=fix", "--plugin-change", "stable=breaking")
 
     assert completed.returncode == 0
-    assert "repository: class=feature, old=0.1.0, expected=0.2.0" in completed.stdout
+    assert completed.stdout.splitlines()[0] == "repository: class=feature, old=0.1.0, expected=0.2.0, actual=0.2.0"
     assert "plugin stable: class=breaking, old=1.4.2, expected=2.0.0" in completed.stdout
 
 
@@ -138,7 +138,7 @@ def test_stable_repository_receives_major_bump_from_stable_plugin_breaking_chang
     completed = run_validator(repository, "versions", tag, "--repository-change", "none", "--plugin-change", "stable=breaking")
 
     assert completed.returncode == 0
-    assert "repository: class=none, old=1.3.0, expected=2.0.0" in completed.stdout
+    assert completed.stdout.splitlines()[0] == "repository: class=none, old=1.3.0, expected=2.0.0, actual=2.0.0"
 
 
 def test_breaking_initial_development_plugin_and_repository_receive_minor_bumps(tmp_path):
