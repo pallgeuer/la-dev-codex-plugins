@@ -52,6 +52,17 @@ def test_prelaunch_display_escapes_untrusted_terminal_controls(capsys):
     assert captured.err.startswith("NOTES TO USER:\n")
     assert "\n\nPERFORM: test[agnostic]\nCODEX ACTION ARGS:" in captured.err
     assert "\n\nPROMPT:\nprompt\\\\text" in captured.err
+    assert captured.err.endswith("\n\n")
+
+
+def test_prelaunch_display_separates_stdout_after_prompt_ending_in_newline(capsys):
+    config = types.SimpleNamespace(notes="", selector="test[agnostic]", custom_codex_args=())
+    spec = types.SimpleNamespace(config=config, rendered_prompt="prompt text\n")
+    perform_output.display_prelaunch(spec)
+    perform_output.write_text("final response\n")
+    captured = capsys.readouterr()
+    assert captured.err == "PERFORM: test[agnostic]\n\nPROMPT:\nprompt text\n\n"
+    assert captured.out == "final response\n"
 
 
 def test_prelaunch_display_can_omit_prompt(capsys):
@@ -226,4 +237,6 @@ def test_standalone_cli_preserves_unicode_under_ascii_locale(tmp_path):
     assert "\u03bb".encode("utf-8") in listing.stdout
     assert json.loads(dry_run.stdout.decode("utf-8"))["submitted_prompt"] == "Handle \u03bb."
     assert final_only.stdout == b"final response\n"
-    assert final_only.stderr == b""
+    assert final_only.stderr.startswith(b"PERFORM: unicode[agnostic]\n\nPROMPT:\n")
+    assert final_only.stderr.endswith(b"\n\n")
+    assert b"hidden progress" not in final_only.stderr

@@ -152,7 +152,20 @@ Structured overrides replace settings owned by action definitions:
 --non-interactive
 ```
 
-Runs are interactive unless `--non-interactive` or `--json` selects `codex exec`. Add `--verbose` to an explicit `--non-interactive` run to show the prelaunch context and live Codex progress instead of only the final response.
+Runs are interactive unless `--non-interactive` or `--json` selects `codex exec`. An ordinary explicit `--non-interactive` run shows the prelaunch context while hiding Codex progress; add `--verbose` to show live progress too.
+
+The three output flags have these complete combinations:
+
+| `--non-interactive` | `--json` | `--verbose` | Result |
+| --- | --- | --- | --- |
+| No | No | No | Valid: interactive Codex. |
+| No | No | Yes | Invalid: `--verbose` requires explicit `--non-interactive`. |
+| No | Yes | No | Valid: JSONL `codex exec`; `--json` implicitly selects noninteractive execution. |
+| No | Yes | Yes | Invalid: `--verbose` requires explicit `--non-interactive` and cannot be combined with `--json`. |
+| Yes | No | No | Valid: final-response-only `codex exec`; prelaunch context is shown and Codex progress is hidden. |
+| Yes | No | Yes | Valid: verbose `codex exec`; prelaunch context and live Codex progress are shown. |
+| Yes | Yes | No | Valid: JSONL `codex exec`; explicit `--non-interactive` is redundant but accepted. |
+| Yes | Yes | Yes | Invalid: `--verbose` cannot be combined with `--json`. |
 
 Arguments after an exact `--` are copied into the selected Codex frontend:
 
@@ -174,9 +187,9 @@ The default frontend is always interactive Codex. `--non-interactive` selects or
 
 Interactive launches display nonempty notes under `NOTES TO USER:`, `PERFORM: SELECTOR`, and nonempty action-defined Codex arguments on stderr. They omit a separate `PROMPT:` preview because the submitted prompt is the first content shown in the opened interactive Codex session.
 
-Verbose noninteractive and JSONL launches additionally display the rendered prompt under `PROMPT:` on stderr. The preview renders backslashes and untrusted control characters as visible escapes while preserving ordinary line breaks; the unmodified prompt is submitted to Codex. Prompt color is enabled only when stderr is a terminal and neither `NO_COLOR` nor `TERM=dumb` disables it.
+Final-response-only, verbose noninteractive, and JSONL launches additionally display the rendered prompt under `PROMPT:` on stderr. The preview renders backslashes and untrusted control characters as visible escapes while preserving ordinary line breaks; the unmodified prompt is submitted to Codex. Prompt color is enabled only when stderr is a terminal and neither `NO_COLOR` nor `TERM=dumb` disables it.
 
-An ordinary `--non-interactive` launch suppresses the preview and Codex progress on successful runs, leaving only Codex's final response on stdout. It captures Codex stderr in a temporary file without buffering it in memory. If Codex fails, the launcher prints the prelaunch context, replays the captured diagnostics, and returns the Codex status. The supervisor isolates the Codex process tree, relays `SIGINT`, `SIGTERM`, `SIGHUP`, and `SIGQUIT`, cleans up surviving descendants, and returns the conventional `128 + signal` status. `--non-interactive --verbose` restores the displayed preview and live progress. `--verbose` without `--non-interactive`, or combined with `--json`, is invalid.
+An ordinary `--non-interactive` launch displays the preview, suppresses Codex progress on successful runs, and leaves only Codex's final response on stdout. It captures Codex stderr in a temporary file without buffering it in memory. If Codex fails, the launcher replays the captured diagnostics after the already displayed preview and returns the Codex status. The supervisor isolates the Codex process tree, relays `SIGINT`, `SIGTERM`, `SIGHUP`, and `SIGQUIT`, cleans up surviving descendants, and returns the conventional `128 + signal` status. `--non-interactive --verbose` restores live progress. `--verbose` without `--non-interactive`, or combined with `--json`, is invalid.
 
 The launcher places a final `--` before the submitted prompt, so option-looking prompts such as `--help` remain prompt data. Interactive, verbose noninteractive, and JSONL modes call `exec`, replacing the Python launcher with Codex. Final-response-only mode remains as a supervising process so it can conditionally replay captured diagnostics.
 

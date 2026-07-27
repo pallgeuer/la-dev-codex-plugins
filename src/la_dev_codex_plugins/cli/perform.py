@@ -162,13 +162,11 @@ def _run_command(args, codex_args, runtime, launcher, environment):
 
 def _run_final_only(invocation, spec, environment):
     """Run Codex with inherited stdout while hiding successful stderr."""
-    sys.stderr.flush()
-    sys.stdout.flush()
+    output.display_prelaunch(spec)
     try:
         with tempfile.TemporaryFile(mode="w+b") as captured_stderr:
             returncode = launcher_runtime.run_supervised_process(invocation.argv, env=environment, stderr=captured_stderr)
             if returncode != 0:
-                output.display_prelaunch(spec)
                 captured_stderr.seek(0)
                 while True:
                     chunk = captured_stderr.read(8192)

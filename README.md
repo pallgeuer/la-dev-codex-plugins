@@ -307,7 +307,7 @@ The repository includes a source-only `codex-perform` launcher. On supported hos
 source /PATH/TO/la-dev-codex-plugins/activate.sh
 ```
 
-This provides the `codex-perform` command, which you can then use. Runs are interactive by default; ordinary noninteractive runs show only the final response, while `--verbose` restores live progress:
+This provides the `codex-perform` command, which you can then use. Runs are interactive by default; ordinary noninteractive runs show the action and prompt on stderr, hide Codex progress, and leave only the final response on stdout. Add `--verbose` to restore live progress:
 
 ```bash
 codex-perform

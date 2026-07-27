@@ -250,7 +250,7 @@ def test_default_run_is_interactive(monkeypatch, capsys):
     assert "PROMPT:" not in captured.err
 
 
-def test_final_only_success_only_shows_final_response(monkeypatch, capsys):
+def test_final_only_success_shows_prelaunch_and_only_final_response(monkeypatch, capsys):
     observed = {}
 
     def run_supervised_process(argv, env, stderr):
@@ -264,7 +264,10 @@ def test_final_only_success_only_shows_final_response(monkeypatch, capsys):
     assert perform.main(local_arguments("ensure-ascii-only", "--non-interactive")) == 0
     captured = capsys.readouterr()
     assert captured.out == "final response\n"
-    assert captured.err == ""
+    assert captured.err.startswith("PERFORM: ensure-ascii-only[agnostic]\n")
+    assert "PROMPT:" in captured.err
+    assert captured.err.endswith("\n\n")
+    assert "hidden progress" not in captured.err
     assert "exec" in observed["argv"]
     assert observed["env"] is not None
 
@@ -280,8 +283,9 @@ def test_final_only_failure_replays_prelaunch_and_diagnostics(monkeypatch, capsy
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err.startswith("PERFORM: ensure-ascii-only[agnostic]\n")
+    assert captured.err.count("PERFORM: ensure-ascii-only[agnostic]") == 1
     assert "PROMPT:" in captured.err
-    assert captured.err.endswith("codex progress and failure\n")
+    assert "\n\ncodex progress and failure\n" in captured.err
 
 
 def test_final_only_supervisor_failure_is_a_launch_error(monkeypatch, capsys):
@@ -325,35 +329,39 @@ def test_verbose_noninteractive_uses_direct_progress_output(monkeypatch, capsys)
 
 
 @pytest.mark.parametrize(
-    "arguments",
+    ("non_interactive", "json_output", "verbose", "expected_status", "expected_mode"),
     [
-        ("ensure-ascii-only", "--verbose"),
-        ("ensure-ascii-only", "--non-interactive", "--verbose", "--json"),
+        (False, False, False, 0, "interactive"),
+        (False, False, True, 2, None),
+        (False, True, False, 0, "jsonl"),
+        (False, True, True, 2, None),
+        (True, False, False, 0, "final-only"),
+        (True, False, True, 0, "verbose"),
+        (True, True, False, 0, "jsonl"),
+        (True, True, True, 2, None),
     ],
 )
-def test_verbose_requires_explicit_plain_noninteractive_mode(capsys, arguments):
-    assert perform.main(local_arguments(*arguments)) == 2
+def test_run_output_flag_combinations(capsys, non_interactive, json_output, verbose, expected_status, expected_mode):
+    arguments = ["ensure-ascii-only", "--dry-run"]
+    if non_interactive:
+        arguments.append("--non-interactive")
+    if json_output:
+        arguments.append("--json")
+    if verbose:
+        arguments.append("--verbose")
+    assert perform.main(local_arguments(*arguments)) == expected_status
     captured = capsys.readouterr()
-    if "--json" in arguments:
-        assert json.loads(captured.out)["error"]["code"] == "invalid_arguments"
+    if expected_status:
+        if json_output:
+            assert json.loads(captured.out)["error"]["code"] == "invalid_arguments"
+        else:
+            assert captured.out == ""
+            assert captured.err.startswith("codex-perform: ")
+    elif json_output:
+        assert json.loads(captured.out)["output_mode"] == expected_mode
     else:
-        assert captured.out == ""
-        assert captured.err.startswith("codex-perform: ")
-
-
-@pytest.mark.parametrize(
-    ("arguments", "expected_mode"),
-    [
-        (("ensure-ascii-only", "--dry-run"), "interactive"),
-        (("ensure-ascii-only", "--non-interactive", "--dry-run"), "final-only"),
-        (("ensure-ascii-only", "--non-interactive", "--verbose", "--dry-run"), "verbose"),
-    ],
-)
-def test_human_dry_run_reports_launcher_output_mode(capsys, arguments, expected_mode):
-    assert perform.main(local_arguments(*arguments)) == 0
-    payload = json.loads(capsys.readouterr().out.split("bash command:\n", 1)[0])
-    assert payload["output_mode"] == expected_mode
-    assert payload["non_interactive"] is (expected_mode != "interactive")
+        payload = json.loads(captured.out.split("bash command:\n", 1)[0])
+        assert payload["output_mode"] == expected_mode
 
 
 def test_relative_codex_home_is_shared_by_catalog_and_launch(monkeypatch, tmp_path):

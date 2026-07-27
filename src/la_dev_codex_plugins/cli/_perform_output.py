@@ -193,6 +193,7 @@ def display_prelaunch(spec, include_prompt=True):
             pieces.append(prompt)
         if not spec.rendered_prompt.endswith("\n"):
             pieces.append("\n")
+        pieces.append("\n")
     write_text("".join(pieces), stream=sys.stderr)
     sys.stderr.flush()
     sys.stdout.flush()
