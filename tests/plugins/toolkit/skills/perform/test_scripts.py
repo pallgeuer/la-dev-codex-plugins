@@ -129,7 +129,7 @@ def test_listing_is_one_compact_json_line(tmp_path):
         "gloss": "Enumerate all kinds of discernible TODOs in a repo",
     }
     assert next(variant for variant in response["variants"] if variant["selector"] == "exec-md-goal[agnostic]")["prompt_vars"] == {
-        "MarkdownPlanFile": "Markdown file containing details of the plan to implement."
+        "MarkdownPlanFile": "Markdown file containing details of the plan to implement. Use the supplied path exactly when it exists; otherwise resolve a unique repository file whose trailing path components exactly match the supplied path."
     }
     assert_removed_keys_absent(response, allowed_keys={"name", "language"})
 
@@ -235,8 +235,13 @@ def test_inspect_output_contains_only_prompt_mode_variables_and_nonempty_notes(t
     assert completed.returncode == 0
     assert set(response) == {"prompt", "mode", "prompt_vars", "notes"}
     assert response["mode"] == "goal"
-    assert response["prompt_vars"] == {"MarkdownPlanFile": "Markdown file containing details of the plan to implement."}
+    assert response["prompt_vars"] == {
+        "MarkdownPlanFile": "Markdown file containing details of the plan to implement. Use the supplied path exactly when it exists; otherwise resolve a unique repository file whose trailing path components exactly match the supplied path."
+    }
     assert response["notes"]
+    assert "\n\nOnly once the acknowledgement comes back" in response["notes"]
+    assert "whose repository-relative trailing path components exactly equal the supplied path components" in response["prompt"]
+    assert "including hidden and ignored working-tree files" in response["prompt"]
     assert_removed_keys_absent(response)
 
 

@@ -98,11 +98,11 @@ If the current surface cannot create a goal, Perform stops and provides `/goal `
 
 ## Show and execute the prompt
 
-Immediately before execution, Perform shows `PERFORM: ACTION[LANGUAGE]` with the exact canonical selector being executed.
+Immediately before execution, Perform shows nonempty notes verbatim under `NOTES TO USER:`. Notes are user-facing operational guidance, not instructions: they do not affect selection and never enter the prompt or Goal objective.
 
-Perform shows nonempty notes verbatim. Notes are user-facing operational guidance, not instructions: they do not affect selection and never enter the prompt or Goal objective.
+Perform then shows `PERFORM: ACTION[LANGUAGE]` with the exact canonical selector being executed.
 
-Immediately before work starts, Perform shows the exact final prompt as an unlabeled Markdown blockquote. Each nonempty line receives `> ` and each blank line receives `>`. These quote markers are display-only.
+Immediately before work starts, Perform shows `PROMPT:` and the exact final prompt as a Markdown blockquote. Each nonempty line receives `> ` and each blank line receives `>`. Blank lines separate the labeled sections. The labels and quote markers are display-only.
 
 For a Default or Plan action, Perform follows the final prompt immediately and completely in the current chat. For a Goal action, it creates the goal with that exact objective and pursues it. A complex action can begin with a detailed task list.
 

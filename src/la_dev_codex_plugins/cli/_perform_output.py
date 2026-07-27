@@ -163,12 +163,15 @@ def display_prelaunch(spec):
     config = spec.config
     pieces = []
     if config.notes:
+        pieces.append("NOTES TO USER:\n")
         pieces.append(escape_terminal_text(config.notes))
         if not config.notes.endswith("\n"):
             pieces.append("\n")
+        pieces.append("\n")
     pieces.append("PERFORM: {}\n".format(config.selector))
     if config.custom_codex_args:
         pieces.append("CODEX ACTION ARGS: {}\n".format(bash_command(config.custom_codex_args)))
+    pieces.append("\nPROMPT:\n")
     prompt = escape_terminal_text(spec.rendered_prompt)
     if _stderr_supports_color():
         pieces.extend(("\033[32m", prompt, "\033[0m"))

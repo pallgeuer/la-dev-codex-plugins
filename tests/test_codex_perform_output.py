@@ -34,6 +34,9 @@ def test_prelaunch_display_escapes_untrusted_terminal_controls(capsys):
     assert "note\\\\path\\x1b]52;c;payload\\x07\\x0d\\x09\\u202e\nnext" in captured.err
     assert "CODEX ACTION ARGS:" in captured.err
     assert "prompt\\\\text\\x1b[2J\\u2028line" in captured.err
+    assert captured.err.startswith("NOTES TO USER:\n")
+    assert "\n\nPERFORM: test[agnostic]\nCODEX ACTION ARGS:" in captured.err
+    assert "\n\nPROMPT:\nprompt\\\\text" in captured.err
 
 
 def test_human_dry_run_and_json_escape_terminal_controls(capsys):

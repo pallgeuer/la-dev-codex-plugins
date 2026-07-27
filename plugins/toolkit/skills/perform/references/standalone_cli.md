@@ -177,7 +177,7 @@ Without an override, an action's `interactive` policy selects the frontend:
 
 Both explicit frontend flags can override `"allowed"` and `"preferred"`. `--interactive` remains valid for `"required"`. Without an explicit frontend flag, `--json` selects noninteractive execution for `"allowed"` and `"preferred"` actions because interactive Codex does not emit JSONL. An action marked `"required"` rejects this implicit noninteractive selection, and an explicit `--interactive --json` combination is also rejected.
 
-Before a real launch, nonempty notes, `PERFORM: SELECTOR`, nonempty action-defined Codex arguments, and the rendered prompt are written to stderr. The preview renders backslashes and untrusted control characters as visible escapes while preserving ordinary line breaks; the unmodified prompt is submitted to Codex. Prompt color is enabled only when stderr is a terminal and neither `NO_COLOR` nor `TERM=dumb` disables it.
+Before a real launch, nonempty notes under `NOTES TO USER:`, `PERFORM: SELECTOR`, nonempty action-defined Codex arguments, and the rendered prompt under `PROMPT:` are written to stderr as separate sections. The preview renders backslashes and untrusted control characters as visible escapes while preserving ordinary line breaks; the unmodified prompt is submitted to Codex. Prompt color is enabled only when stderr is a terminal and neither `NO_COLOR` nor `TERM=dumb` disables it.
 
 The launcher places a final `--` before the submitted prompt, so option-looking prompts such as `--help` remain prompt data. It then calls `exec`, replacing the Python launcher with Codex instead of creating a child process.
 

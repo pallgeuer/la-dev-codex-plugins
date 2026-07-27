@@ -54,7 +54,7 @@ Direct arguments are visible to process inspection and may be recorded by launch
 
 ## Show and execute
 
-Immediately before execution, show `PERFORM: ACTION[LANGUAGE]` with the exact canonical selector being executed. Then show nonempty notes verbatim, followed by the exact final prompt as an unlabeled Markdown blockquote immediately before starting work: prefix every nonempty prompt line with `> ` and every blank prompt line with `>`. The selector line and quote markers are display-only and never enter the prompt or Goal objective.
+Immediately before execution, show nonempty notes verbatim under `NOTES TO USER:`, then show `PERFORM: ACTION[LANGUAGE]` with the exact canonical selector being executed. Show `PROMPT:` followed by the exact final prompt as a Markdown blockquote immediately before starting work: prefix every nonempty prompt line with `> ` and every blank prompt line with `>`. Keep a blank line between each labeled section. The labels, selector line, and quote markers are display-only and never enter the prompt or Goal objective.
 
 For `goal`, create the goal with the exact final prompt as its sole objective, then execute it. If goal creation is unavailable, do not run outside Goal mode; show the relevant notes, explain the limitation, and provide `/goal ` followed by the exact prompt for manual submission.
 
