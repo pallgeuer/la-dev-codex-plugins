@@ -26,7 +26,7 @@ REMOVED_OUTPUT_KEYS = {
     "model",
     "reasoning_effort",
     "plan_reasoning_effort",
-    "interactive",
+    "requires_interactive",
     "custom_codex_args",
     "goal_mode",
     "plan_mode",

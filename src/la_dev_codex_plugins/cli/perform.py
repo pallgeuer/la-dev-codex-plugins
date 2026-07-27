@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+import tempfile
 from pathlib import Path
 
 from . import _perform_output as output
@@ -11,11 +12,12 @@ COMMANDS = frozenset(("catalogue", "list", "run", "show"))
 RUN_ONLY_DESTINATIONS = (
     "dry_run",
     "effort",
-    "interactive",
     "model",
+    "non_interactive",
     "plan_effort",
     "qualification",
     "variables",
+    "verbose",
 )
 
 
@@ -89,9 +91,8 @@ def build_parser():
     parser.add_argument("--model", help="Override the action model.")
     parser.add_argument("--effort", help="Override normal model reasoning effort.")
     parser.add_argument("--plan-effort", help="Override Plan-mode reasoning effort.")
-    interactivity = parser.add_mutually_exclusive_group()
-    interactivity.add_argument("--interactive", dest="interactive", action="store_true", default=None, help="Force an interactive Codex launch.")
-    interactivity.add_argument("--non-interactive", dest="interactive", action="store_false", help="Force a noninteractive codex exec launch.")
+    parser.add_argument("--non-interactive", action="store_true", help="Launch noninteractive codex exec instead of interactive Codex.")
+    parser.add_argument("--verbose", action="store_true", help="Show prelaunch context and Codex progress for an explicitly noninteractive run.")
     parser.add_argument("--dry-run", action="store_true", help="Display the complete launch without executing Codex.")
     parser.add_argument("--output", help="Action catalogue output path; relative paths resolve from the repository root and may use parent traversal.")
     parser.add_argument("--json", action="store_true", help="Use launcher JSON for catalogue/list/show/dry-run or select noninteractive Codex JSONL for a run.")
@@ -125,27 +126,57 @@ def _run_command(args, codex_args, runtime, launcher, environment):
     """Prepare, inspect, or execute one selected action."""
     if args.action is None:
         raise launcher_runtime.CliError("run requires an action name or strict selector.", code="invalid_arguments")
+    if args.verbose and not args.non_interactive:
+        raise launcher_runtime.CliError("--verbose requires --non-interactive.", code="invalid_arguments")
+    if args.verbose and args.json:
+        raise launcher_runtime.CliError("--verbose cannot be combined with --json.", code="invalid_arguments")
     spec = launcher.prepare_launch(args.action, language=args.language, variable_bindings=args.variables, qualification=args.qualification)
     overrides = runtime.LaunchOverrides(
         model=args.model,
         reasoning_effort=args.effort,
         plan_reasoning_effort=args.plan_effort,
-        interactive=args.interactive,
+        non_interactive=args.non_interactive,
         extra_codex_args=codex_args,
         cwd=args.resolved_cwd,
         json_output=args.json,
     )
     codex_executable = args.resolved_codex or launcher_runtime.resolve_codex_executable(args.codex, args.original_cwd, env=environment)
     invocation = runtime.build_codex_invocation(spec, codex_executable=codex_executable, overrides=overrides)
+    output_mode = "jsonl" if args.json else "verbose" if args.verbose else "final-only" if invocation.non_interactive else "interactive"
     if args.dry_run:
         if args.json:
-            output.write_json(invocation.to_dict())
+            payload = invocation.to_dict()
+            payload["output_mode"] = output_mode
+            output.write_json(payload)
         else:
-            output.print_dry_run(invocation)
+            output.print_dry_run(invocation, output_mode)
         return 0
+    if output_mode == "final-only":
+        return _run_final_only(invocation, spec, environment)
     output.display_prelaunch(spec)
     try:
         launcher_runtime.replace_process(invocation.argv, env=environment)
+    except (OSError, UnicodeError, ValueError) as exc:
+        raise launcher_runtime.CliError("Could not launch Codex: {}".format(exc), exit_code=4, code="launch_failed") from exc
+
+
+def _run_final_only(invocation, spec, environment):
+    """Run Codex with inherited stdout while hiding successful stderr."""
+    sys.stderr.flush()
+    sys.stdout.flush()
+    try:
+        with tempfile.TemporaryFile(mode="w+b") as captured_stderr:
+            returncode = launcher_runtime.run_supervised_process(invocation.argv, env=environment, stderr=captured_stderr)
+            if returncode != 0:
+                output.display_prelaunch(spec)
+                captured_stderr.seek(0)
+                while True:
+                    chunk = captured_stderr.read(8192)
+                    if not chunk:
+                        break
+                    output.write_bytes(chunk, stream=sys.stderr)
+                sys.stderr.flush()
+            return returncode
     except (OSError, UnicodeError, ValueError) as exc:
         raise launcher_runtime.CliError("Could not launch Codex: {}".format(exc), exit_code=4, code="launch_failed") from exc
 

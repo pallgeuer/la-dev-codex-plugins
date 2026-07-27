@@ -96,17 +96,17 @@ class ActionLaunchSpec(_FrozenValue):
 class LaunchOverrides(_FrozenValue):
     """Validated caller overrides applied while constructing Codex argv."""
 
-    __slots__ = ("_is_frozen", "cwd", "extra_codex_args", "interactive", "json_output", "model", "plan_reasoning_effort", "reasoning_effort")
+    __slots__ = ("_is_frozen", "cwd", "extra_codex_args", "json_output", "model", "non_interactive", "plan_reasoning_effort", "reasoning_effort")
 
-    def __init__(self, model=None, reasoning_effort=None, plan_reasoning_effort=None, interactive=None, extra_codex_args=None, cwd=None, json_output=False):
+    def __init__(self, model=None, reasoning_effort=None, plan_reasoning_effort=None, non_interactive=False, extra_codex_args=None, cwd=None, json_output=False):
         """Store optional structured overrides and literal extra arguments."""
         if model is not None and not validation.valid_model(model):
             raise PerformRequestError("invalid_model", "model overrides must be exactly 'default' or match {} without trimming.".format(validation.MODEL_REGEX))
         for field, value in (("reasoning_effort", reasoning_effort), ("plan_reasoning_effort", plan_reasoning_effort)):
             if value is not None and not validation.valid_effort(value):
                 raise PerformRequestError("invalid_effort", "{} overrides must match {} without trimming.".format(field, validation.EFFORT_REGEX))
-        if interactive is not None and type(interactive) is not bool:
-            raise PerformRequestError("invalid_interactivity", "interactive overrides must be a Boolean or null.")
+        if type(non_interactive) is not bool:
+            raise PerformRequestError("invalid_interactivity", "non_interactive must be a Boolean.")
         arguments = [] if extra_codex_args is None else extra_codex_args
         code, message = validation.validate_extra_codex_args(arguments)
         if code is not None:
@@ -118,7 +118,7 @@ class LaunchOverrides(_FrozenValue):
         self.model = model
         self.reasoning_effort = reasoning_effort
         self.plan_reasoning_effort = plan_reasoning_effort
-        self.interactive = interactive
+        self.non_interactive = non_interactive
         self.extra_codex_args = tuple(arguments)
         self.cwd = cwd
         self.json_output = json_output
@@ -130,7 +130,7 @@ class LaunchOverrides(_FrozenValue):
             "model": self.model,
             "reasoning_effort": self.reasoning_effort,
             "plan_reasoning_effort": self.plan_reasoning_effort,
-            "interactive": self.interactive,
+            "non_interactive": self.non_interactive,
             "extra_codex_args": list(self.extra_codex_args),
             "cwd": self.cwd,
             "json_output": self.json_output,
@@ -140,14 +140,14 @@ class LaunchOverrides(_FrozenValue):
 class CodexInvocation(_FrozenValue):
     """Final direct Codex invocation produced from one launch specification."""
 
-    __slots__ = ("_is_frozen", "argv", "effective_settings", "interactive", "mode", "objective", "spec", "submitted_prompt")
+    __slots__ = ("_is_frozen", "argv", "effective_settings", "mode", "non_interactive", "objective", "spec", "submitted_prompt")
 
-    def __init__(self, spec, argv, effective_settings, interactive, mode, submitted_prompt, objective):
+    def __init__(self, spec, argv, effective_settings, non_interactive, mode, submitted_prompt, objective):
         """Store deterministic launch output without executing it."""
         self.spec = spec
         self.argv = tuple(argv)
         self.effective_settings = types.MappingProxyType(dict(effective_settings))
-        self.interactive = interactive
+        self.non_interactive = non_interactive
         self.mode = mode
         self.submitted_prompt = submitted_prompt
         self.objective = objective
@@ -162,7 +162,7 @@ class CodexInvocation(_FrozenValue):
             "launch_spec": self.spec.to_dict(),
             "effective_settings": effective_settings,
             "mode": self.mode,
-            "interactive": self.interactive,
+            "non_interactive": self.non_interactive,
             "objective": self.objective,
             "submitted_prompt": self.submitted_prompt,
             "argv": list(self.argv),
@@ -197,9 +197,9 @@ def build_codex_invocation(spec, codex_executable="codex", overrides=None):
             "plan_mode_unavailable",
             "Plan-mode actions cannot be launched by codex-perform because Codex currently has no command-line mechanism to activate Plan mode. Run this action inside an existing interactive chat with $toolkit:perform.",
         )
-    if config.interactive == "required" and (overrides.interactive is False or (overrides.interactive is None and overrides.json_output)):
+    non_interactive = overrides.non_interactive or overrides.json_output
+    if config.requires_interactive and non_interactive:
         raise PerformRequestError("interactive_required", "{} requires an interactive Codex launch and cannot be overridden with noninteractive mode.".format(config.selector))
-    interactive = config.interactive != "allowed" if overrides.interactive is None and not overrides.json_output else bool(overrides.interactive)
 
     objective = spec.rendered_prompt
     if config.goal_mode:
@@ -213,14 +213,14 @@ def build_codex_invocation(spec, codex_executable="codex", overrides=None):
         mode = "default"
         submitted_prompt = objective
 
-    if interactive:
+    if not non_interactive:
         code, message = validation.validate_interactive_codex_args(overrides.extra_codex_args)
         if code is not None:
             raise PerformRequestError(code, message)
 
     argv = [codex_executable]
     argv.extend(config.custom_codex_args)
-    if interactive:
+    if not non_interactive:
         argv.extend(overrides.extra_codex_args)
     if overrides.cwd is not None:
         argv.extend(("--cd", overrides.cwd))
@@ -228,14 +228,11 @@ def build_codex_invocation(spec, codex_executable="codex", overrides=None):
         argv.extend(("--model", model))
     argv.extend(("-c", "model_reasoning_effort={}".format(json.dumps(reasoning_effort))))
     argv.extend(("-c", "plan_mode_reasoning_effort={}".format(json.dumps(plan_reasoning_effort))))
-    if not interactive:
+    if non_interactive:
         argv.append("exec")
         argv.extend(overrides.extra_codex_args)
-    if overrides.json_output:
-        if interactive:
-            raise PerformRequestError("json_requires_noninteractive", "Codex JSONL output is available only for noninteractive launches.")
-        if "--json" not in overrides.extra_codex_args:
-            argv.append("--json")
+    if overrides.json_output and "--json" not in overrides.extra_codex_args:
+        argv.append("--json")
     argv.extend(("--", submitted_prompt))
     if any("\x00" in argument for argument in argv):
         raise PerformRequestError("invalid_launch_argument", "Codex arguments must not contain NUL characters.")
@@ -244,13 +241,13 @@ def build_codex_invocation(spec, codex_executable="codex", overrides=None):
         "model": model,
         "reasoning_effort": reasoning_effort,
         "plan_reasoning_effort": plan_reasoning_effort,
-        "interactive": interactive,
+        "non_interactive": non_interactive,
         "custom_codex_args": tuple(config.custom_codex_args),
         "extra_codex_args": tuple(overrides.extra_codex_args),
         "cwd": overrides.cwd,
         "json_output": overrides.json_output,
     }
-    return CodexInvocation(spec, argv, effective_settings, interactive, mode, submitted_prompt, objective)
+    return CodexInvocation(spec, argv, effective_settings, non_interactive, mode, submitted_prompt, objective)
 
 
 __all__ = (

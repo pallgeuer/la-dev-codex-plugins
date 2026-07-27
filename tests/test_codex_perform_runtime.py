@@ -1,12 +1,16 @@
 """Tests for Perform runtime loading and execution."""
 
+import contextlib
 import importlib
 import io
 import json
 import os
+import signal
 import subprocess
 import sys
+import time
 import types
+import typing
 from pathlib import Path
 
 import pytest
@@ -74,6 +78,130 @@ def installed_payload(enabled=True, version="1.2.3"):
             }
         ]
     }
+
+
+@pytest.mark.parametrize(("returncode", "expected_status"), [(0, 0), (7, 7), (-15, 143)])
+def test_supervised_process_normalizes_status_and_encodes_invocation(returncode, expected_status):
+    observed = {}
+
+    class SupervisedProcess:
+        def wait(self, timeout=None):
+            assert timeout is None
+            return returncode
+
+    def popen(argv, **kwargs):
+        observed["argv"] = argv
+        observed["kwargs"] = kwargs
+        return SupervisedProcess()
+
+    stderr = io.BytesIO()
+    status = perform_runtime.run_supervised_process(("codex", "path\udc80"), {"VALUE": "\u03bb"}, stderr, popen_factory=popen)
+    assert status == expected_status
+    assert observed["argv"] == [b"codex", b"path\x80"]
+    assert observed["kwargs"] == {"env": {b"VALUE": "\u03bb".encode("utf-8")}, "stderr": stderr, "start_new_session": True}
+
+
+def test_supervised_process_interrupt_returns_shell_status(monkeypatch):
+    stopped = []
+
+    class SupervisedProcess:
+        def wait(self, timeout=None):
+            assert timeout is None
+            raise KeyboardInterrupt
+
+    process = SupervisedProcess()
+
+    def stop_process_tree(observed_process, graceful_signal=None):
+        assert observed_process is process
+        stopped.append(graceful_signal)
+
+    monkeypatch.setattr(perform_runtime, "_stop_process_tree", stop_process_tree)
+    assert perform_runtime.run_supervised_process(("codex",), {}, io.BytesIO(), popen_factory=lambda *_args, **_kwargs: process) == 130
+    assert stopped == [signal.SIGINT]
+
+
+@pytest.mark.parametrize("signal_number", [signal.SIGINT, signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT])
+def test_supervised_process_forwards_signals_during_ignored_cleanup(monkeypatch, signal_number):
+    handled_signals = [signal.SIGINT, signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT]
+    original_handlers = {number: object() for number in handled_signals}
+    current_handlers = dict(original_handlers)
+    stopped = []
+
+    def fake_signal(number, handler):
+        previous = current_handlers[number]
+        current_handlers[number] = handler
+        return previous
+
+    class SupervisedProcess:
+        def wait(self, timeout=None):
+            assert timeout is None
+            handler = current_handlers[signal_number]
+            assert callable(handler)
+            typing.cast(typing.Callable[[int, object], object], handler)(signal_number, None)
+            raise AssertionError("the forwarded signal must interrupt the wait")
+
+    process = SupervisedProcess()
+
+    def stop_process_tree(observed_process, graceful_signal=None):
+        assert observed_process is process
+        assert all(current_handlers[number] == signal.SIG_IGN for number in handled_signals)
+        stopped.append(graceful_signal)
+
+    monkeypatch.setattr(perform_runtime.signal, "getsignal", lambda number: current_handlers[number])
+    monkeypatch.setattr(perform_runtime.signal, "signal", fake_signal)
+    monkeypatch.setattr(perform_runtime, "_stop_process_tree", stop_process_tree)
+    assert perform_runtime.run_supervised_process(("codex",), {}, io.BytesIO(), popen_factory=lambda *_args, **_kwargs: process) == 128 + signal_number
+    assert stopped == [signal_number]
+    assert current_handlers == original_handlers
+
+
+def test_supervised_process_termination_cleans_real_descendants(tmp_path):
+    pid_file = tmp_path / "supervised-pids"
+    grandchild_code = "import time; time.sleep(60)"
+    child_code = "import os, subprocess, sys, time\ngrandchild = subprocess.Popen([sys.executable, '-c', {!r}])\nwith open({!r}, 'w') as stream:\n stream.write('{{}} {{}}'.format(os.getpid(), grandchild.pid))\ntime.sleep(60)".format(
+        grandchild_code, str(pid_file)
+    )
+    supervisor_code = "import os, sys\nfrom la_dev_codex_plugins.cli import _perform_runtime as runtime\nraise SystemExit(runtime.run_supervised_process((sys.executable, '-c', {!r}), os.environ, sys.stderr.buffer))".format(
+        child_code
+    )
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = str(REPOSITORY_ROOT / "src")
+    supervisor = subprocess.Popen([sys.executable, "-c", supervisor_code], cwd=str(REPOSITORY_ROOT), env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    supervised_pids = []
+    try:
+        deadline = time.monotonic() + 5
+        pid_values = []
+        while len(pid_values) != 2 and supervisor.poll() is None and time.monotonic() < deadline:
+            if pid_file.is_file():
+                pid_values = pid_file.read_text(encoding="ascii").split()
+            time.sleep(0.01)
+        assert len(pid_values) == 2
+        supervised_pids = [int(value) for value in pid_values]
+        os.kill(supervisor.pid, signal.SIGTERM)
+        stdout, stderr = supervisor.communicate(timeout=5)
+        assert supervisor.returncode == 143
+        assert stdout == b""
+        assert stderr == b""
+
+        def process_is_running(pid):
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                return False
+            stat = Path("/proc") / str(pid) / "stat"
+            return not (stat.is_file() and stat.read_text(encoding="ascii").split()[2] == "Z")
+
+        deadline = time.monotonic() + 3
+        while any(process_is_running(pid) for pid in supervised_pids) and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert not any(process_is_running(pid) for pid in supervised_pids)
+    finally:
+        if supervisor.poll() is None:
+            supervisor.kill()
+            supervisor.communicate()
+        for pid in supervised_pids:
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(pid, signal.SIGKILL)
 
 
 @pytest.mark.parametrize("payload", [b'{"installed":[]}\n', b'{\n  "installed": []\n}\n'])
@@ -401,10 +529,6 @@ def test_posix_process_replacement_encodes_unicode_and_surrogateescape(monkeypat
     arguments = ("/tmp/codex", "\u03bb", "path\udc80")
     with pytest.raises(ExecCalled):
         perform_runtime.replace_process(arguments, env={"CODEX_HOME": "/tmp/home", "VALUE": "\u03bb"})
-    if os.name == "posix":
-        assert observed["executable"] == b"/tmp/codex"
-        assert observed["argv"] == [b"/tmp/codex", "\u03bb".encode("utf-8"), b"path\x80"]
-        assert observed["environment"] == {b"CODEX_HOME": b"/tmp/home", b"VALUE": "\u03bb".encode("utf-8")}
-    else:
-        assert observed["argv"] == arguments
-        assert observed["environment"] == {"CODEX_HOME": "/tmp/home", "VALUE": "\u03bb"}
+    assert observed["executable"] == b"/tmp/codex"
+    assert observed["argv"] == [b"/tmp/codex", "\u03bb".encode("utf-8"), b"path\x80"]
+    assert observed["environment"] == {b"CODEX_HOME": b"/tmp/home", b"VALUE": "\u03bb".encode("utf-8")}

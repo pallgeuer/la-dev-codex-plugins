@@ -38,7 +38,7 @@ def test_prompt_vars_and_custom_arguments_replace_whole_inherited_fields(tmp_pat
 
 def test_complete_specific_implementation_survives_invalid_agnostic(tmp_path, complete, file_data, write_file, load_catalog):
     source = tmp_path / "source"
-    invalid_base = complete(goal_mode=True, plan_mode=True, no_edits=True, interactive="required")
+    invalid_base = complete(goal_mode=True, plan_mode=True, no_edits=True, requires_interactive=True)
     write_file(source, file_data(actions={"test": {"agnostic": invalid_base, "python": complete(prompt="Python.")}}))
     catalog = load_catalog(source)
     assert listed(catalog, "test") == ["test[python]"]
@@ -66,7 +66,7 @@ def test_specific_prompt_must_replace_inherited_prompt_vars_when_needed(tmp_path
 def test_cross_field_invariants_are_rechecked_after_inheritance(tmp_path, complete, file_data, write_file, load_catalog):
     source = tmp_path / "source"
     actions = {
-        "conflicting-modes": {"agnostic": complete(goal_mode=True, no_edits=True, interactive="required"), "python": {"plan_mode": True}},
+        "conflicting-modes": {"agnostic": complete(goal_mode=True, no_edits=True, requires_interactive=True), "python": {"plan_mode": True}},
         "unequal-efforts": {"agnostic": complete(), "python": {"plan_reasoning_effort": "high"}},
     }
     write_file(source, file_data(actions=actions))
@@ -80,8 +80,8 @@ def test_cross_field_invariants_are_rechecked_after_inheritance(tmp_path, comple
 def test_plan_interactivity_invariant_is_rechecked_after_inheritance(tmp_path, complete, file_data, write_file, load_catalog):
     source = tmp_path / "source"
     actions = {
-        "valid": {"agnostic": complete(interactive="required", no_edits=True), "python": {"plan_mode": True}},
-        "invalid": {"agnostic": complete(interactive="preferred", no_edits=True), "python": {"plan_mode": True}},
+        "valid": {"agnostic": complete(requires_interactive=True, no_edits=True), "python": {"plan_mode": True}},
+        "invalid": {"agnostic": complete(requires_interactive=False, no_edits=True), "python": {"plan_mode": True}},
     }
     write_file(source, file_data(actions=actions))
     catalog = load_catalog(source)
@@ -93,8 +93,8 @@ def test_plan_interactivity_invariant_is_rechecked_after_inheritance(tmp_path, c
 def test_plan_no_edits_invariant_is_rechecked_after_inheritance(tmp_path, complete, file_data, write_file, load_catalog):
     source = tmp_path / "source"
     actions = {
-        "valid": {"agnostic": complete(interactive="required", no_edits=True), "python": {"plan_mode": True}},
-        "invalid": {"agnostic": complete(interactive="required"), "python": {"plan_mode": True}},
+        "valid": {"agnostic": complete(requires_interactive=True, no_edits=True), "python": {"plan_mode": True}},
+        "invalid": {"agnostic": complete(requires_interactive=True), "python": {"plan_mode": True}},
     }
     write_file(source, file_data(actions=actions))
     catalog = load_catalog(source)
@@ -237,7 +237,7 @@ def test_cross_field_diagnostic_uses_latest_implicated_field_origin(tmp_path, co
 
 def test_cross_field_same_origin_tie_uses_correction_target_path(tmp_path, complete, file_data, write_file, load_catalog):
     source = tmp_path / "source"
-    write_file(source, file_data(actions={"test": {"agnostic": complete(no_edits=True, interactive="required"), "python": {"goal_mode": True, "plan_mode": True}}}))
+    write_file(source, file_data(actions={"test": {"agnostic": complete(no_edits=True, requires_interactive=True), "python": {"goal_mode": True, "plan_mode": True}}}))
     catalog = load_catalog(source)
     diagnostic = next(diagnostic for diagnostic in catalog.diagnostics if diagnostic.code == "conflicting_modes")
     assert diagnostic.json_path == "/actions/test/python/plan_mode"

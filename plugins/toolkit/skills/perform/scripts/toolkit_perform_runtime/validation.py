@@ -14,8 +14,6 @@ MODEL_PATTERN = re.compile(MODEL_REGEX)
 EFFORT_PATTERN = re.compile(EFFORT_REGEX)
 VARIABLE_NAME_PATTERN = re.compile(VARIABLE_NAME_REGEX)
 ACTION_CODEX_OPTION_NAME_PATTERN = re.compile(ACTION_CODEX_OPTION_NAME_REGEX)
-INTERACTIVITY_VALUES = frozenset(("allowed", "preferred", "required"))
-
 ACTION_FIELDS = (
     "gloss",
     "model",
@@ -26,7 +24,7 @@ ACTION_FIELDS = (
     "no_edits",
     "prompt_vars",
     "prompt",
-    "interactive",
+    "requires_interactive",
     "custom_codex_args",
     "notes",
 )
@@ -52,11 +50,6 @@ def valid_model(value):
 def valid_effort(value):
     """Return whether one value is a valid structured effort setting."""
     return isinstance(value, str) and full_match(EFFORT_PATTERN, value)
-
-
-def valid_interactivity(value):
-    """Return whether one value is a supported action interactivity policy."""
-    return isinstance(value, str) and value in INTERACTIVITY_VALUES
 
 
 def contains_surrogate(value):
@@ -141,6 +134,8 @@ def validate_extra_codex_args(value):
             return "conflicting_extra_codex_args", "extra_codex_args must not override the working directory; use the structured launcher cwd."
         if option == "json":
             return "conflicting_extra_codex_args", "extra_codex_args must not override JSON output; use the structured json_output field."
+        if option == "verbose":
+            return "conflicting_extra_codex_args", "extra_codex_args must not override launcher verbosity; use the codex-perform --verbose flag."
         if option == "config":
             if not separator:
                 return "invalid_extra_codex_args", "--config in extra_codex_args must use self-contained --config=key=value syntax."

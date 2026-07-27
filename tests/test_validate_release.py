@@ -261,7 +261,6 @@ def test_versions_detect_plugin_changes_with_control_characters_in_filename(tmp_
     assert "missing classifications for demo" in completed.stderr
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX undecodable filename regression")
 def test_versions_detect_plugin_changes_with_non_utf8_filename(tmp_path):
     repository, tag = create_repository(tmp_path)
     filename = os.fsdecode(b"payload-\xff.txt")

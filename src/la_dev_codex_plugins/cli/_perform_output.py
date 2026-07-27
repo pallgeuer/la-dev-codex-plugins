@@ -13,14 +13,25 @@ _MINIMUM_GLOSS_WIDTH = 40
 _TABLE_COLUMN_SEPARATOR = "  "
 
 
+def _write_encoded(value, target):
+    """Write bytes exactly or as deterministic ASCII escapes."""
+    if hasattr(target, "buffer"):
+        target.buffer.write(value)
+    else:
+        text = value.decode("utf-8", errors="backslashreplace")
+        target.write(text.encode("ascii", errors="backslashreplace").decode("ascii"))
+
+
 def write_text(value, stream=None):
     """Write text as UTF-8 independently of the process locale."""
     target = sys.stdout if stream is None else stream
-    encoded = value.encode("utf-8", errors="backslashreplace")
-    if hasattr(target, "buffer"):
-        target.buffer.write(encoded)
-    else:
-        target.write(encoded.decode("utf-8"))
+    _write_encoded(value.encode("utf-8", errors="backslashreplace"), target)
+
+
+def write_bytes(value, stream=None):
+    """Write exact bytes when possible and ASCII escapes otherwise."""
+    target = sys.stdout if stream is None else stream
+    _write_encoded(value, target)
 
 
 def escape_terminal_text(value):
@@ -147,9 +158,11 @@ def print_catalogue(payload):
         write_text("Diagnostic: {}\n".format(escape_terminal_text(diagnostic)), stream=sys.stderr)
 
 
-def print_dry_run(invocation):
+def print_dry_run(invocation, output_mode):
     """Print a complete human dry-run and exact Bash argv."""
-    write_json(invocation.to_dict(), pretty=True)
+    payload = invocation.to_dict()
+    payload["output_mode"] = output_mode
+    write_json(payload, pretty=True)
     write_text("bash command:\n{}\n".format(bash_command(invocation.argv)))
 
 

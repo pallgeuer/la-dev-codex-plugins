@@ -310,13 +310,6 @@ def _validate_boolean_field(field, value):
     return []
 
 
-def _validate_interactivity_field(_field, value):
-    """Return any local interactivity validation issues."""
-    if not validation.valid_interactivity(value):
-        return [("invalid_interactivity", "interactive must be exactly 'allowed', 'preferred', or 'required'.")]
-    return []
-
-
 def _validate_prompt_vars_field(_field, value):
     """Return any local prompt-variable validation issues."""
     if not isinstance(value, dict):
@@ -360,7 +353,7 @@ _FIELD_VALIDATORS = {
     "no_edits": _validate_boolean_field,
     "prompt_vars": _validate_prompt_vars_field,
     "prompt": _validate_prompt_field,
-    "interactive": _validate_interactivity_field,
+    "requires_interactive": _validate_boolean_field,
     "custom_codex_args": _validate_custom_codex_args_field,
     "notes": _validate_notes_field,
 }
@@ -378,8 +371,8 @@ def _conflicting_modes_issue(fields):
 
 def _plan_interactivity_issue(fields):
     """Return the plan interactivity issue when required mode is absent."""
-    if fields.get("plan_mode") is True and "interactive" in fields and fields["interactive"] != "required":
-        return ("plan_mode", "interactive"), "plan_requires_interactive", "Plan-mode actions require interactive to be 'required'."
+    if fields.get("plan_mode") is True and "requires_interactive" in fields and fields["requires_interactive"] is not True:
+        return ("plan_mode", "requires_interactive"), "plan_requires_interactive", "Plan-mode actions require requires_interactive to be true."
     return None
 
 

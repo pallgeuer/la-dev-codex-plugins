@@ -156,11 +156,11 @@ def test_list_and_show_json_use_local_plugin(capsys):
         "no_edits",
         "prompt_vars",
         "prompt",
-        "interactive",
+        "requires_interactive",
         "custom_codex_args",
         "notes",
     }
-    assert shown["action"]["interactive"] == "allowed"
+    assert shown["action"]["requires_interactive"] is False
 
     assert perform.main(local_arguments("show", "help", "--json")) == 0
     help_payload = json.loads(capsys.readouterr().out)
@@ -204,15 +204,16 @@ def test_dry_run_json_reports_complete_noninteractive_invocation(capsys, tmp_pat
     assert perform.main(local_arguments("--cwd", str(tmp_path), "ensure-ascii-only", "--dry-run", "--json", "--model", "gpt-5")) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["mode"] == "default"
-    assert payload["interactive"] is False
-    assert payload["launch_spec"]["action"]["interactive"] == "allowed"
-    assert payload["effective_settings"]["interactive"] is False
+    assert payload["non_interactive"] is True
+    assert payload["launch_spec"]["action"]["requires_interactive"] is False
+    assert payload["effective_settings"]["non_interactive"] is True
     assert payload["effective_settings"]["model"] == "gpt-5"
     assert Path(payload["argv"][0]).is_absolute()
     assert "exec" in payload["argv"]
     assert payload["argv"][-2:] == ["--", payload["submitted_prompt"]]
     assert payload["effective_settings"]["cwd"] == str(tmp_path)
     assert payload["effective_settings"]["json_output"] is True
+    assert payload["output_mode"] == "jsonl"
     assert "--json" in payload["argv"]
 
 
@@ -231,6 +232,123 @@ def test_real_noninteractive_json_is_forwarded_to_codex(monkeypatch, capsys):
     assert "--json" in raised.value.argv
     assert raised.value.argv[-2] == "--"
     assert capsys.readouterr().out == ""
+
+
+def test_default_run_is_interactive(monkeypatch, capsys):
+    def fake_exec(argv, env=None):
+        raise ExecCalled(argv[0], argv, env)
+
+    monkeypatch.setattr(perform_runtime, "replace_process", fake_exec)
+    with pytest.raises(ExecCalled) as raised:
+        perform.main(local_arguments("ensure-ascii-only"))
+    assert "exec" not in raised.value.argv
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "PERFORM: ensure-ascii-only[agnostic]" in captured.err
+
+
+def test_final_only_success_only_shows_final_response(monkeypatch, capsys):
+    observed = {}
+
+    def run_supervised_process(argv, env, stderr):
+        observed["argv"] = argv
+        observed["env"] = env
+        stderr.write(b"hidden progress\n")
+        perform.output.write_text("final response\n")
+        return 0
+
+    monkeypatch.setattr(perform_runtime, "run_supervised_process", run_supervised_process)
+    assert perform.main(local_arguments("ensure-ascii-only", "--non-interactive")) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "final response\n"
+    assert captured.err == ""
+    assert "exec" in observed["argv"]
+    assert observed["env"] is not None
+
+
+def test_final_only_failure_replays_prelaunch_and_diagnostics(monkeypatch, capsys):
+    def run_supervised_process(_argv, env, stderr):
+        assert env is not None
+        stderr.write(b"codex progress and failure\n")
+        return 7
+
+    monkeypatch.setattr(perform_runtime, "run_supervised_process", run_supervised_process)
+    assert perform.main(local_arguments("ensure-ascii-only", "--non-interactive")) == 7
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith("PERFORM: ensure-ascii-only[agnostic]\n")
+    assert captured.err.endswith("codex progress and failure\n")
+
+
+def test_final_only_supervisor_failure_is_a_launch_error(monkeypatch, capsys):
+    def fail_supervision(*_args, **_kwargs):
+        raise OSError("missing codex")
+
+    monkeypatch.setattr(perform_runtime, "run_supervised_process", fail_supervision)
+    assert perform.main(local_arguments("ensure-ascii-only", "--non-interactive")) == 4
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "missing codex" in captured.err
+
+
+def test_final_only_temporary_file_failure_is_a_launch_error(monkeypatch, capsys):
+    def fail_temporary_file(**_kwargs):
+        raise OSError("temporary storage unavailable")
+
+    monkeypatch.setattr(perform, "tempfile", types.SimpleNamespace(TemporaryFile=fail_temporary_file))
+    assert perform.main(local_arguments("ensure-ascii-only", "--non-interactive")) == 4
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "temporary storage unavailable" in captured.err
+
+
+def test_verbose_noninteractive_uses_direct_progress_output(monkeypatch, capsys):
+    def unexpected_supervision(*_args, **_kwargs):
+        raise AssertionError("verbose launches must replace the process")
+
+    def fake_exec(argv, env=None):
+        raise ExecCalled(argv[0], argv, env)
+
+    monkeypatch.setattr(perform_runtime, "run_supervised_process", unexpected_supervision)
+    monkeypatch.setattr(perform_runtime, "replace_process", fake_exec)
+    with pytest.raises(ExecCalled) as raised:
+        perform.main(local_arguments("ensure-ascii-only", "--non-interactive", "--verbose"))
+    assert "exec" in raised.value.argv
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "PERFORM: ensure-ascii-only[agnostic]" in captured.err
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ("ensure-ascii-only", "--verbose"),
+        ("ensure-ascii-only", "--non-interactive", "--verbose", "--json"),
+    ],
+)
+def test_verbose_requires_explicit_plain_noninteractive_mode(capsys, arguments):
+    assert perform.main(local_arguments(*arguments)) == 2
+    captured = capsys.readouterr()
+    if "--json" in arguments:
+        assert json.loads(captured.out)["error"]["code"] == "invalid_arguments"
+    else:
+        assert captured.out == ""
+        assert captured.err.startswith("codex-perform: ")
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected_mode"),
+    [
+        (("ensure-ascii-only", "--dry-run"), "interactive"),
+        (("ensure-ascii-only", "--non-interactive", "--dry-run"), "final-only"),
+        (("ensure-ascii-only", "--non-interactive", "--verbose", "--dry-run"), "verbose"),
+    ],
+)
+def test_human_dry_run_reports_launcher_output_mode(capsys, arguments, expected_mode):
+    assert perform.main(local_arguments(*arguments)) == 0
+    payload = json.loads(capsys.readouterr().out.split("bash command:\n", 1)[0])
+    assert payload["output_mode"] == expected_mode
+    assert payload["non_interactive"] is (expected_mode != "interactive")
 
 
 def test_relative_codex_home_is_shared_by_catalog_and_launch(monkeypatch, tmp_path):
@@ -255,20 +373,21 @@ def test_noninteractive_caller_ephemeral_is_placed_after_exec(capsys):
     assert argv.index("exec") < argv.index("--ephemeral") < argv.index("--")
 
 
-def test_json_implicitly_selects_noninteractive_for_preferred_action(capsys):
+def test_json_implicitly_selects_noninteractive(capsys):
     assert perform.main(local_arguments("find-todos", "--dry-run", "--json")) == 0
     payload = json.loads(capsys.readouterr().out)
-    assert payload["launch_spec"]["action"]["interactive"] == "preferred"
-    assert payload["interactive"] is False
-    assert payload["effective_settings"]["interactive"] is False
+    assert payload["launch_spec"]["action"]["requires_interactive"] is False
+    assert payload["non_interactive"] is True
+    assert payload["effective_settings"]["non_interactive"] is True
+    assert payload["output_mode"] == "jsonl"
     assert "exec" in payload["argv"]
     assert "--json" in payload["argv"]
 
 
-def test_explicit_interactive_json_is_rejected_as_structured_request(capsys):
+def test_removed_interactive_flag_is_rejected(capsys):
     assert perform.main(local_arguments("find-todos", "--interactive", "--dry-run", "--json")) == 2
     payload = json.loads(capsys.readouterr().out)
-    assert payload["error"]["code"] == "json_requires_noninteractive"
+    assert payload["error"]["code"] == "invalid_arguments"
 
 
 def test_invalid_language_and_run_only_list_option_are_usage_errors(capsys):
@@ -300,7 +419,7 @@ def test_missing_prompt_variable_preserves_catalog_status(capsys):
 
 
 def test_exec_md_goal_rejects_explicit_noninteractive_frontend(capsys):
-    arguments = local_arguments("exec-md-goal", "--var", "MarkdownPlanFile=docs/plan.md", "--non-interactive", "--dry-run", "--json")
+    arguments = local_arguments("exec-md-goal", "--var", "MarkdownPlanFile=docs/plans/plan.md", "--non-interactive", "--dry-run", "--json")
     assert perform.main(arguments) == 2
     payload = json.loads(capsys.readouterr().out)
     assert payload["error"]["code"] == "interactive_required"
@@ -308,7 +427,7 @@ def test_exec_md_goal_rejects_explicit_noninteractive_frontend(capsys):
 
 
 def test_exec_md_goal_rejects_implicit_json_noninteractive_frontend(capsys):
-    arguments = local_arguments("exec-md-goal", "--var", "MarkdownPlanFile=docs/plan.md", "--dry-run", "--json")
+    arguments = local_arguments("exec-md-goal", "--var", "MarkdownPlanFile=docs/plans/plan.md", "--dry-run", "--json")
     assert perform.main(arguments) == 2
     payload = json.loads(capsys.readouterr().out)
     assert payload["error"]["code"] == "interactive_required"
@@ -333,7 +452,7 @@ def test_plan_action_reports_cli_activation_is_unavailable(monkeypatch, capsys, 
                     "no_edits": True,
                     "prompt_vars": {},
                     "prompt": "Plan this change.",
-                    "interactive": "required",
+                    "requires_interactive": True,
                     "custom_codex_args": [],
                     "notes": "",
                 }
@@ -366,7 +485,7 @@ def test_required_action_rejects_noninteractive_cli_override(monkeypatch, capsys
                     "no_edits": False,
                     "prompt_vars": {},
                     "prompt": "Run interactively.",
-                    "interactive": "required",
+                    "requires_interactive": True,
                     "custom_codex_args": [],
                     "notes": "",
                 }
@@ -391,6 +510,10 @@ def test_required_action_rejects_noninteractive_cli_override(monkeypatch, capsys
 
 def test_raw_codex_conflicts_are_rejected(capsys):
     assert perform.main(local_arguments("ensure-ascii-only", "--dry-run", "--json", "--", "--model", "other")) == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error"]["code"] == "conflicting_extra_codex_args"
+
+    assert perform.main(local_arguments("ensure-ascii-only", "--dry-run", "--json", "--", "--verbose")) == 2
     payload = json.loads(capsys.readouterr().out)
     assert payload["error"]["code"] == "conflicting_extra_codex_args"
 

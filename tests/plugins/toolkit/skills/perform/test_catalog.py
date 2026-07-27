@@ -200,7 +200,7 @@ def test_lone_surrogates_in_json_keys_remain_isolated_and_sortable(tmp_path, com
         ("no_edits", 0, "invalid_boolean"),
         ("prompt_vars", [], "invalid_prompt_vars"),
         ("prompt", 1, "invalid_prompt"),
-        ("interactive", True, "invalid_interactivity"),
+        ("requires_interactive", "yes", "invalid_boolean"),
         ("custom_codex_args", ["ok", 1], "invalid_custom_codex_args"),
         ("notes", 1, "invalid_notes"),
     ],
@@ -215,7 +215,7 @@ def test_each_action_field_rejects_wrong_type(tmp_path, complete, file_data, wri
     assert expected_code in diagnostic_codes(catalog)
 
 
-@pytest.mark.parametrize("field", ["model", "reasoning_effort", "plan_reasoning_effort", "interactive", "custom_codex_args"])
+@pytest.mark.parametrize("field", ["model", "reasoning_effort", "plan_reasoning_effort", "requires_interactive", "custom_codex_args"])
 def test_structured_launcher_fields_remain_required(tmp_path, complete, file_data, write_file, load_catalog, field):
     source = tmp_path / field
     action = complete()
@@ -226,28 +226,29 @@ def test_structured_launcher_fields_remain_required(tmp_path, complete, file_dat
     assert "incomplete_action" in diagnostic_codes(catalog)
 
 
-@pytest.mark.parametrize("interactive", ["allowed", "preferred", "required"])
-def test_interactivity_accepts_exact_policy_values(tmp_path, complete, file_data, write_file, load_catalog, interactive):
-    source = tmp_path / interactive
-    write_file(source, file_data(actions={"test": {"agnostic": complete(interactive=interactive)}}))
+@pytest.mark.parametrize("requires_interactive", [False, True])
+def test_requires_interactive_accepts_booleans(tmp_path, complete, file_data, write_file, load_catalog, requires_interactive):
+    source = tmp_path / str(requires_interactive)
+    write_file(source, file_data(actions={"test": {"agnostic": complete(requires_interactive=requires_interactive)}}))
     catalog = load_catalog(source)
     assert selectors(catalog, "test") == ["test[agnostic]"]
-    assert catalog.inspect("test[agnostic]").action.fields["interactive"] == interactive
+    assert catalog.inspect("test[agnostic]").action.fields["requires_interactive"] is requires_interactive
 
 
-@pytest.mark.parametrize("interactive", ["", "optional", "Preferred", "required ", 0, None, [], {}])
-def test_interactivity_rejects_values_outside_exact_policy(tmp_path, complete, file_data, write_file, load_catalog, interactive):
+@pytest.mark.parametrize("requires_interactive", ["", "allowed", "preferred", "required", 0, 1, None, [], {}])
+def test_requires_interactive_rejects_non_booleans(tmp_path, complete, file_data, write_file, load_catalog, requires_interactive):
     source = tmp_path / "source"
-    write_file(source, file_data(actions={"test": {"agnostic": complete(interactive=interactive)}}))
+    write_file(source, file_data(actions={"test": {"agnostic": complete(requires_interactive=requires_interactive)}}))
     catalog = load_catalog(source)
     assert selectors(catalog, "test") == []
-    assert "invalid_interactivity" in diagnostic_codes(catalog)
+    assert "invalid_boolean" in diagnostic_codes(catalog)
 
 
-def test_removed_prefer_interactive_field_is_unknown(tmp_path, complete, file_data, write_file, load_catalog):
+@pytest.mark.parametrize("field", ["interactive", "prefer_interactive"])
+def test_removed_interactivity_fields_are_unknown(tmp_path, complete, file_data, write_file, load_catalog, field):
     source = tmp_path / "source"
     action = complete()
-    action["prefer_interactive"] = True
+    action[field] = True
     write_file(source, file_data(actions={"test": {"agnostic": action}}))
     catalog = load_catalog(source)
     assert selectors(catalog, "test") == []
@@ -388,10 +389,9 @@ def test_action_text_rejects_unsupported_codepoints(tmp_path, complete, file_dat
 @pytest.mark.parametrize(
     ("updates", "code"),
     [
-        ({"goal_mode": True, "plan_mode": True, "no_edits": True, "interactive": "required"}, "conflicting_modes"),
-        ({"plan_mode": True, "no_edits": True, "interactive": "allowed"}, "plan_requires_interactive"),
-        ({"plan_mode": True, "no_edits": True, "interactive": "preferred"}, "plan_requires_interactive"),
-        ({"plan_mode": True, "interactive": "required", "no_edits": False}, "plan_requires_no_edits"),
+        ({"goal_mode": True, "plan_mode": True, "no_edits": True, "requires_interactive": True}, "conflicting_modes"),
+        ({"plan_mode": True, "no_edits": True, "requires_interactive": False}, "plan_requires_interactive"),
+        ({"plan_mode": True, "requires_interactive": True, "no_edits": False}, "plan_requires_no_edits"),
         ({"reasoning_effort": "high", "plan_reasoning_effort": "medium", "plan_mode": False}, "unequal_efforts_without_plan"),
         ({"no_edits": True, "prompt": "No edits. Check this."}, "manual_no_edits_prefix"),
         ({"gloss": "  "}, "invalid_gloss"),
@@ -409,7 +409,7 @@ def test_cross_field_and_nonempty_validation(tmp_path, complete, file_data, writ
 
 def test_plan_mode_allows_distinct_default_and_planning_efforts(tmp_path, complete, file_data, write_file, load_catalog):
     source = tmp_path / "source"
-    write_file(source, file_data(actions={"test": {"agnostic": complete(reasoning_effort="medium", plan_mode=True, plan_reasoning_effort="high", no_edits=True, interactive="required")}}))
+    write_file(source, file_data(actions={"test": {"agnostic": complete(reasoning_effort="medium", plan_mode=True, plan_reasoning_effort="high", no_edits=True, requires_interactive=True)}}))
     catalog = load_catalog(source)
     assert selectors(catalog, "test") == ["test[agnostic]"]
     assert catalog.diagnostics == []

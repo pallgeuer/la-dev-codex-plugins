@@ -6,7 +6,6 @@ import os
 import subprocess
 import sys
 import time
-import types
 from pathlib import Path
 
 import pytest
@@ -139,7 +138,6 @@ def test_bounded_process_marks_incomplete_pipe_capture(tmp_path, bounded_process
     assert result.capture_incomplete is True
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX process-group regression")
 def test_bounded_process_kills_descendants_that_retain_pipes(tmp_path, bounded_process):
     child_code = "import time; time.sleep(60)"
     parent_code = "import subprocess, sys, time; subprocess.Popen([sys.executable, '-c', {!r}]); time.sleep(60)".format(child_code)
@@ -151,35 +149,3 @@ def test_bounded_process_kills_descendants_that_retain_pipes(tmp_path, bounded_p
     assert result.stdout_truncated is False
     assert result.stderr_truncated is False
     assert elapsed < 3
-
-
-def test_bounded_process_uses_windows_process_groups_and_tree_termination(monkeypatch, tmp_path, bounded_process):
-    class WindowsProcess:
-        pid = 123
-
-        def __init__(self):
-            self.signals = []
-
-        def send_signal(self, value):
-            self.signals.append(value)
-
-    module = bounded_process.module
-    process = WindowsProcess()
-    taskkill = []
-    popen_kwargs = {}
-    monkeypatch.setattr(module.os, "name", "nt")
-    monkeypatch.setattr(module.subprocess, "CREATE_NEW_PROCESS_GROUP", 512, raising=False)
-    monkeypatch.setattr(module.subprocess, "CTRL_BREAK_EVENT", 1, raising=False)
-    monkeypatch.setattr(module.subprocess, "run", lambda command, **_kwargs: taskkill.append(command) or types.SimpleNamespace(returncode=0))
-
-    def popen(_command, **kwargs):
-        popen_kwargs.update(kwargs)
-        return FakeProcess()
-
-    bounded_process.run(tmp_path, popen)
-    assert popen_kwargs["start_new_session"] is False
-    assert popen_kwargs["creationflags"] == 512
-    assert module._signal_process_tree(process, force=False) is True
-    assert process.signals == []
-    assert module._signal_process_tree(process, force=True) is True
-    assert taskkill == [["taskkill", "/PID", "123", "/T"], ["taskkill", "/PID", "123", "/T", "/F"]]

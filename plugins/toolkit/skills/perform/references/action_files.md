@@ -70,7 +70,7 @@ For example, save this as `actions.json` (if you plan on having more than one ac
           "Area": "Repository-relative file or directory to review."
         },
         "prompt": "Review the tests for %Area%. Identify important missing cases and explain why each case matters.",
-        "interactive": "preferred",
+        "requires_interactive": false,
         "custom_codex_args": [],
         "notes": ""
       }
@@ -166,21 +166,18 @@ A complete variant contains every field below. An `agnostic` definition must alw
 | `no_edits` | Boolean. When true, rendering prefixes the prompt with the exact text `No edits. `. |
 | `prompt_vars` | An object mapping bare variable names such as `Area` to concise, nonempty single-line descriptions. Use `{}` when no variables are needed. Use variables in the prompt via `%...%` syntax, like `%Area%`. |
 | `prompt` | The nonempty prompt template. Newlines are preserved; NUL and Unicode surrogate characters are rejected. |
-| `interactive` | Standalone-launch policy: `"allowed"` defaults to `codex exec`, `"preferred"` defaults to interactive `codex`, and `"required"` permits only interactive `codex`. |
+| `requires_interactive` | Boolean. When true, the standalone launcher rejects `--non-interactive` and `--json`; when false, either explicit noninteractive mode is permitted. The standalone launcher otherwise defaults to interactive Codex. |
 | `custom_codex_args` | Reviewed flag-only global Codex options inserted by the standalone launcher. Use `[]` when none are needed. |
-| `notes` | User-facing text displayed before execution but never included in the prompt. Use `""` when no note is needed. |
+| `notes` | User-facing text displayed before interactive, verbose, and JSONL execution, or when a final-response-only launch fails; it is never included in the prompt. Use `""` when no note is needed. |
 
 Some guidance on and rules related to the fields:
 
 - `goal_mode` and `plan_mode` cannot both be true for an action.
-- A Plan-mode action (`plan_mode` is true) must set `interactive` to `"required"` and `no_edits` to true.
+- A Plan-mode action (`plan_mode` is true) must set `requires_interactive` and `no_edits` to true.
 - When `plan_mode` is false, `reasoning_effort` and `plan_reasoning_effort` must be equal.
 - When `no_edits` is true, rendering automatically prefixes the prompt with `No edits.`, so there is no need to manually include such a statement in `prompt`.
-- Choose `interactive` according to the expected standalone workflow:
-  - Use `"preferred"` when the action lists findings, recommendations, ideas, plans, or other actionable results primarily in its response and the user might reasonably use them as the basis for implementation work in a subsequent turn.
-  - Otherwise use `"allowed"` when the action can ordinarily run to completion without asking the user questions. In particular, use `"allowed"` when the action primarily records its actionable results in a repository file or other durable artifact rather than listing them only in its response; the artifact can serve as the handoff for separately invoked implementation work.
-  - Use `"required"` whenever the action might interrupt its ordinary workflow to ask a question, request a decision, or require other user interaction. Do not use `"required"` merely because an exceptional external failure or fundamentally broken precondition would require user intervention.
-- The in-chat skill does not apply `model`, `reasoning_effort`, `plan_reasoning_effort`, `interactive`, or `custom_codex_args`; the standalone CLI launcher consumes them.
+- Set `requires_interactive` to true whenever the action might interrupt its ordinary workflow to ask a question, request a decision, or require other user interaction. Do not set it merely because an exceptional external failure or fundamentally broken precondition would require user intervention.
+- The in-chat skill does not apply `model`, `reasoning_effort`, `plan_reasoning_effort`, `requires_interactive`, or `custom_codex_args`; the standalone CLI launcher consumes them.
 - The exact supported `custom_codex_args` entries are `--search`, `--no-alt-screen`, and `--strict-config`. They are flag-only global options. Toolkit rejects values, aliases, and every unknown current or future option until it is explicitly reviewed. Action files cannot request `--ephemeral`; an explicit standalone caller can request it only for a noninteractive, non-Goal launch. See [Standalone Perform CLI](standalone_cli.md#render-and-override-an-action) for caller argument rules and placement.
 
 ## Action variants and inheritance
@@ -202,7 +199,7 @@ An action contains a nonempty object keyed by language:
         "no_edits": true,
         "prompt_vars": {},
         "prompt": "Check the applicable configuration files.",
-        "interactive": "preferred",
+        "requires_interactive": false,
         "custom_codex_args": [],
         "notes": ""
       },
@@ -347,7 +344,7 @@ Save this in `$CODEX_HOME/toolkit_perform_actions/50-personal.json` or the defau
         "no_edits": true,
         "prompt_vars": {},
         "prompt": "Scan the repository for unfinished, temporary, obsolete, or cleanup-related work. Exclude vendor/ and generated/.",
-        "interactive": "preferred",
+        "requires_interactive": false,
         "custom_codex_args": [],
         "notes": "This user override excludes vendor/ and generated/."
       },
@@ -387,7 +384,7 @@ At the resolved repository root, create `.codex/config.toml`, then save this as 
           "Area": "Repository-relative area to audit."
         },
         "prompt": "Audit %Area% against all applicable project rules and report exact file and line references.",
-        "interactive": "preferred",
+        "requires_interactive": false,
         "custom_codex_args": [],
         "notes": "Specify the area to audit when invoking this action."
       }

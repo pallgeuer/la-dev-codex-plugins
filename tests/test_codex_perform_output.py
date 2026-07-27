@@ -15,6 +15,21 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_ROOT = REPOSITORY_ROOT / "plugins" / "toolkit"
 
 
+class BufferlessAsciiStream:
+    """Text stream test double that accepts only ASCII."""
+
+    encoding = "ascii"
+
+    def __init__(self):
+        """Collect written ASCII text."""
+        self.value = ""
+
+    def write(self, value):
+        """Reject non-ASCII text like a narrow encoded stream."""
+        value.encode(self.encoding)
+        self.value += value
+
+
 def test_prelaunch_display_escapes_untrusted_terminal_controls(capsys):
     config = types.SimpleNamespace(
         notes="note\\path\x1b]52;c;payload\x07\r\t\u202e\nnext",
@@ -44,11 +59,11 @@ def test_human_dry_run_and_json_escape_terminal_controls(capsys):
         argv=("codex", "--", "prompt\x1b\u202e"),
         to_dict=lambda: {"argv": ["codex", "--", "prompt\x1b\u202e"]},
     )
-    perform_output.print_dry_run(invocation)
+    perform_output.print_dry_run(invocation, "final-only")
     captured = capsys.readouterr()
     assert "\x1b" not in captured.out
     assert "\u202e" not in captured.out
-    assert json.loads(captured.out.split("bash command:\n", 1)[0]) == {"argv": ["codex", "--", "prompt\x1b\u202e"]}
+    assert json.loads(captured.out.split("bash command:\n", 1)[0]) == {"argv": ["codex", "--", "prompt\x1b\u202e"], "output_mode": "final-only"}
     assert "$'prompt\\033\\342\\200\\256'" in captured.out
 
 
@@ -66,6 +81,26 @@ def test_utf8_output_bypasses_ascii_text_encoding():
     perform_output.write_text("\u03bb", stream=stream)
     stream.flush()
     assert binary.getvalue() == "\u03bb".encode("utf-8")
+
+
+def test_binary_output_bypasses_text_encoding():
+    binary = io.BytesIO()
+    stream = io.TextIOWrapper(binary, encoding="ascii")
+    perform_output.write_bytes(b"\xff\x00", stream=stream)
+    stream.flush()
+    assert binary.getvalue() == b"\xff\x00"
+
+
+def test_bufferless_ascii_output_uses_deterministic_escapes():
+    text_stream = BufferlessAsciiStream()
+    byte_stream = BufferlessAsciiStream()
+    invalid_stream = BufferlessAsciiStream()
+    perform_output.write_text("\u03bb", stream=text_stream)
+    perform_output.write_bytes("\u03bb".encode("utf-8"), stream=byte_stream)
+    perform_output.write_bytes(b"\xff", stream=invalid_stream)
+    assert text_stream.value == "\\u03bb"
+    assert byte_stream.value == "\\u03bb"
+    assert invalid_stream.value == "\\xff"
 
 
 def test_list_uses_separate_name_and_language_columns_and_wraps_gloss(monkeypatch, capsys):
@@ -151,7 +186,7 @@ def test_standalone_cli_preserves_unicode_under_ascii_locale(tmp_path):
                     "no_edits": False,
                     "prompt_vars": {},
                     "prompt": "Handle \u03bb.",
-                    "interactive": "allowed",
+                    "requires_interactive": False,
                     "custom_codex_args": [],
                     "notes": "",
                 }
@@ -159,6 +194,9 @@ def test_standalone_cli_preserves_unicode_under_ascii_locale(tmp_path):
         },
     }
     (actions / "unicode.json").write_text(json.dumps(action), encoding="ascii")
+    fake_codex = tmp_path / "fake-codex"
+    fake_codex.write_text("#!/bin/sh\nprintf 'final response\\n'\nprintf 'hidden progress\\n' >&2\n", encoding="ascii")
+    fake_codex.chmod(0o755)
     env = os.environ.copy()
     env.update({"CODEX_HOME": str(codex_home), "LC_ALL": "C", "PYTHONCOERCECLOCALE": "0", "PYTHONIOENCODING": "ascii", "PYTHONPATH": str(REPOSITORY_ROOT / "src"), "PYTHONUTF8": "0"})
     base_command = [
@@ -172,7 +210,11 @@ def test_standalone_cli_preserves_unicode_under_ascii_locale(tmp_path):
     ]
     listing = subprocess.run([*base_command, "list", "unicode"], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
     dry_run = subprocess.run([*base_command, "--codex", "/bin/true", "unicode", "--dry-run", "--json"], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    final_only = subprocess.run([*base_command, "--codex", str(fake_codex), "unicode", "--non-interactive"], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
     assert listing.returncode == 0, listing.stderr
     assert dry_run.returncode == 0, dry_run.stderr
+    assert final_only.returncode == 0, final_only.stderr
     assert "\u03bb".encode("utf-8") in listing.stdout
     assert json.loads(dry_run.stdout.decode("utf-8"))["submitted_prompt"] == "Handle \u03bb."
+    assert final_only.stdout == b"final response\n"
+    assert final_only.stderr == b""

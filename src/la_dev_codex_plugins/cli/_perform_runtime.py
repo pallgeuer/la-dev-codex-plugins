@@ -45,6 +45,15 @@ class CliError(Exception):
         return payload
 
 
+class _ForwardedSignal(BaseException):
+    """Signal received while supervising a Codex process tree."""
+
+    def __init__(self, signal_number):
+        """Store the first signal requested by the caller."""
+        super().__init__(signal_number)
+        self.signal_number = signal_number
+
+
 class _BoundedProcessResult:
     """Captured bounded subprocess state."""
 
@@ -87,30 +96,22 @@ def _capture_pipe(pipe, limit, result):
         result.append((bytes(retained), truncated, complete))
 
 
-def _signal_process_tree(process, force):
+def _prepare_process_invocation(argv, env=None):
+    """Return locale-independent POSIX process arguments and environment."""
+    environment = dict(os.environ if env is None else env)
+    arguments = [argument.encode("utf-8", errors="surrogateescape") for argument in argv]
+    environment = {key.encode("utf-8", errors="surrogateescape"): value.encode("utf-8", errors="surrogateescape") for key, value in environment.items()}
+    return arguments, environment
+
+
+def _signal_process_tree(process, force, graceful_signal=None):
     """Signal an isolated process tree, falling back to its direct child."""
-    if os.name == "posix":
-        try:
-            os.killpg(process.pid, signal.SIGKILL if force else signal.SIGTERM)
-            return True
-        except (AttributeError, OSError):
-            pass
-    elif os.name == "nt":
-        try:
-            command = ["taskkill", "/PID", str(process.pid), "/T"]
-            if force:
-                command.append("/F")
-            completed = subprocess.run(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False, timeout=1)
-            if completed.returncode == 0:
-                return True
-        except (AttributeError, OSError, subprocess.TimeoutExpired):
-            pass
-        if not force:
-            try:
-                process.send_signal(subprocess.CTRL_BREAK_EVENT)
-                return True
-            except (AttributeError, OSError, ValueError):
-                pass
+    try:
+        signal_number = signal.SIGKILL if force else signal.SIGTERM if graceful_signal is None else graceful_signal
+        os.killpg(process.pid, signal_number)
+        return True
+    except (AttributeError, OSError):
+        pass
     try:
         if force:
             process.kill()
@@ -121,9 +122,9 @@ def _signal_process_tree(process, force):
     return False
 
 
-def _stop_process_tree(process):
+def _stop_process_tree(process, graceful_signal=None):
     """Stop one isolated process tree with a short graceful interval."""
-    tree_signaled = _signal_process_tree(process, force=False)
+    tree_signaled = _signal_process_tree(process, force=False, graceful_signal=graceful_signal)
     still_running = False
     try:
         process.wait(timeout=0.25)
@@ -133,6 +134,51 @@ def _stop_process_tree(process):
         _signal_process_tree(process, force=True)
     if still_running:
         process.wait()
+
+
+def run_supervised_process(argv, env, stderr, popen_factory=None):
+    """Run an isolated process tree and return its normalized shell status."""
+    if popen_factory is None:
+        popen_factory = subprocess.Popen
+    arguments, child_environment = _prepare_process_invocation(argv, env=env)
+    process_holder = [None]
+    received_signal = [None]
+    previous_handlers = {}
+    process = None
+
+    def forward_signal(signal_number, _frame):
+        if received_signal[0] is None:
+            received_signal[0] = signal_number
+            for handled_signal in previous_handlers:
+                signal.signal(handled_signal, signal.SIG_IGN)
+        if process_holder[0] is not None:
+            raise _ForwardedSignal(received_signal[0])
+
+    for signal_number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT):
+        if signal.getsignal(signal_number) != signal.SIG_IGN:
+            previous_handlers[signal_number] = signal.signal(signal_number, forward_signal)
+    try:
+        try:
+            process = popen_factory(arguments, env=child_environment, stderr=stderr, start_new_session=True)
+            process_holder[0] = process
+            if received_signal[0] is not None:
+                raise _ForwardedSignal(received_signal[0])
+            returncode = process.wait()
+        except _ForwardedSignal as exc:
+            for signal_number in previous_handlers:
+                signal.signal(signal_number, signal.SIG_IGN)
+            _stop_process_tree(process, graceful_signal=exc.signal_number)
+            return 128 + exc.signal_number
+        except KeyboardInterrupt:
+            for signal_number in previous_handlers:
+                signal.signal(signal_number, signal.SIG_IGN)
+            if process is not None:
+                _stop_process_tree(process, graceful_signal=signal.SIGINT)
+            return 130
+    finally:
+        for signal_number, previous_handler in previous_handlers.items():
+            signal.signal(signal_number, previous_handler)
+    return returncode if returncode >= 0 else 128 - returncode
 
 
 def _finish_pipe_capture(process, threads, pipes, results):
@@ -159,17 +205,7 @@ def _run_bounded_command(command, cwd, env, popen_factory=None, timeout=PLUGIN_D
     if popen_factory is None:
         popen_factory = subprocess.Popen
     try:
-        process = popen_factory(
-            command,
-            cwd=cwd,
-            env=dict(env),
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            shell=False,
-            start_new_session=os.name == "posix",
-            creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) if os.name == "nt" else 0,
-        )
+        process = popen_factory(command, cwd=cwd, env=dict(env), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False, start_new_session=True)
     except OSError as exc:
         return _BoundedProcessResult(launch_error=str(exc))
 
@@ -433,10 +469,5 @@ def load_runtime(plugin_root_argument, codex_executable, cwd, original_cwd, env=
 
 def replace_process(argv, env=None):
     """Replace the launcher with one exact Unicode-safe process invocation."""
-    environment = dict(os.environ if env is None else env)
-    if os.name == "posix":
-        encoded = [argument.encode("utf-8", errors="surrogateescape") for argument in argv]
-        encoded_environment = {key.encode("utf-8", errors="surrogateescape"): value.encode("utf-8", errors="surrogateescape") for key, value in environment.items()}
-        os.execve(encoded[0], encoded, encoded_environment)
-    else:
-        os.execve(argv[0], argv, environment)
+    arguments, environment = _prepare_process_invocation(argv, env=env)
+    os.execve(arguments[0], arguments, environment)

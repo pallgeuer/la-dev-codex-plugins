@@ -137,7 +137,7 @@ Unlike the in-chat skill, the standalone launcher performs no semantic natural-l
 Bind every declared prompt variable with a repeatable literal argument and optionally append one compatible qualification:
 
 ```bash
-codex-perform exec-md-goal --var 'MarkdownPlanFile=docs/plan.md'
+codex-perform exec-md-goal --var 'MarkdownPlanFile=docs/plans/plan.md'
 codex-perform check-config --language rust --qualification 'Limit the audit to crates/core.'
 ```
 
@@ -149,9 +149,10 @@ Structured overrides replace settings owned by action definitions:
 --model MODEL
 --effort EFFORT
 --plan-effort EFFORT
---interactive
 --non-interactive
 ```
+
+Runs are interactive unless `--non-interactive` or `--json` selects `codex exec`. Add `--verbose` to an explicit `--non-interactive` run to show the prelaunch context and live Codex progress instead of only the final response.
 
 Arguments after an exact `--` are copied into the selected Codex frontend:
 
@@ -161,7 +162,7 @@ codex-perform find-todos --non-interactive -- --color=never
 
 For an interactive launch, these caller arguments are global Codex options. For a noninteractive launch, they are `codex exec` options. Every entry must be one self-contained `--option` or `--option=value` token. Positional tokens, subcommands, split values, short options, a second `--`, help or version options, and overrides for structured model, effort, Plan-effort, or working-directory settings are rejected.
 
-Invalid syntax uses `invalid_extra_codex_args`; conflicts with launcher-owned settings use `conflicting_extra_codex_args`. Raw `--json` after the separator is a conflict because JSON output belongs to the launcher's structured `--json`/`json_output` setting. Toolkit deliberately does not enumerate ordinary caller options: Codex validates whether each supplied option exists and belongs to the selected frontend. Consult the [current Codex command reference](https://developers.openai.com/codex/cli/reference) when selecting those options.
+Invalid syntax uses `invalid_extra_codex_args`; conflicts with launcher-owned settings use `conflicting_extra_codex_args`. Raw `--json` and `--verbose` after the separator are conflicts because those output modes belong to launcher settings. Toolkit deliberately does not enumerate ordinary caller options: Codex validates whether each supplied option exists and belongs to the selected frontend. Consult the [current Codex command reference](https://developers.openai.com/codex/cli/reference) when selecting those options.
 
 Action-file `custom_codex_args` are always global Codex options and precede `exec` for a noninteractive launch. Their fail-closed allowlist and field semantics are documented in [Action fields](action_files.md#action-fields).
 
@@ -169,21 +170,17 @@ Action-file `custom_codex_args` are always global Codex options and precede `exe
 
 ## Choose a Codex frontend
 
-Without an override, an action's `interactive` policy selects the frontend:
+The default frontend is always interactive Codex. `--non-interactive` selects ordinary `codex exec`, and `--json` remains an explicit compatibility shortcut that selects `codex exec --json`. An action with `requires_interactive` set to true rejects both noninteractive entry paths.
 
-- `"allowed"` uses noninteractive `codex exec`.
-- `"preferred"` uses interactive `codex`.
-- `"required"` uses interactive `codex` and rejects `--non-interactive`.
+Interactive, verbose noninteractive, and JSONL launches display nonempty notes under `NOTES TO USER:`, `PERFORM: SELECTOR`, nonempty action-defined Codex arguments, and the rendered prompt under `PROMPT:` on stderr. The preview renders backslashes and untrusted control characters as visible escapes while preserving ordinary line breaks; the unmodified prompt is submitted to Codex. Prompt color is enabled only when stderr is a terminal and neither `NO_COLOR` nor `TERM=dumb` disables it.
 
-Both explicit frontend flags can override `"allowed"` and `"preferred"`. `--interactive` remains valid for `"required"`. Without an explicit frontend flag, `--json` selects noninteractive execution for `"allowed"` and `"preferred"` actions because interactive Codex does not emit JSONL. An action marked `"required"` rejects this implicit noninteractive selection, and an explicit `--interactive --json` combination is also rejected.
+An ordinary `--non-interactive` launch suppresses the preview and Codex progress on successful runs, leaving only Codex's final response on stdout. It captures Codex stderr in a temporary file without buffering it in memory. If Codex fails, the launcher prints the prelaunch context, replays the captured diagnostics, and returns the Codex status. The supervisor isolates the Codex process tree, relays `SIGINT`, `SIGTERM`, `SIGHUP`, and `SIGQUIT`, cleans up surviving descendants, and returns the conventional `128 + signal` status. `--non-interactive --verbose` restores the displayed preview and live progress. `--verbose` without `--non-interactive`, or combined with `--json`, is invalid.
 
-Before a real launch, nonempty notes under `NOTES TO USER:`, `PERFORM: SELECTOR`, nonempty action-defined Codex arguments, and the rendered prompt under `PROMPT:` are written to stderr as separate sections. The preview renders backslashes and untrusted control characters as visible escapes while preserving ordinary line breaks; the unmodified prompt is submitted to Codex. Prompt color is enabled only when stderr is a terminal and neither `NO_COLOR` nor `TERM=dumb` disables it.
-
-The launcher places a final `--` before the submitted prompt, so option-looking prompts such as `--help` remain prompt data. It then calls `exec`, replacing the Python launcher with Codex instead of creating a child process.
+The launcher places a final `--` before the submitted prompt, so option-looking prompts such as `--help` remain prompt data. Interactive, verbose noninteractive, and JSONL modes call `exec`, replacing the Python launcher with Codex. Final-response-only mode remains as a supervising process so it can conditionally replay captured diagnostics.
 
 ## Launch modes and goals
 
-Default actions use the frontend chosen by `interactive`.
+Default actions launch interactively.
 
 The standalone launcher rejects every Plan action with `plan_mode_unavailable`. Codex exposes Plan mode as an in-chat command rather than a process-launch flag, so run the action inside an existing Plan-mode chat with `$toolkit:perform`. See the [current Codex command reference](https://developers.openai.com/codex/cli/reference) for Plan-mode controls.
 
@@ -195,7 +192,7 @@ Caller arguments for Goal actions reject `--ephemeral`, `--disable=goals`, and c
 
 ## Preview and consume output
 
-`--dry-run` builds but does not execute the invocation. Human dry runs show the complete structured launch and an exact terminal-safe Bash command. Removing only `--dry-run` from a successful preview produces the invocation that was shown.
+`--dry-run` builds but does not execute the invocation. Human dry runs show the complete structured launch, its `output_mode` (`interactive`, `final-only`, `verbose`, or `jsonl`), and an exact terminal-safe Bash command. Removing only `--dry-run` from a successful preview produces the invocation and launcher output policy that were shown.
 
 With `--json`, catalogue, list, show, and dry-run results are launcher JSON:
 
@@ -206,7 +203,7 @@ codex-perform show find-todos --json
 codex-perform find-todos --dry-run --json
 ```
 
-For real and dry runs, `--json` selects noninteractive execution when the action permits it and is included in the built `codex exec` invocation. Explicitly requesting an interactive frontend with `--json` is rejected because interactive Codex output is not JSONL, as is implicit JSON selection for an action that requires interactive execution. Prelaunch display remains on stderr so it cannot contaminate machine-readable stdout.
+For real and dry runs, `--json` selects noninteractive execution when the action permits it and is included in the built `codex exec` invocation. An action requiring interaction rejects JSON output. Prelaunch display remains on stderr for real JSONL runs so it cannot contaminate machine-readable stdout.
 
 Exit codes are:
 
@@ -235,7 +232,7 @@ launcher_api = importlib.import_module("toolkit_perform_runtime.launcher_api")
 launcher = launcher_api.load_standalone_launcher("/work/project")
 spec = launcher.prepare_launch(
     "exec-md-goal",
-    variable_bindings=["MarkdownPlanFile=docs/plan.md"],
+    variable_bindings=["MarkdownPlanFile=docs/plans/plan.md"],
 )
 overrides = launcher_api.LaunchOverrides(
     cwd="/work/project",
@@ -265,8 +262,8 @@ These methods own the standalone selector grammar, bare-action preference for `a
 
 - `ActionLaunchConfig` is the immutable materialized action snapshot described in [Catalog-facing Python API](action_files.md#catalog-facing-python-api).
 - `ActionLaunchSpec` pairs that configuration with an immutable rendered prompt and qualification.
-- `LaunchOverrides` accepts `model`, `reasoning_effort`, `plan_reasoning_effort`, `interactive`, `extra_codex_args`, `cwd`, and `json_output`. It validates and stores extra arguments as a tuple; raw `--json` is rejected in favor of `json_output`, and `to_dict()` returns JSON-compatible values. When `json_output` is true and `interactive` is null, invocation building selects noninteractive execution for an action that allows it.
-- `CodexInvocation` exposes immutable `spec`, tuple `argv`, read-only `effective_settings`, `interactive`, `mode`, `submitted_prompt`, and `objective`. `to_dict()` returns the complete dry-run representation.
+- `LaunchOverrides` accepts `model`, `reasoning_effort`, `plan_reasoning_effort`, `non_interactive`, `extra_codex_args`, `cwd`, and `json_output`. Both Boolean output selectors default to false. It validates and stores extra arguments as a tuple; raw `--json` is rejected in favor of `json_output`, and `to_dict()` returns JSON-compatible values. Either `non_interactive` or `json_output` selects `codex exec`.
+- `CodexInvocation` exposes immutable `spec`, tuple `argv`, read-only `effective_settings`, `non_interactive`, `mode`, `submitted_prompt`, and `objective`. `to_dict()` returns the complete dry-run representation.
 - `build_codex_invocation(spec, codex_executable="codex", overrides=None)` applies action fields and caller overrides and returns a `CodexInvocation`.
 
 Returned dictionary and list payloads isolate mutable values so caller mutation does not modify the catalog, launch configuration, or invocation.
@@ -282,8 +279,8 @@ Common launch blockers include:
 - Catalog precedence is incomplete or the requested selector is missing or ambiguous.
 - Required variables are missing or duplicated.
 - A Plan action is requested from the standalone launcher.
-- A noninteractive override conflicts with `"required"`.
+- A noninteractive override conflicts with `requires_interactive: true`.
 - Extra Codex arguments are malformed, conflict with structured settings, or remove Goal support.
-- Interactive output is combined with `--json`.
+- `--verbose` is missing `--non-interactive` or is combined with `--json`.
 
 For action discovery or schema problems, use [action-file troubleshooting](action_files.md#troubleshooting). For execution in the current chat, use [Codex Perform skill](codex_skill.md).

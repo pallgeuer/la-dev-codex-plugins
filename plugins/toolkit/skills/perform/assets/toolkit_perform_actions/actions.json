@@ -13,7 +13,7 @@
         "no_edits": true,
         "prompt_vars": {},
         "prompt": "Audit all first-party Python source in the repository for fields on standard-library dataclasses that declare a default value or default factory, including fields inherited from another dataclass. Use repository-wide search plus Python-aware or AST-based analysis where useful, and account for aliased dataclass imports, field() calls, kw_only fields, InitVar, ClassVar, and init=False without misclassifying non-fields or constructor-ineligible fields. Report the scope searched and every exclusion or unresolved dynamic case. Build a complete inventory with the class and field, exact declaration location, default or factory, annotation, init/keyword-only status, and relevant inheritance. For every inventoried field, decide whether its default represents a legitimate convenience or implementation detail, or whether removing the default would beneficially require callers to make an explicit choice and thereby prevent an important value from being silently forgotten. Base each decision on field semantics, invariants, documentation, tests, serialization or framework use, public API compatibility, subclass ordering constraints, and all discoverable construction sites; do not assume that None means Optional, and distinguish type optionality from whether an __init__ argument is required. Treat mutable default factories, derived or init=False state, caches, sentinels, stable policy defaults, backward compatibility, and intentionally ergonomic configuration defaults as possible reasons to retain a default rather than automatic findings. Present the strong candidates in an enumerated findings list. For each candidate, give the exact file and line, current declaration and behavior, concrete rationale, affected callers and subclasses, compatibility or migration risks, and the recommended required-field declaration; callers may explicitly pass the former default. Also summarize fields whose defaults should remain, with enough reasoning to make the audit complete, and clearly label uncertain cases that require a product or API decision.",
-        "interactive": "preferred",
+        "requires_interactive": false,
         "custom_codex_args": [],
         "notes": ""
       }
@@ -29,7 +29,7 @@
         "no_edits": true,
         "prompt_vars": {},
         "prompt": "Audit the entire repository for compliance with all applicable instructions in the currently applicable AGENTS.md files. Present all findings in a (possibly giant) enumerated list. For each item, include a file/line reference, an explanation of the exact nature of the violation or lacking compliance, and a recommended action.",
-        "interactive": "preferred",
+        "requires_interactive": false,
         "custom_codex_args": [],
         "notes": ""
       }
@@ -45,7 +45,7 @@
         "no_edits": false,
         "prompt_vars": {},
         "prompt": "Identify the directory or directories containing the repository's automatically collected and runnable tests by inspecting its test-runner configuration, project metadata, scripts, and established conventions. Go through every test file in those directories in turn and sanity-check its name, scope, cohesion, placement, and test quality. Verify that each file is appropriately named, that its tests are related to one another, and that they test the entity or concern identified by the file. Audit the organizational structure of the identified test directories as a whole: identify tests that belong in different files, files that should be split, and tests that should be redistributed into existing or new files. Identify useless, obsolete, non-meaningful, badly formulated, or badly constructed tests. When there is a clear remedy, implement it while preserving intended coverage and run the relevant tests; otherwise, report the finding with exact file and test references, explain the problem, and recommend a concrete remedy. In the final response, identify the test directories reviewed and summarize all changes made, verification performed, unresolved findings, and any residual uncertainties.",
-        "interactive": "preferred",
+        "requires_interactive": false,
         "custom_codex_args": [],
         "notes": ""
       }
@@ -63,7 +63,7 @@
           "OSList": "Free-form list of operating systems to assess, including any requested versions or architectures."
         },
         "prompt": "Audit the current repository for cross-platform support across every of these listed operating systems: %OSList%. Treat each supplied operating-system name and any version or architecture qualifier literally. Make static compatibility a primary component of the audit: inspect first-party source and OS-specific APIs or platform detection; path separators, path construction, case sensitivity, reserved names, filesystem semantics, permissions, symlinks, temporary files, encodings, and line endings; shell commands, subprocess behavior, environment variables, executable discovery, signals, and tooling assumptions; dependencies, native extensions, compilers, system libraries, and platform constraints; and build, packaging, installation, release, and runtime flows. Also inspect tests, continuous-integration matrices, documentation, and stated support guarantees for evidence relevant to each requested OS. Run safe non-mutating local tests or build checks when useful, but identify the host environment actually exercised and never imply that an unexecuted target OS was tested. Do not treat missing OS-specific CI as proof of incompatibility. Produce a per-OS summary matrix covering the static-compatibility assessment, available test or CI evidence, known blockers or gaps, and confidence. Clearly distinguish confirmed compatibility, identified blockers, likely compatibility without direct execution evidence, and areas that remain unverified. Present actionable findings in a (possibly giant) enumerated list; for each finding include severity, affected operating systems, exact file and line or configuration references, the technical evidence and impact, and a concrete remediation or verification recommendation. Report the complete scope examined, all exclusions, assumptions, and unresolved uncertainties. If no actionable compatibility problems are found, state that explicitly without overstating the available evidence.",
-        "interactive": "preferred",
+        "requires_interactive": false,
         "custom_codex_args": [],
         "notes": ""
       }
@@ -79,7 +79,7 @@
         "no_edits": true,
         "prompt_vars": {},
         "prompt": "Sanity-check the completeness and accuracy of all uncommitted work in the current repository, including staged, unstaged, and untracked files. Compare the work in a direct one-to-one mapping against every available originating prompt, plan, requirement, and assumption. Inspect relevant surrounding implementation, configuration, documentation, tests, and version-control context, and run read-only verification where useful. Be meticulous: verify that every requirement has been addressed exactly as intended; identify omissions, inaccuracies, unintended or unexpected consequences and side effects, and any necessary ancillary considerations such as tests, documentation, compatibility, migrations, cleanup, or release metadata. Clearly distinguish confirmed facts from uncertainties. If any originating prompt or plan is unavailable or incomplete, state that limitation explicitly and treat the corresponding coverage conclusions as uncertain rather than assuming the requirements. Present all findings in a (possibly giant) enumerated list. For each item, include the severity (critical, high, medium, low, or info), the relevant requirement or assumption, whether the finding is factual or uncertain, the issue or gap, exact file and line/location references, and a concrete recommended action. If there are no actionable findings, explicitly state that conclusion, summarize the verification performed, and list any residual uncertainties.",
-        "interactive": "preferred",
+        "requires_interactive": false,
         "custom_codex_args": [],
         "notes": ""
       }
@@ -95,7 +95,7 @@
         "no_edits": false,
         "prompt_vars": {},
         "prompt": "Audit all first-party Python source in the repository for re-exports and imports that depend on re-exporting modules rather than the symbol's defining module. Use repository-wide search plus Python-aware or AST-based analysis where useful. Detect package and module facades, imports exposed through __init__.py, __all__, explicit aliases, assignment-based forwarding, star imports, and multi-hop import chains, while distinguishing a true re-export from an imported dependency that merely remains present in a module namespace. For each occurrence, trace the defining module and all discoverable internal consumers, then determine whether the re-export is accidental or whether it intentionally provides a documented public API, compatibility layer, lazy or optional import boundary, cycle avoidance, typing contract, plugin registration effect, or another meaningful abstraction. Refactor unnecessary re-exports and internal imports through them: import classes, exceptions, types, and constants directly from their defining modules when an unqualified from-import is appropriate under the repository's instructions, and otherwise import the defining module and use a qualified name. Remove obsolete aliases and __all__ entries only after updating every affected internal call site, test, type annotation, and documentation reference. Preserve intentional public facades and compatibility exports unless the repository clearly authorizes a breaking API change; where useful, keep the external export but change internal consumers to use the defining module. Avoid introducing import cycles, changing import-time side effects or optional-dependency behavior, or obscuring a deliberately curated API. Run the relevant formatting, linting, type-checking, and test commands after editing. In the final response, list each changed re-export or consumer with its old and new import path, identify intentional re-exports retained and why, report verification results, and disclose unresolved dynamic or public-API cases.",
-        "interactive": "preferred",
+        "requires_interactive": false,
         "custom_codex_args": [],
         "notes": ""
       }
@@ -111,7 +111,7 @@
         "no_edits": true,
         "prompt_vars": {},
         "prompt": "Audit the physical line counts in the current repository working tree. Count regular text files that are version-controlled or are untracked and not ignored. Exclude ignored files, version-control internals, binary files, and symlink targets, and disclose all exclusions, unreadable files, and classification uncertainties. Count a final unterminated line; classify whitespace-only lines as blank and every other line as content; and ensure that each total equals blank plus content. Present informative tables split by language or file extension and by the mutually exclusive repository roles production, test, documentation, and other. Include file count, blank lines, content lines, total lines, and useful percentages in each table. Include detected generated and vendored text in the grand total but report it separately, together with a first-party subtotal. Explain the repository-aware file, language, and role classification rules used so the results are reproducible. Draw the headline total, first-party total, production/test composition, dominant languages or extensions, and the effect of generated or vendored content into a meaningful summary without conflating documentation or configuration text with executable code.",
-        "interactive": "allowed",
+        "requires_interactive": false,
         "custom_codex_args": [],
         "notes": ""
       }
@@ -127,7 +127,7 @@
         "no_edits": false,
         "prompt_vars": {},
         "prompt": "Audit the current repository and enforce ASCII-only source code and configuration wherever reasonable and possible. Allow non-ASCII characters for example in documentation files when a literal Unicode character is genuinely necessary or seems intentionally desired. Replace avoidable non-ASCII characters with ASCII equivalents or suitable totally equivalent escape codes. Add, update, or confirm the presence of automated checks (prefer checking via tests as opposed to via an extra dedicated pre-commit check or so) to prevent regressions. Strictly preserve all existing code behavior.",
-        "interactive": "allowed",
+        "requires_interactive": false,
         "custom_codex_args": [],
         "notes": ""
       }
@@ -145,7 +145,7 @@
           "MarkdownPlanFile": "Markdown file containing details of the plan to implement. Use the supplied path exactly when it exists; otherwise resolve a unique repository file whose trailing path components exactly match the supplied path."
         },
         "prompt": "Implement the comprehensive implementation plan in %MarkdownPlanFile% completely and correctly. Resolve the plan file before blocking: first try the supplied path exactly as given relative to the working directory (or as an absolute path when supplied); if it does not identify a file, search the repository, including hidden and ignored working-tree files, for files whose repository-relative trailing path components exactly equal the supplied path components. Use a unique matching file automatically; if there is no match or more than one match, block and report the searched suffix and any candidates. First read the entire resolved plan file and all directly referenced project guidance needed to understand it; treat the plan file as the authoritative implementation specification. Implement every task, milestone, acceptance criterion, migration note, required test, documentation update, cleanup item, and verification step described there, preserving existing behavior unless the plan explicitly requires a change. Work in audited checkpoints: inspect the relevant code, make cohesive changes, update or add required tests/docs, run the most relevant available verification commands, fix failures caused by your changes, and keep a compact progress log of what changed, what was verified, and what remains. The goal is complete ONLY when every in-scope plan item is implemented, every acceptance criterion in the plan is satisfied, all relevant verification passes or any remaining failure is proven unrelated to the changes, and the final response lists changed files plus exact verification commands and results. HARD BLOCKING RULE: if at any point there is any doubt, unclarity, ambiguity, conflict, missing context, required user decision/input, required manual user action, unavailable credential/secret, unsafe/destructive operation, unclear product behavior, unclear scope boundary, or any other situation where proceeding would require guessing, Codex MUST immediately **block the goal**, ask specific enumerated questions or request the exact user action needed, and then **immediately end its turn** in a blocked goal state so that the user can respond; Codex MUST NOT continue, MUST NOT guess, MUST NOT simulate waiting, MUST NOT poll for a response, and MUST NOT ask the same question repeatedly in a loop: after asking once, it must wait for new user input before proceeding.",
-        "interactive": "required",
+        "requires_interactive": true,
         "custom_codex_args": [],
         "notes": "If the goal stops to ask questions, answer them in a new prompt and append to the prompt:\n\n> Do not do anything other than respond to this with 'Acknowledge'.\n\nOnly once the acknowledgement comes back, resume the goal with a second prompt:\n\n> /goal resume"
       }
@@ -161,7 +161,7 @@
         "no_edits": true,
         "prompt_vars": {},
         "prompt": "Scan the entire codebase for functions or methods that appear to be trivial wrappers: very short implementations that do little more than forward arguments, call another function, return a very short/simple single expression, or perform similarly minimal work. Use language-appropriate static analysis, AST tooling, repository search, or other mechanistic techniques to identify candidates efficiently rather than relying only on manual inspection. For each candidate, produce a finding containing:\n\n- The function/method name and location\n- Its complete implementation as a well-formatted code block\n- The number of call sites\n- A brief explanation of why it is or is not a good candidate for removal\n- Any relevant reasons to preserve it, such as abstraction boundaries, API stability, naming value, instrumentation, validation, compatibility, overriding, mocking, or future extensibility\n- A recommended action: inline and remove, keep, or investigate further\n\nWhen recommending removal, verify that the wrapper can be safely inlined at every call site without changing behavior, visibility, dispatch, error handling, typing, evaluation order, or public API compatibility.",
-        "interactive": "preferred",
+        "requires_interactive": false,
         "custom_codex_args": [],
         "notes": ""
       }
@@ -177,7 +177,7 @@
         "no_edits": true,
         "prompt_vars": {},
         "prompt": "Scan the entire repository for unfinished, temporary, obsolete, or cleanup-related work. Look for all kinds of todos, like:\n\n- Explicit markers such as TODO, FIXME, HACK, XXX, TBD, and similar annotations\n- Unfinished or placeholder code\n- Commented-out or dead code\n- Temporary debugging logic, logging, prints, flags, or test hooks\n- Stub implementations, dummy values, hard-coded temporary values, and unimplemented branches\n- Documentation that describes incomplete, planned, or unresolved work\n- Obsolete, duplicate, backup, generated, or accidentally committed files\n- Temporary artifacts that are tracked but should likely be ignored\n- Empty, unused, or suspicious files and directories\n- References to files, modules, commands, configuration, or features that no longer exist\n- Deprecated compatibility code that may no longer be needed\n- Any other repository content that appears to have been left behind unintentionally or still requires follow-up work\n\nAvoid reporting findings for things that are clearly part of legitimate user-facing content, test data, vendored dependencies, generated files, or historical documentation. Use repository-wide search, version-control metadata, language-aware static analysis, file-type inspection, and other mechanistic approaches where useful. Do not limit the search to source-code comments. Present all findings in a (possibly giant) enumerated list. For each item, include a file/line reference, a full statement of the todo, and a brief explanation why it has been considered a todo.",
-        "interactive": "preferred",
+        "requires_interactive": false,
         "custom_codex_args": [],
         "notes": ""
       }
@@ -193,7 +193,7 @@
         "no_edits": false,
         "prompt_vars": {},
         "prompt": "Carefully read and follow `RELEASE.md` in order to fully release the current state of code as a new version. Be meticulous in following all required steps, and check that you have done everything required at the end of each section. If anything is unclear or requires user decisions or user input, immediately end your turn after stating what clarifications or actions you need from the user.",
-        "interactive": "required",
+        "requires_interactive": true,
         "custom_codex_args": [],
         "notes": ""
       }
@@ -209,7 +209,7 @@
         "no_edits": false,
         "prompt_vars": {},
         "prompt": "Generate or update the stable Perform action catalogue by running the bundled scripts/write_perform_action_catalogue.py script from the active Perform skill using its absolute path. If the request specifies a custom output file, pass that literal path once in one --output=PATH argument; otherwise omit --output to use the repository default. Do not hand-write or post-process the catalogue. Report the output path and whether it changed, and surface every returned diagnostic.",
-        "interactive": "allowed",
+        "requires_interactive": false,
         "custom_codex_args": [],
         "notes": ""
       }

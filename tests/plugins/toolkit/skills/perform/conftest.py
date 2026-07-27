@@ -29,7 +29,7 @@ def complete_action(**overrides):
         "no_edits": False,
         "prompt_vars": {},
         "prompt": "Perform the test action.",
-        "interactive": "preferred",
+        "requires_interactive": False,
         "custom_codex_args": [],
         "notes": "",
     }

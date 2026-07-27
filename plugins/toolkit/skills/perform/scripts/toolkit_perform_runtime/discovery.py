@@ -150,28 +150,11 @@ def _capture_pipe(pipe, limit, result):
 
 def _signal_process_tree(process, force):
     """Signal an isolated process tree, falling back to its direct child."""
-    if os.name == "posix":
-        try:
-            os.killpg(process.pid, signal.SIGKILL if force else signal.SIGTERM)
-            return True
-        except (AttributeError, OSError):
-            pass
-    elif os.name == "nt":
-        try:
-            command = ["taskkill", "/PID", str(process.pid), "/T"]
-            if force:
-                command.append("/F")
-            completed = subprocess.run(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False, timeout=1)
-            if completed.returncode == 0:
-                return True
-        except (AttributeError, OSError, subprocess.TimeoutExpired):
-            pass
-        if not force:
-            try:
-                process.send_signal(subprocess.CTRL_BREAK_EVENT)
-                return True
-            except (AttributeError, OSError, ValueError):
-                pass
+    try:
+        os.killpg(process.pid, signal.SIGKILL if force else signal.SIGTERM)
+        return True
+    except (AttributeError, OSError):
+        pass
     try:
         if force:
             process.kill()
@@ -228,8 +211,7 @@ def run_bounded_git_root(cwd, popen_factory=None, timeout=GIT_TIMEOUT_SECONDS, e
             stderr=subprocess.PIPE,
             shell=False,
             env=None if env is None else dict(env),
-            start_new_session=os.name == "posix",
-            creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) if os.name == "nt" else 0,
+            start_new_session=True,
         )
     except OSError as exc:
         return GitCommandResult(launch_error=str(exc))

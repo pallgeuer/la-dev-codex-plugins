@@ -87,7 +87,7 @@ def smoke_activated_launcher(environment):
         "bash",
         "-c",
         'source "$1" && CODEX_PERFORM_PYTHON="$2" codex-perform list --plugin-root "$3" --codex "$2" --json',
-        "cross-platform-smoke",
+        "supported-platform-smoke",
         str(ACTIVATE),
         sys.executable,
         str(TOOLKIT_ROOT),
@@ -115,18 +115,18 @@ def smoke_bounded_process(environment):
 
 def smoke_loupe_runner():
     """Exercise Loupe's Bash launch and UTF-8 JSON capture path."""
-    runner = load_module("cross_platform_loupe_runner", LOUPE_RUNNER)
+    runner = load_module("supported_platform_loupe_runner", LOUPE_RUNNER)
     reviewers = (runner.Reviewer("smoke", "printf smoke", "{review_scope}"),)
     stdout = io.StringIO()
     with contextlib.redirect_stdout(stdout):
-        exit_code = runner.main(["cross-platform smoke"], reviewers=reviewers, environment={})
+        exit_code = runner.main(["supported-platform smoke"], reviewers=reviewers, environment={})
     assert exit_code == 0
     payload = json.loads(stdout.getvalue())
     assert payload["reviewers"][0]["stdout"] == "smoke"
 
 
 def main():
-    """Run every dependency-free cross-platform smoke check."""
+    """Run every dependency-free supported-platform smoke check."""
     if sys.version_info < (3, 6):
         raise AssertionError("Python 3.6+ is required")
     sys.dont_write_bytecode = True
@@ -148,7 +148,7 @@ def main():
         smoke_activated_launcher(environment)
         smoke_bounded_process(environment)
         smoke_loupe_runner()
-    print("Cross-platform smoke checks passed on {} with Python {}.{}.{}.".format(sys.platform, *sys.version_info[:3]))
+    print("Supported-platform smoke checks passed on {} with Python {}.{}.{}.".format(sys.platform, *sys.version_info[:3]))
     return 0
 
 

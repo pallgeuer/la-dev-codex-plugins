@@ -28,7 +28,7 @@ def test_launch_config_preserves_every_action_field_and_isolation(tmp_path, comp
         no_edits=True,
         prompt_vars={"Target": "Target"},
         prompt="Inspect %Target%.",
-        interactive="allowed",
+        requires_interactive=False,
         custom_codex_args=["--search"],
         notes="Visible note.",
     )
@@ -38,6 +38,7 @@ def test_launch_config_preserves_every_action_field_and_isolation(tmp_path, comp
     fields["custom_codex_args"].append("--later")
     payload = config.to_dict()
     assert config.custom_codex_args == ("--search",)
+    assert not hasattr(config, "interactive")
     assert payload["selector"] == "test[python]"
     assert payload["name"] == "test"
     assert payload["language"] == "python"
@@ -52,7 +53,7 @@ def test_launch_config_preserves_every_action_field_and_isolation(tmp_path, comp
         "no_edits": True,
         "prompt_vars": {"Target": "Target"},
         "prompt": "Inspect %Target%.",
-        "interactive": "allowed",
+        "requires_interactive": False,
         "custom_codex_args": ["--search"],
         "notes": "Visible note.",
     }
@@ -97,33 +98,29 @@ def test_launch_config_does_not_construct_a_base_prompt(monkeypatch, tmp_path, c
 
 
 @pytest.mark.parametrize(
-    ("policy", "override", "expected_interactive"),
+    ("requires_interactive", "non_interactive", "expected_non_interactive"),
     [
-        ("allowed", None, False),
-        ("allowed", True, True),
-        ("allowed", False, False),
-        ("preferred", None, True),
-        ("preferred", True, True),
-        ("preferred", False, False),
-        ("required", None, True),
-        ("required", True, True),
+        (False, False, False),
+        (False, True, True),
+        (True, False, False),
     ],
 )
-def test_interactivity_policy_and_override_select_frontend(tmp_path, complete, file_data, write_file, load_catalog, policy, override, expected_interactive):
-    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, interactive=policy)
-    invocation = launching_module.build_codex_invocation(catalog.prepare_launch("test[python]", {}), overrides=launching_module.LaunchOverrides(interactive=override))
+def test_interactivity_requirement_and_override_select_frontend(tmp_path, complete, file_data, write_file, load_catalog, requires_interactive, non_interactive, expected_non_interactive):
+    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, requires_interactive=requires_interactive)
+    invocation = launching_module.build_codex_invocation(catalog.prepare_launch("test[python]", {}), overrides=launching_module.LaunchOverrides(non_interactive=non_interactive))
     assert invocation.argv[0] == "codex"
-    assert ("exec" in invocation.argv) is not expected_interactive
+    assert ("exec" in invocation.argv) is expected_non_interactive
     assert invocation.argv[-2:] == ("--", "Perform the test action.")
-    assert invocation.interactive is expected_interactive
-    assert invocation.effective_settings["interactive"] is expected_interactive
+    assert invocation.non_interactive is expected_non_interactive
+    assert not hasattr(invocation, "interactive")
+    assert invocation.effective_settings["non_interactive"] is expected_non_interactive
     assert invocation.mode == "default"
 
 
 def test_required_interactivity_rejects_noninteractive_override(tmp_path, complete, file_data, write_file, load_catalog):
-    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, interactive="required")
+    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, requires_interactive=True)
     with pytest.raises(diagnostics_module.PerformRequestError) as error:
-        launching_module.build_codex_invocation(catalog.prepare_launch("test[python]", {}), overrides=launching_module.LaunchOverrides(interactive=False))
+        launching_module.build_codex_invocation(catalog.prepare_launch("test[python]", {}), overrides=launching_module.LaunchOverrides(non_interactive=True))
     assert error.value.status == "interactive_required"
     assert "test[python]" in error.value.message
 
@@ -152,14 +149,14 @@ def test_invocation_places_global_action_args_before_structured_settings_and_exe
         model="configured-model",
         reasoning_effort="medium",
         plan_reasoning_effort="medium",
-        interactive="allowed",
+        requires_interactive=False,
         custom_codex_args=["--search"],
     )
     overrides = launching_module.LaunchOverrides(
         model="override-model",
         reasoning_effort="high",
         plan_reasoning_effort="xhigh",
-        interactive=False,
+        non_interactive=True,
         extra_codex_args=["--color=never"],
         cwd="/work",
         json_output=True,
@@ -186,7 +183,7 @@ def test_invocation_places_global_action_args_before_structured_settings_and_exe
         "model": "override-model",
         "reasoning_effort": "high",
         "plan_reasoning_effort": "xhigh",
-        "interactive": False,
+        "non_interactive": True,
         "custom_codex_args": ("--search",),
         "extra_codex_args": ("--color=never",),
         "cwd": "/work",
@@ -205,7 +202,7 @@ def test_interactive_caller_args_precede_structured_settings(tmp_path, complete,
 
 
 def test_default_model_is_omitted_and_structured_json_is_added_once(tmp_path, complete, file_data, write_file, load_catalog):
-    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, interactive="allowed")
+    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, requires_interactive=False)
     invocation = launching_module.build_codex_invocation(
         catalog.prepare_launch("test[python]", {}),
         overrides=launching_module.LaunchOverrides(json_output=True),
@@ -214,45 +211,40 @@ def test_default_model_is_omitted_and_structured_json_is_added_once(tmp_path, co
     assert invocation.argv.count("--json") == 1
 
 
-def test_json_implicitly_selects_noninteractive_for_preferred_action(tmp_path, complete, file_data, write_file, load_catalog):
-    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, interactive="preferred")
+def test_json_implicitly_selects_noninteractive(tmp_path, complete, file_data, write_file, load_catalog):
+    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, requires_interactive=False)
     invocation = launching_module.build_codex_invocation(catalog.prepare_launch("test[python]", {}), overrides=launching_module.LaunchOverrides(json_output=True))
-    assert invocation.interactive is False
-    assert invocation.effective_settings["interactive"] is False
+    assert invocation.non_interactive is True
+    assert invocation.effective_settings["non_interactive"] is True
     assert "exec" in invocation.argv
     assert "--json" in invocation.argv
 
 
-def test_json_rejects_required_or_explicit_interactive_frontend(tmp_path, complete, file_data, write_file, load_catalog):
-    preferred = make_catalog(tmp_path / "preferred", complete, file_data, write_file, load_catalog, interactive="preferred")
-    with pytest.raises(diagnostics_module.PerformRequestError) as explicit:
-        launching_module.build_codex_invocation(preferred.prepare_launch("test[python]", {}), overrides=launching_module.LaunchOverrides(interactive=True, json_output=True))
-    assert explicit.value.status == "json_requires_noninteractive"
-
-    required = make_catalog(tmp_path / "required", complete, file_data, write_file, load_catalog, interactive="required")
+def test_json_rejects_required_interactive_action(tmp_path, complete, file_data, write_file, load_catalog):
+    required = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, requires_interactive=True)
     with pytest.raises(diagnostics_module.PerformRequestError) as implicit:
         launching_module.build_codex_invocation(required.prepare_launch("test[python]", {}), overrides=launching_module.LaunchOverrides(json_output=True))
     assert implicit.value.status == "interactive_required"
 
 
-@pytest.mark.parametrize("interactive", [None, True, False])
-def test_plan_mode_reports_cli_activation_is_unavailable(tmp_path, complete, file_data, write_file, load_catalog, interactive):
-    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, plan_mode=True, reasoning_effort="medium", plan_reasoning_effort="high", no_edits=True, interactive="required")
+@pytest.mark.parametrize("non_interactive", [False, True])
+def test_plan_mode_reports_cli_activation_is_unavailable(tmp_path, complete, file_data, write_file, load_catalog, non_interactive):
+    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, plan_mode=True, reasoning_effort="medium", plan_reasoning_effort="high", no_edits=True, requires_interactive=True)
     spec = catalog.prepare_launch("test[python]", {})
     with pytest.raises(diagnostics_module.PerformRequestError) as error:
-        launching_module.build_codex_invocation(spec, overrides=launching_module.LaunchOverrides(interactive=interactive))
+        launching_module.build_codex_invocation(spec, overrides=launching_module.LaunchOverrides(non_interactive=non_interactive))
     assert error.value.status == "plan_mode_unavailable"
     assert "$toolkit:perform" in error.value.message
 
 
-@pytest.mark.parametrize(("policy", "expected_interactive"), [("preferred", True), ("allowed", False)])
-def test_goal_mode_always_uses_exact_objective_bootstrap(tmp_path, complete, file_data, write_file, load_catalog, policy, expected_interactive):
+@pytest.mark.parametrize("non_interactive", [False, True])
+def test_goal_mode_always_uses_exact_objective_bootstrap(tmp_path, complete, file_data, write_file, load_catalog, non_interactive):
     objective = 'Use quotes " and Unicode \u03bb.\nSecond line.'
-    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, goal_mode=True, interactive=policy, prompt=objective)
-    invocation = launching_module.build_codex_invocation(catalog.prepare_launch("test[python]", {}))
+    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, goal_mode=True, requires_interactive=False, prompt=objective)
+    invocation = launching_module.build_codex_invocation(catalog.prepare_launch("test[python]", {}), overrides=launching_module.LaunchOverrides(non_interactive=non_interactive))
     envelope = json.loads(invocation.submitted_prompt.rsplit("\n\n", 1)[1])
     assert invocation.mode == "goal"
-    assert invocation.interactive is expected_interactive
+    assert invocation.non_interactive is non_interactive
     assert invocation.objective == objective
     assert envelope == {"objective": objective}
     assert not invocation.submitted_prompt.startswith("/goal")
@@ -260,20 +252,19 @@ def test_goal_mode_always_uses_exact_objective_bootstrap(tmp_path, complete, fil
 
 
 def test_goal_interactivity_can_be_overridden_without_changing_bootstrap(tmp_path, complete, file_data, write_file, load_catalog):
-    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, goal_mode=True, interactive="preferred")
+    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, goal_mode=True, requires_interactive=False)
     spec = catalog.prepare_launch("test[python]", {})
     interactive = launching_module.build_codex_invocation(spec)
-    noninteractive = launching_module.build_codex_invocation(spec, overrides=launching_module.LaunchOverrides(interactive=False))
+    noninteractive = launching_module.build_codex_invocation(spec, overrides=launching_module.LaunchOverrides(non_interactive=True))
     assert interactive.submitted_prompt == noninteractive.submitted_prompt
     assert interactive.objective == noninteractive.objective
     assert "exec" not in interactive.argv
     assert "exec" in noninteractive.argv
 
 
-@pytest.mark.parametrize("policy", ["preferred", "allowed"])
 @pytest.mark.parametrize("argument", ["--ephemeral", "--disable=goals", "--config=features.goals=false", "--config=features={goals=false}"])
-def test_goal_mode_rejects_caller_arguments_that_can_disable_goals(tmp_path, complete, file_data, write_file, load_catalog, policy, argument):
-    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, goal_mode=True, interactive=policy)
+def test_goal_mode_rejects_caller_arguments_that_can_disable_goals(tmp_path, complete, file_data, write_file, load_catalog, argument):
+    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, goal_mode=True, requires_interactive=False)
     spec = catalog.prepare_launch("test[python]", {})
     with pytest.raises(diagnostics_module.PerformRequestError) as error:
         launching_module.build_codex_invocation(spec, overrides=launching_module.LaunchOverrides(extra_codex_args=[argument]))
@@ -281,7 +272,7 @@ def test_goal_mode_rejects_caller_arguments_that_can_disable_goals(tmp_path, com
 
 
 def test_goal_mode_allows_goal_enablement_and_unrelated_arguments(tmp_path, complete, file_data, write_file, load_catalog):
-    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, goal_mode=True, interactive="allowed")
+    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, goal_mode=True, requires_interactive=False)
     overrides = launching_module.LaunchOverrides(extra_codex_args=["--enable=goals", "--config=unrelated=true"])
     invocation = launching_module.build_codex_invocation(catalog.prepare_launch("test[python]", {}), overrides=overrides)
     assert "--enable=goals" in invocation.argv
@@ -289,7 +280,7 @@ def test_goal_mode_allows_goal_enablement_and_unrelated_arguments(tmp_path, comp
 
 
 def test_interactive_mode_rejects_caller_ephemeral(tmp_path, complete, file_data, write_file, load_catalog):
-    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, interactive="preferred")
+    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, requires_interactive=False)
     spec = catalog.prepare_launch("test[python]", {})
     with pytest.raises(diagnostics_module.PerformRequestError) as error:
         launching_module.build_codex_invocation(spec, overrides=launching_module.LaunchOverrides(extra_codex_args=["--ephemeral"]))
@@ -302,7 +293,7 @@ def test_interactive_mode_rejects_caller_ephemeral(tmp_path, complete, file_data
         ({"model": "bad model"}, "invalid_model"),
         ({"reasoning_effort": "High"}, "invalid_effort"),
         ({"plan_reasoning_effort": "High"}, "invalid_effort"),
-        ({"interactive": "yes"}, "invalid_interactivity"),
+        ({"non_interactive": "yes"}, "invalid_interactivity"),
         ({"extra_codex_args": ["--model", "bad"]}, "conflicting_extra_codex_args"),
         ({"extra_codex_args": ["--cd", "/tmp"]}, "conflicting_extra_codex_args"),
         ({"extra_codex_args": "--help"}, "invalid_extra_codex_args"),
@@ -315,6 +306,8 @@ def test_interactive_mode_rejects_caller_ephemeral(tmp_path, complete, file_data
         ({"extra_codex_args": ["--version=x"]}, "invalid_extra_codex_args"),
         ({"extra_codex_args": ["--json"]}, "conflicting_extra_codex_args"),
         ({"extra_codex_args": ["--json=true"]}, "conflicting_extra_codex_args"),
+        ({"extra_codex_args": ["--verbose"]}, "conflicting_extra_codex_args"),
+        ({"extra_codex_args": ["--verbose=true"]}, "conflicting_extra_codex_args"),
         ({"extra_codex_args": ["resume"]}, "invalid_extra_codex_args"),
         ({"extra_codex_args": ["--color", "never"]}, "invalid_extra_codex_args"),
         ({"extra_codex_args": ["-h"]}, "invalid_extra_codex_args"),
@@ -329,9 +322,10 @@ def test_launch_overrides_validate_structured_policy(kwargs, status):
     assert error.value.status == status
 
 
-def test_launch_overrides_reject_removed_prefer_interactive_keyword():
+@pytest.mark.parametrize("keyword", ["interactive", "prefer_interactive"])
+def test_launch_overrides_reject_removed_interactivity_keywords(keyword):
     with pytest.raises(TypeError):
-        launching_module.LaunchOverrides(prefer_interactive=True)
+        launching_module.LaunchOverrides(**{keyword: True})
 
 
 def test_launch_overrides_preserve_posix_surrogateescape_arguments():
@@ -342,22 +336,15 @@ def test_launch_overrides_preserve_posix_surrogateescape_arguments():
     assert overrides.extra_codex_args == ("--future=path\udc80",)
 
 
-def test_json_output_rejects_explicit_interactive_invocation(tmp_path, complete, file_data, write_file, load_catalog):
-    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog)
-    with pytest.raises(diagnostics_module.PerformRequestError) as error:
-        launching_module.build_codex_invocation(catalog.prepare_launch("test[python]", {}), overrides=launching_module.LaunchOverrides(interactive=True, json_output=True))
-    assert error.value.status == "json_requires_noninteractive"
-
-
 def test_option_and_subcommand_shaped_prompts_remain_literal(tmp_path, complete, file_data, write_file, load_catalog):
     for index, prompt in enumerate(("--help", "resume", "-leading")):
-        catalog = make_catalog(tmp_path / str(index), complete, file_data, write_file, load_catalog, interactive="allowed", prompt=prompt)
+        catalog = make_catalog(tmp_path / str(index), complete, file_data, write_file, load_catalog, requires_interactive=False, prompt=prompt)
         invocation = launching_module.build_codex_invocation(catalog.prepare_launch("test[python]", {}))
         assert invocation.argv[-2:] == ("--", prompt)
 
 
 def test_launcher_value_objects_and_argument_collections_are_immutable(tmp_path, complete, file_data, write_file, load_catalog):
-    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, interactive="allowed", custom_codex_args=["--search"])
+    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, requires_interactive=False, custom_codex_args=["--search"])
     spec = catalog.prepare_launch("test[python]", {})
     overrides = launching_module.LaunchOverrides(extra_codex_args=["--color=never"])
     invocation = launching_module.build_codex_invocation(spec, overrides=overrides)
@@ -383,13 +370,13 @@ def test_launcher_value_objects_and_argument_collections_are_immutable(tmp_path,
 
 
 def test_launch_overrides_to_dict_is_complete_and_isolated():
-    overrides = launching_module.LaunchOverrides(model="gpt-5", interactive=False, extra_codex_args=["--color=never"], cwd="/work", json_output=True)
+    overrides = launching_module.LaunchOverrides(model="gpt-5", non_interactive=True, extra_codex_args=["--color=never"], cwd="/work", json_output=True)
     payload = overrides.to_dict()
     assert payload == {
         "model": "gpt-5",
         "reasoning_effort": None,
         "plan_reasoning_effort": None,
-        "interactive": False,
+        "non_interactive": True,
         "extra_codex_args": ["--color=never"],
         "cwd": "/work",
         "json_output": True,
@@ -399,12 +386,12 @@ def test_launch_overrides_to_dict_is_complete_and_isolated():
 
 
 def test_invocation_to_dict_is_complete_and_isolated(tmp_path, complete, file_data, write_file, load_catalog):
-    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, interactive="allowed")
+    catalog = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, requires_interactive=False)
     invocation = launching_module.build_codex_invocation(catalog.prepare_launch("test[python]", {}))
     payload = invocation.to_dict()
     payload["argv"].append("--mutated")
     payload["effective_settings"]["extra_codex_args"].append("--mutated")
     assert "--mutated" not in invocation.argv
     assert "--mutated" not in invocation.effective_settings["extra_codex_args"]
-    assert set(payload) == {"launch_spec", "effective_settings", "mode", "interactive", "objective", "submitted_prompt", "argv"}
+    assert set(payload) == {"launch_spec", "effective_settings", "mode", "non_interactive", "objective", "submitted_prompt", "argv"}
     assert list(payload["launch_spec"]["action"]) == list(validation_module.ACTION_FIELDS)

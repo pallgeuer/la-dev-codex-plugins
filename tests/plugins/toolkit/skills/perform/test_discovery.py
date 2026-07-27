@@ -379,8 +379,7 @@ def test_bounded_git_launches_only_exact_read_only_command_without_shell(tmp_pat
         "stderr": discovery_module.subprocess.PIPE,
         "shell": False,
         "env": None,
-        "start_new_session": os.name == "posix",
-        "creationflags": getattr(discovery_module.subprocess, "CREATE_NEW_PROCESS_GROUP", 0) if os.name == "nt" else 0,
+        "start_new_session": True,
     }
     assert calls == [(["git", "-C", str(tmp_path), "rev-parse", "--show-toplevel"], expected_kwargs)]
     assert all("codex" not in part and "uv" not in part for part in calls[0][0])
