@@ -231,7 +231,9 @@ def test_real_noninteractive_json_is_forwarded_to_codex(monkeypatch, capsys):
     assert "exec" in raised.value.argv
     assert "--json" in raised.value.argv
     assert raised.value.argv[-2] == "--"
-    assert capsys.readouterr().out == ""
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "PROMPT:" in captured.err
 
 
 def test_default_run_is_interactive(monkeypatch, capsys):
@@ -245,6 +247,7 @@ def test_default_run_is_interactive(monkeypatch, capsys):
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "PERFORM: ensure-ascii-only[agnostic]" in captured.err
+    assert "PROMPT:" not in captured.err
 
 
 def test_final_only_success_only_shows_final_response(monkeypatch, capsys):
@@ -277,6 +280,7 @@ def test_final_only_failure_replays_prelaunch_and_diagnostics(monkeypatch, capsy
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err.startswith("PERFORM: ensure-ascii-only[agnostic]\n")
+    assert "PROMPT:" in captured.err
     assert captured.err.endswith("codex progress and failure\n")
 
 
@@ -317,6 +321,7 @@ def test_verbose_noninteractive_uses_direct_progress_output(monkeypatch, capsys)
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "PERFORM: ensure-ascii-only[agnostic]" in captured.err
+    assert "PROMPT:" in captured.err
 
 
 @pytest.mark.parametrize(

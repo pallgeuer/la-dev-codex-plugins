@@ -153,7 +153,7 @@ def _run_command(args, codex_args, runtime, launcher, environment):
         return 0
     if output_mode == "final-only":
         return _run_final_only(invocation, spec, environment)
-    output.display_prelaunch(spec)
+    output.display_prelaunch(spec, include_prompt=output_mode != "interactive")
     try:
         launcher_runtime.replace_process(invocation.argv, env=environment)
     except (OSError, UnicodeError, ValueError) as exc:

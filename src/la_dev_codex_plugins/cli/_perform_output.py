@@ -171,8 +171,8 @@ def _stderr_supports_color():
     return sys.stderr.isatty() and "NO_COLOR" not in os.environ and os.environ.get("TERM") != "dumb"
 
 
-def display_prelaunch(spec):
-    """Show safely escaped notes, action args, and prompt on stderr."""
+def display_prelaunch(spec, include_prompt=True):
+    """Show safely escaped prelaunch context on stderr."""
     config = spec.config
     pieces = []
     if config.notes:
@@ -184,14 +184,15 @@ def display_prelaunch(spec):
     pieces.append("PERFORM: {}\n".format(config.selector))
     if config.custom_codex_args:
         pieces.append("CODEX ACTION ARGS: {}\n".format(bash_command(config.custom_codex_args)))
-    pieces.append("\nPROMPT:\n")
-    prompt = escape_terminal_text(spec.rendered_prompt)
-    if _stderr_supports_color():
-        pieces.extend(("\033[32m", prompt, "\033[0m"))
-    else:
-        pieces.append(prompt)
-    if not spec.rendered_prompt.endswith("\n"):
-        pieces.append("\n")
+    if include_prompt:
+        pieces.append("\nPROMPT:\n")
+        prompt = escape_terminal_text(spec.rendered_prompt)
+        if _stderr_supports_color():
+            pieces.extend(("\033[32m", prompt, "\033[0m"))
+        else:
+            pieces.append(prompt)
+        if not spec.rendered_prompt.endswith("\n"):
+            pieces.append("\n")
     write_text("".join(pieces), stream=sys.stderr)
     sys.stderr.flush()
     sys.stdout.flush()

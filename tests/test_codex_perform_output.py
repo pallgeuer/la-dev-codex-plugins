@@ -54,6 +54,15 @@ def test_prelaunch_display_escapes_untrusted_terminal_controls(capsys):
     assert "\n\nPROMPT:\nprompt\\\\text" in captured.err
 
 
+def test_prelaunch_display_can_omit_prompt(capsys):
+    config = types.SimpleNamespace(notes="remember this", selector="test[agnostic]", custom_codex_args=())
+    spec = types.SimpleNamespace(config=config, rendered_prompt="prompt text")
+    perform_output.display_prelaunch(spec, include_prompt=False)
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "NOTES TO USER:\nremember this\n\nPERFORM: test[agnostic]\n"
+
+
 def test_human_dry_run_and_json_escape_terminal_controls(capsys):
     invocation = types.SimpleNamespace(
         argv=("codex", "--", "prompt\x1b\u202e"),
