@@ -291,6 +291,8 @@ The default output is `<repository-root>/.codex/toolkit_perform_actions/action_c
 The repository includes a source-only `codex-perform` launcher. It does not need to be installed as a Python package and has no non-standard Python dependencies so that it works out of the box with any system Python 3.6+. In each new Bash session, source the repository activation script:
 
 ```bash
+# FIND IT:  find "${CODEX_HOME:-$HOME/.codex}" -path "*/la-dev-codex-plugins/activate.sh"
+# OFTEN IS: source ~/.codex/.tmp/marketplaces/la-dev-codex-plugins/activate.sh
 source /PATH/TO/la-dev-codex-plugins/activate.sh
 ```
 

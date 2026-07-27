@@ -27,7 +27,17 @@ def test_facade_lists_shows_and_prepares_actions(tmp_path, complete, file_data, 
         load_catalog,
         {"test": {"agnostic": complete(prompt_vars={"Target": "Target"}, prompt="Inspect %Target%.", interactive="allowed")}},
     )
-    assert launcher.list_actions("test") == {"variants": [{"selector": "test[agnostic]", "gloss": "Test action", "prompt_vars": {"Target": "Target"}}]}
+    assert launcher.list_actions("test") == {
+        "variants": [
+            {
+                "selector": "test[agnostic]",
+                "name": "test",
+                "language": "agnostic",
+                "gloss": "Test action",
+                "prompt_vars": {"Target": "Target"},
+            }
+        ]
+    }
     shown = launcher.show_action("test")
     assert shown["selector"] == "test[agnostic]"
     assert shown["action"]["prompt"] == "Inspect %Target%."

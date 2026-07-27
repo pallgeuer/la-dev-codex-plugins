@@ -63,6 +63,57 @@ def test_utf8_output_bypasses_ascii_text_encoding():
     assert binary.getvalue() == "\u03bb".encode("utf-8")
 
 
+def test_list_uses_separate_name_and_language_columns_and_wraps_gloss(monkeypatch, capsys):
+    monkeypatch.setattr(perform_output, "_terminal_width", lambda: 80)
+    payload = {
+        "variants": [
+            {
+                "selector": "audit-test-organization[agnostic]",
+                "gloss": "Audit test suite organization and quality",
+                "prompt_vars": {},
+            },
+            {
+                "selector": "check-cross-platform[agnostic]",
+                "gloss": "Check repository support for specified operating systems",
+                "prompt_vars": {"OSList": "Free-form list of operating systems to assess, including any requested versions or architectures."},
+            },
+        ]
+    }
+    perform_output.print_list(payload)
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert captured.out == (
+        "NAME                     LANGUAGE  GLOSS\n"
+        "audit-test-organization  agnostic  Audit test suite organization and quality\n"
+        "check-cross-platform     agnostic  Check repository support for specified\n"
+        "                                   operating systems\n"
+        "                                   OSList: Free-form list of operating systems\n"
+        "                                           to assess, including any requested\n"
+        "                                           versions or architectures.\n"
+    )
+
+
+def test_list_preserves_minimum_gloss_width_for_narrow_terminal(monkeypatch, capsys):
+    monkeypatch.setattr(perform_output, "_terminal_width", lambda: 20)
+    perform_output.print_list(
+        {
+            "variants": [
+                {
+                    "selector": "exceptionally-long-action-name[exceptionally-long-language]",
+                    "gloss": "One two three four five six seven eight nine ten eleven",
+                }
+            ]
+        }
+    )
+    lines = capsys.readouterr().out.splitlines()
+    gloss_column = lines[0].index("GLOSS")
+    assert lines == [
+        "NAME                            LANGUAGE                     GLOSS",
+        "exceptionally-long-action-name  exceptionally-long-language  One two three four five six seven eight",
+        "{}nine ten eleven".format(" " * gloss_column),
+    ]
+
+
 def test_error_output_preserves_diagnostics_for_json_and_human_modes(capsys):
     error = perform_runtime.CliError("Broken catalog.", exit_code=3, code="fatal_catalog", diagnostics=["error: Bad action.\x1b (actions.json)"])
     assert perform_output.emit_error(error, json_requested=True) == 3

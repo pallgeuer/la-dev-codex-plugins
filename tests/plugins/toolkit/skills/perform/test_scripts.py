@@ -74,15 +74,15 @@ def user_catalog(codex_home, file_data, write_file, actions):
     return directory
 
 
-def assert_removed_keys_absent(value):
+def assert_removed_keys_absent(value, allowed_keys=frozenset()):
     """Assert that compact output recursively omits every retired field."""
     if isinstance(value, dict):
-        assert not (set(value) & REMOVED_OUTPUT_KEYS)
+        assert not (set(value) & (REMOVED_OUTPUT_KEYS - set(allowed_keys)))
         for child in value.values():
-            assert_removed_keys_absent(child)
+            assert_removed_keys_absent(child, allowed_keys=allowed_keys)
     elif isinstance(value, list):
         for child in value:
-            assert_removed_keys_absent(child)
+            assert_removed_keys_absent(child, allowed_keys=allowed_keys)
 
 
 def test_scripts_have_portable_shebang_and_executable_mode():
@@ -124,12 +124,14 @@ def test_listing_is_one_compact_json_line(tmp_path):
     assert {variant["selector"] for variant in response["variants"]} >= {"exec-md-goal[agnostic]", "find-todos[agnostic]", "help[agnostic]"}
     assert next(variant for variant in response["variants"] if variant["selector"] == "find-todos[agnostic]") == {
         "selector": "find-todos[agnostic]",
+        "name": "find-todos",
+        "language": "agnostic",
         "gloss": "Enumerate all kinds of discernible TODOs in a repo",
     }
     assert next(variant for variant in response["variants"] if variant["selector"] == "exec-md-goal[agnostic]")["prompt_vars"] == {
         "MarkdownPlanFile": "Markdown file containing details of the plan to implement."
     }
-    assert_removed_keys_absent(response)
+    assert_removed_keys_absent(response, allowed_keys={"name", "language"})
 
 
 def test_name_filter_and_one_call_fallback(tmp_path):
@@ -439,7 +441,7 @@ def test_scripts_isolate_lone_surrogates_in_invalid_json_keys(tmp_path, complete
     response = parse_stdout(completed)
     assert completed.returncode == 0
     assert completed.stderr == b""
-    assert response["variants"] == [{"selector": "good[agnostic]", "gloss": "Test action"}]
+    assert response["variants"] == [{"selector": "good[agnostic]", "name": "good", "language": "agnostic", "gloss": "Test action"}]
     assert len(response["diagnostics"]) == 1
     assert "\\ud800" in response["diagnostics"][0]
 
@@ -563,7 +565,14 @@ def test_builtin_help_is_listed_and_inspected_as_a_normal_result(tmp_path):
     listing = parse_stdout(run_script(LIST_SCRIPT, ["--name=help"], cwd, env))
     get_help = run_script(GET_SCRIPT, ["--inspect=help[agnostic]"], cwd, env)
     response = parse_stdout(get_help)
-    assert listing["variants"] == [{"selector": "help[agnostic]", "gloss": "Explain Perform action files and launch methods"}]
+    assert listing["variants"] == [
+        {
+            "selector": "help[agnostic]",
+            "name": "help",
+            "language": "agnostic",
+            "gloss": "Explain Perform action files and launch methods",
+        }
+    ]
     assert get_help.returncode == 0
     assert response == {
         "help": "Read references/action_files.md for action-file configuration, discovery, layering, and catalogue generation. Read references/codex_skill.md for launching with $toolkit:perform inside Codex. Read references/standalone_cli.md for launching with codex-perform and using its Python API."

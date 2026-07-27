@@ -142,8 +142,8 @@ class ActionSummary:
         self.prompt_vars = copy.deepcopy(prompt_vars)
 
     def to_dict(self):
-        """Return only the metadata consumed during selection."""
-        result = {"selector": self.selector, "gloss": self.gloss}
+        """Return the structured metadata for this action variant."""
+        result = {"selector": self.selector, "name": self.name, "language": self.language, "gloss": self.gloss}
         if self.prompt_vars:
             result["prompt_vars"] = copy.deepcopy(self.prompt_vars)
         return result

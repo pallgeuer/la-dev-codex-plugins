@@ -138,7 +138,12 @@ def test_reserved_help_definition_and_ignore_do_not_affect_builtin(tmp_path, com
     help_summary = catalog.list_actions(name="help")
     assert len(help_summary) == 1
     assert help_summary[0].gloss == catalog_module.HELP_GLOSS
-    assert help_summary[0].to_dict() == {"selector": "help[agnostic]", "gloss": catalog_module.HELP_GLOSS}
+    assert help_summary[0].to_dict() == {
+        "selector": "help[agnostic]",
+        "name": "help",
+        "language": "agnostic",
+        "gloss": catalog_module.HELP_GLOSS,
+    }
     assert sorted(diagnostic_codes(catalog)) == ["reserved_help_definition", "reserved_help_ignore", "reserved_help_ignore"]
 
 

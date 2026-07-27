@@ -133,7 +133,13 @@ def test_empty_plugin_root_fails_closed(monkeypatch, capsys):
 def test_list_and_show_json_use_local_plugin(capsys):
     assert perform.main(local_arguments("--json")) == 0
     listed = json.loads(capsys.readouterr().out)
-    assert "ensure-ascii-only[agnostic]" in [variant["selector"] for variant in listed["variants"]]
+    ensure_ascii = next(variant for variant in listed["variants"] if variant["selector"] == "ensure-ascii-only[agnostic]")
+    assert ensure_ascii == {
+        "selector": "ensure-ascii-only[agnostic]",
+        "name": "ensure-ascii-only",
+        "language": "agnostic",
+        "gloss": "Ensure ASCII-only source files wherever possible",
+    }
 
     assert perform.main(local_arguments("show", "ensure-ascii-only", "--json")) == 0
     shown = json.loads(capsys.readouterr().out)
