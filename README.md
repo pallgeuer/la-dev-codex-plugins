@@ -307,7 +307,7 @@ The repository includes a source-only `codex-perform` launcher. On supported hos
 source /PATH/TO/la-dev-codex-plugins/activate.sh
 ```
 
-This provides the `codex-perform` command, which you can then use. Runs are interactive by default; ordinary noninteractive runs show the action and prompt on stderr, hide Codex progress, and leave only the final response on stdout. Add `--verbose` to restore live progress:
+This provides the `codex-perform` command, which you can then use. Runs are interactive by default; ordinary noninteractive runs (`--non-interactive` or its alias `--ni`) show the action and prompt on stderr, hide Codex progress, and leave only the final response on stdout. Add `--verbose` to restore live progress:
 
 ```bash
 codex-perform
@@ -315,7 +315,7 @@ codex-perform catalogue
 codex-perform show find-todos
 codex-perform find-todos
 codex-perform find-todos --qualification 'Limit the search to tools/'
-codex-perform find-todos --non-interactive
+codex-perform find-todos --ni
 codex-perform find-todos --non-interactive --verbose
 codex-perform find-todos --json
 codex-perform exec-md-goal --var 'MarkdownPlanFile=docs/plans/plan.md'

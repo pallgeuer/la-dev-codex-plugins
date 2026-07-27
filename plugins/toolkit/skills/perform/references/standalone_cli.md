@@ -149,10 +149,10 @@ Structured overrides replace settings owned by action definitions:
 --model MODEL
 --effort EFFORT
 --plan-effort EFFORT
---non-interactive
+--non-interactive, --ni
 ```
 
-Runs are interactive unless `--non-interactive` or `--json` selects `codex exec`. An ordinary explicit `--non-interactive` run shows the prelaunch context while hiding Codex progress; add `--verbose` to show live progress too.
+Runs are interactive unless `--non-interactive` (short alias `--ni`) or `--json` selects `codex exec`. An ordinary explicit `--non-interactive` run shows the prelaunch context while hiding Codex progress; add `--verbose` to show live progress too.
 
 The three output flags have these complete combinations:
 

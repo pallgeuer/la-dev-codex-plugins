@@ -250,6 +250,14 @@ def test_default_run_is_interactive(monkeypatch, capsys):
     assert "PROMPT:" not in captured.err
 
 
+def test_noninteractive_alias_selects_final_only(capsys):
+    assert perform.main(local_arguments("ensure-ascii-only", "--ni", "--dry-run")) == 0
+    payload = json.loads(capsys.readouterr().out.split("bash command:\n", 1)[0])
+    assert payload["non_interactive"] is True
+    assert payload["effective_settings"]["non_interactive"] is True
+    assert payload["output_mode"] == "final-only"
+
+
 def test_final_only_success_shows_prelaunch_and_only_final_response(monkeypatch, capsys):
     observed = {}
 

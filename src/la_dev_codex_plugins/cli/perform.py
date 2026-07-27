@@ -91,7 +91,7 @@ def build_parser():
     parser.add_argument("--model", help="Override the action model.")
     parser.add_argument("--effort", help="Override normal model reasoning effort.")
     parser.add_argument("--plan-effort", help="Override Plan-mode reasoning effort.")
-    parser.add_argument("--non-interactive", action="store_true", help="Launch noninteractive codex exec instead of interactive Codex.")
+    parser.add_argument("--non-interactive", "--ni", action="store_true", help="Launch noninteractive codex exec instead of interactive Codex.")
     parser.add_argument("--verbose", action="store_true", help="Show prelaunch context and Codex progress for an explicitly noninteractive run.")
     parser.add_argument("--dry-run", action="store_true", help="Display the complete launch without executing Codex.")
     parser.add_argument("--output", help="Action catalogue output path; relative paths resolve from the repository root and may use parent traversal.")
