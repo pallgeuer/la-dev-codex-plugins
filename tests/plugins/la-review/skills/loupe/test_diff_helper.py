@@ -1,3 +1,5 @@
+"""Tests for Loupe review-diff collection."""
+
 import importlib.util
 import json
 import subprocess

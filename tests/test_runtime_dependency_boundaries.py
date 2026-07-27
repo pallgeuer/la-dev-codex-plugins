@@ -1,3 +1,5 @@
+"""Runtime dependency boundary tests for shipped plugins and source packages."""
+
 import ast
 import sys
 import sysconfig

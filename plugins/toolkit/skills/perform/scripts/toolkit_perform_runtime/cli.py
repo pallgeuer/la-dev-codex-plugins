@@ -6,8 +6,8 @@ import sys
 
 from . import api
 from . import catalog as catalog_module
+from . import paths as paths_module
 from .diagnostics import PerformRequestError
-from .paths import bundled_actions_dir
 
 _SEEN_ARGUMENTS_ATTRIBUTE = "_json_argument_parser_seen"
 
@@ -90,7 +90,7 @@ class CliContext:
 
     def load_catalog(self, cwd):
         """Load and retain the conventional Perform catalog."""
-        self.catalog = catalog_module.load_action_catalog(bundled_dir=bundled_actions_dir(), cwd=cwd)
+        self.catalog = catalog_module.load_action_catalog(bundled_dir=paths_module.bundled_actions_dir(), cwd=cwd)
         return self.catalog
 
 

@@ -1,3 +1,5 @@
+"""Tests for repository and plugin version declarations."""
+
 import configparser
 import json
 import re

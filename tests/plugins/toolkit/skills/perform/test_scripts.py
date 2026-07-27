@@ -505,7 +505,8 @@ def test_catalogue_script_writes_absolute_output_and_preserves_identical_file(tm
     assert second_stat.st_mtime_ns == first_stat.st_mtime_ns
     content = output.read_text(encoding="utf-8")
     assert content.startswith("<!-- toolkit-perform-action-catalogue:v1 -->\n")
-    assert "| `update-action-catalogue` | `agnostic` |" in content
+    update_row = next(line for line in content.splitlines() if line.startswith("| `update-action-catalogue` "))
+    assert [cell.strip() for cell in update_row.strip("|").split("|")][:2] == ["`update-action-catalogue`", "`agnostic`"]
     assert "Diagnostic:" not in content
 
 

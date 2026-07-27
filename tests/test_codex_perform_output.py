@@ -1,3 +1,5 @@
+"""Tests for Perform command-line output handling."""
+
 import io
 import json
 import os

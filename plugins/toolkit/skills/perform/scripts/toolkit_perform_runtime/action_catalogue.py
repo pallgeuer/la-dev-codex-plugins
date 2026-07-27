@@ -1,9 +1,9 @@
 """Stable Markdown catalogues for effective Perform actions."""
 
+import contextlib
 import os
 import stat
 import uuid
-from contextlib import suppress
 from pathlib import Path
 
 from . import catalog as catalog_module
@@ -38,6 +38,20 @@ def _format_variant_values(summaries, value_getter, value_formatter):
     return "<br>".join("`{}`: {}".format(summary.language, value_formatter(value)) for summary, value in zip(summaries, values))
 
 
+def _render_markdown_table(headers, rows, alignments):
+    """Render one source-aligned Markdown table."""
+    widths = [len(header) for header in headers]
+    for row in rows:
+        widths = [max(width, len(value)) for width, value in zip(widths, row)]
+
+    def padded_row(row):
+        cells = [value.center(width) if alignment == "center" else value.ljust(width) for value, width, alignment in zip(row, widths, alignments)]
+        return "| {} |".format(" | ".join(cells))
+
+    separators = [":{}:".format("-" * width) if alignment == "center" else "-" * (width + 2) for width, alignment in zip(widths, alignments)]
+    return [padded_row(headers), "|{}|".format("|".join(separators))] + [padded_row(row) for row in rows]
+
+
 def render_action_catalogue(summaries):
     """Render effective action summaries as stable Markdown and counts."""
     grouped = {}
@@ -52,9 +66,8 @@ def render_action_catalogue(summaries):
         "",
         "Regenerate it with `$toolkit:perform update-action-catalogue` or `codex-perform catalogue`. Use a bare action name when its language is clear, or an exact `ACTION[LANGUAGE]` selector. The `agnostic` language is language-independent.",
         "",
-        "| Action | Languages | Description | Required inputs |",
-        "| --- | --- | --- | --- |",
     ]
+    rows = []
     variant_count = 0
     for name in sorted(grouped, key=_ascii_key):
         action_summaries = sorted(grouped[name], key=lambda summary: _ascii_key(summary.language))
@@ -62,7 +75,8 @@ def render_action_catalogue(summaries):
         languages = ", ".join("`{}`".format(summary.language) for summary in action_summaries)
         descriptions = _format_variant_values(action_summaries, lambda summary: summary.gloss, _escape_markdown_text)
         inputs = _format_variant_values(action_summaries, lambda summary: summary.prompt_vars, _format_prompt_vars)
-        lines.append("| `{}` | {} | {} | {} |".format(name, languages, descriptions, inputs))
+        rows.append(("`{}`".format(name), languages, descriptions, inputs))
+    lines.extend(_render_markdown_table(("Action", "Languages", "Description", "Required inputs"), rows, ("left", "center", "left", "left")))
     lines.append("")
     return "\n".join(lines), len(grouped), variant_count
 
@@ -151,7 +165,7 @@ def _atomic_write(path, content, previous_mode=None):
         if descriptor is not None:
             os.close(descriptor)
         if temporary_path is not None:
-            with suppress(OSError):
+            with contextlib.suppress(OSError):
                 temporary_path.unlink()
 
 

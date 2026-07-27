@@ -15,6 +15,19 @@ It currently exposes the following plugins:
     - Invoke with `$toolkit:perform` or `codex-perform`
     - Select an exact `ACTION[LANGUAGE]` variant, use a bare action name, or describe a task that clearly matches an available action
 
+## Operating-system support
+
+The officially supported host operating systems are:
+
+- Ubuntu 18.04 or newer, with the shipped runtime code supporting the system Python 3.6 included with Ubuntu 18.04
+- macOS 14 or newer, with Python 3.6 or newer installed separately; current macOS releases do not include a system `python3`
+
+The repository runs dependency-free runtime smoke checks on Ubuntu 18.04 with Python 3.6, on the oldest non-deprecated GitHub-hosted macOS Intel runner with Python 3.8, and on the current `macos-latest` Arm64 runner with the newest stable Python 3.x. The full lint, type-check, compatibility-analysis, and functional test suite runs on current Ubuntu with Python 3.8 semantics. GitHub retires older macOS runner images over time, so exact macOS 14 execution continues only while GitHub offers it as a non-deprecated hosted image; after that point, the support floor relies on static portability assessment and the portable standard-library runtime constraints rather than continuous execution on macOS 14. Shipped plugin scripts and the source launcher require only Python 3.6+ and the Python standard library. Loupe additionally requires Bash, Git, `jq`, and at least one supported external reviewer executable (`codex` or `claude`); it reports unavailable reviewer tools rather than attempting to install them.
+
+Native Windows is not officially supported. Perform contains some Windows-aware Python subprocess handling and parts of its pure-Python action discovery, validation, and rendering may work, but the repository does not test or guarantee native Windows operation. The activation flow and Loupe rely on Bash and POSIX process behavior, and Loupe's diff collection uses POSIX paths such as `/dev/null`.
+
+Windows users should use WSL with Ubuntu 18.04 or newer. Running Codex, the plugins, Python, Git, Bash, `jq`, and reviewer tools entirely inside the same WSL distribution is expected to behave like the corresponding supported Ubuntu environment. Mixed Windows/WSL setups are not supported: Windows-native executables, Windows paths, repositories accessed through cross-environment path translation, and state split between Windows and WSL homes may work in individual cases but are not covered by CI and can differ in quoting, permissions, symlink behavior, executable discovery, and filesystem performance.
+
 ## Install
 
 ### Add the marketplace
@@ -288,7 +301,7 @@ $toolkit:perform update-action-catalogue docs/action_catalogue.md
 
 The default output is `<repository-root>/.codex/toolkit_perform_actions/action_catalogue.md`. Explicit relative outputs may use parent traversal and are not confined to the repository; parent-directory symlinks are followed, while a symlink in the final target component is refused. The source-only launcher provides the same deterministic generator directly through `codex-perform catalogue [--output PATH]`.
 
-The repository includes a source-only `codex-perform` launcher. It does not need to be installed as a Python package and has no non-standard Python dependencies so that it works out of the box with any system Python 3.6+. In each new Bash session, source the repository activation script:
+The repository includes a source-only `codex-perform` launcher. It does not need to be installed as a Python package and has no non-standard Python dependencies, so it works with any available standard-library Python 3.6+. Ubuntu 18.04 includes a suitable system Python; on macOS, install Python first, for example with `brew install python`. In each new Bash session, source the repository activation script:
 
 ```bash
 # FIND IT:  find "${CODEX_HOME:-$HOME/.codex}" -path "*/la-dev-codex-plugins/activate.sh"

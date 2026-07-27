@@ -1,3 +1,5 @@
+"""Tests for the source-package Perform command-line interface."""
+
 import importlib
 import json
 import os

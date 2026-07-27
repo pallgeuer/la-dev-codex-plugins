@@ -2,7 +2,7 @@
 
 This repository uses fixed-version `uvx` commands for test tools. `uvx` runs each tool in an isolated cached environment; it does not create or use a project `.venv`.
 
-The shipped plugin scripts must support Python 3.6+ and must use only the Python standard library. Functional tests run with Python 3.8, and Vermin checks that shipped plugin code remains compatible with Python 3.6+.
+The shipped plugin scripts must support Python 3.6+ and must use only the Python standard library. Functional tests run with Python 3.8, Vermin checks that shipped plugin code remains compatible with Python 3.6+, and the dependency-free cross-platform smoke checks run in CI on Ubuntu 18.04 with Python 3.6, the oldest non-deprecated hosted macOS Intel runner with Python 3.8, and the current `macos-latest` Arm64 runner with the newest stable Python 3.x.
 
 ## Install uv
 
@@ -87,6 +87,20 @@ Run the release-version validator and declaration tests:
 uvx --python 3.8 --from pytest==8.3.5 pytest tests/test_validate_release.py tests/test_versions.py
 ```
 
+Run the dependency-free cross-platform smoke checks with the active Python interpreter:
+
+```bash
+python3 tests/cross_platform_smoke.py
+```
+
+This smoke program covers shipped action discovery and inspection, atomic catalogue writes, the source-activated launcher, bounded process termination, and Loupe's Bash subprocess path. It is deliberately compatible with Python 3.6 and uses only the standard library so that CI can run it with Ubuntu 18.04's native interpreter.
+
+The macOS selector reads the official `actions/runner-images` availability table and fails closed if it cannot identify one ordinary non-deprecated GA Intel label:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/actions/runner-images/main/README.md | python3 scripts/select_oldest_macos_runner.py
+```
+
 Validate the bundled Perform catalog after editing it:
 
 ```bash
@@ -107,7 +121,7 @@ Run it only for Loupe scripts:
 uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins/la-review/skills/loupe/scripts
 ```
 
-Use `-t=3.6-` rather than trying to run the test suite under Python 3.6. The purpose here is to analyze the plugin scripts for minimum Python-version requirements; uv itself does not need to provide a Python 3.6 interpreter.
+Use `-t=3.6-` rather than trying to run the pytest suite under Python 3.6. Vermin analyzes the complete runtime source for minimum Python-version requirements, while `tests/cross_platform_smoke.py` supplies focused runtime execution under Python 3.6 without requiring uv or third-party test packages.
 
 ## Recommended pre-commit check
 
@@ -117,11 +131,13 @@ Run all local auto-fixing hooks:
 uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run --all-files
 ```
 
-Run the exact read-only checks used by CI:
+Run the exact read-only checks used by CI's main pre-commit job:
 
 ```bash
 uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run --all-files --hook-stage manual
 ```
+
+Also run the cross-platform smoke program and macOS selector locally as shown above. CI repeats the smoke checks on the supported baseline and forward-compatibility operating-system targets.
 
 Pre-commit only considers files known to Git. Stage new files before running the all-files checks so that they are included. If an auto-fixing hook changes files, stage the fixes and run the checks again.
 

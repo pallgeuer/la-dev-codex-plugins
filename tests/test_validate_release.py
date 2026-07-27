@@ -1,3 +1,5 @@
+"""Tests for the repository release validator."""
+
 import json
 import os
 import shutil

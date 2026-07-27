@@ -250,7 +250,7 @@ git diff
 git add --all
 ```
 
-Run the exact read-only checks used by CI:
+Run the exact read-only checks used by CI's main pre-commit job:
 
 ```bash
 uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run --all-files --hook-stage manual
@@ -260,6 +260,18 @@ The manual-stage suite validates JSON, TOML, YAML, linting, formatting, typing, 
 
 ```bash
 uvx --python 3.8 --from pytest==8.3.5 pytest tests/test_validate_release.py tests/test_versions.py
+```
+
+Run the dependency-free cross-platform smoke checks with the active Python interpreter. CI repeats these checks on Ubuntu 18.04 with Python 3.6, the oldest non-deprecated hosted macOS Intel runner with Python 3.8, and the current `macos-latest` Arm64 runner with the newest stable Python 3.x:
+
+```bash
+python3 tests/cross_platform_smoke.py
+```
+
+Verify that the official runner metadata still selects one safe oldest macOS Intel label:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/actions/runner-images/main/README.md | python3 scripts/select_oldest_macos_runner.py
 ```
 
 Finally, inspect the staged release snapshot:

@@ -5,8 +5,8 @@ from pathlib import Path
 
 from . import action_catalogue, api, validation
 from . import catalog as catalog_module
+from . import paths as paths_module
 from .diagnostics import PerformRequestError
-from .paths import bundled_actions_dir
 
 
 def _attach_catalog_diagnostics(method):
@@ -134,7 +134,7 @@ class StandaloneLauncher:
 
 def load_standalone_launcher(cwd, env=None):
     """Load conventional action sources into the standalone facade."""
-    catalog = catalog_module.load_action_catalog(bundled_dir=bundled_actions_dir(), cwd=cwd, env=env)
+    catalog = catalog_module.load_action_catalog(bundled_dir=paths_module.bundled_actions_dir(), cwd=cwd, env=env)
     return StandaloneLauncher(catalog)
 
 

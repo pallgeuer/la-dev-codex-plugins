@@ -1,3 +1,5 @@
+"""Tests for the Loupe reviewer runner."""
+
 import importlib.util
 import json
 from pathlib import Path

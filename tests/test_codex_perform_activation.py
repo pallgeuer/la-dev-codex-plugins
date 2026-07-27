@@ -1,3 +1,5 @@
+"""Tests for source-only Perform activation."""
+
 import json
 import subprocess
 from pathlib import Path

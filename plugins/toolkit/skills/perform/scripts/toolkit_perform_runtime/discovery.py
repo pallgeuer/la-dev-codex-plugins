@@ -1,11 +1,11 @@
 """Conventional local action-source discovery for Perform."""
 
 import contextlib
+import functools
 import os
 import signal
 import subprocess
 import threading
-from functools import partial
 from pathlib import Path
 
 from . import diagnostics as diagnostics_module
@@ -425,7 +425,7 @@ def discover_action_directories(
     repository_resolution = "none"
     if filesystem.is_dir(cwd_normalized):
         if git_runner is None:
-            git_runner = partial(run_bounded_git_root, env=env)
+            git_runner = functools.partial(run_bounded_git_root, env=env)
         repository_root, repository_resolution, repository_diagnostics = _resolve_repository(filesystem, cwd_normalized, git_runner)
         diagnostics.extend(repository_diagnostics)
         if repository_root is not None:

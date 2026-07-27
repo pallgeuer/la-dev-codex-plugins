@@ -29,13 +29,24 @@ def test_render_action_catalogue_is_grouped_escaped_and_stable():
         "\n"
         "Regenerate it with `$toolkit:perform update-action-catalogue` or `codex-perform catalogue`. Use a bare action name when its language is clear, or an exact `ACTION[LANGUAGE]` selector. The `agnostic` language is language-independent.\n"
         "\n"
-        "| Action | Languages | Description | Required inputs |\n"
-        "| --- | --- | --- | --- |\n"
-        "| `alpha` | `agnostic`, `rust` | Shared | None |\n"
-        "| `zeta` | `agnostic`, `python` | `agnostic`: General<br>`python`: Python &#124; &lt;check&gt; | `agnostic`: None<br>`python`: `Target`: Path &#96;inside&#96; |\n"
+        "| Action  |      Languages       | Description                                                  | Required inputs                                               |\n"
+        "|---------|:--------------------:|--------------------------------------------------------------|---------------------------------------------------------------|\n"
+        "| `alpha` |  `agnostic`, `rust`  | Shared                                                       | None                                                          |\n"
+        "| `zeta`  | `agnostic`, `python` | `agnostic`: General<br>`python`: Python &#124; &lt;check&gt; | `agnostic`: None<br>`python`: `Target`: Path &#96;inside&#96; |\n"
     )
     assert action_count == 2
     assert variant_count == 4
+
+
+def test_render_action_catalogue_without_actions_uses_header_widths():
+    rendered, action_count, variant_count = action_catalogue.render_action_catalogue([])
+    table = rendered.splitlines()[-2:]
+    assert table == [
+        "| Action | Languages | Description | Required inputs |",
+        "|--------|:---------:|-------------|-----------------|",
+    ]
+    assert action_count == 0
+    assert variant_count == 0
 
 
 def test_default_write_creates_parents_and_leaves_identical_file_untouched(tmp_path, complete, file_data, write_file, load_catalog):
