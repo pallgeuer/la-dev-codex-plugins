@@ -82,11 +82,6 @@ def loads_unique_json(text):
     return json.loads(text, object_pairs_hook=_unique_pairs)
 
 
-def _contains_display_control(value):
-    """Return whether short display metadata contains a control or line separator."""
-    return validation.contains_disallowed_single_line_character(value)
-
-
 def _has_manual_no_edits_prefix(prompt):
     """Return whether a prompt starts with the mechanically supplied sentence."""
     return prompt.startswith(NO_EDITS_SENTENCE) and (len(prompt) == len(NO_EDITS_SENTENCE) or prompt[len(NO_EDITS_SENTENCE)].isspace())
@@ -289,7 +284,7 @@ def _validate_prompt_variables(prompt_vars, prompt, field_origins, definition_or
 
 def _validate_gloss_field(_field, value):
     """Return any local gloss validation issues."""
-    if not isinstance(value, str) or not value.strip() or _contains_display_control(value):
+    if not isinstance(value, str) or not value.strip() or validation.contains_disallowed_single_line_character(value):
         return [("invalid_gloss", "gloss must be a nonempty single-line string without Unicode control or separator characters.")]
     return []
 
@@ -330,7 +325,7 @@ def _validate_prompt_vars_field(_field, value):
     for name, description in value.items():
         if not isinstance(name, str) or not validation.full_match(VARIABLE_NAME_PATTERN, name):
             issues.append(("invalid_variable_name", "Prompt variable names must match {}.".format(VARIABLE_NAME_REGEX)))
-        if not isinstance(description, str) or not description.strip() or _contains_display_control(description):
+        if not isinstance(description, str) or not description.strip() or validation.contains_disallowed_single_line_character(description):
             issues.append(("invalid_variable_description", "Every prompt variable description must be a nonempty single-line string without Unicode control or separator characters."))
     return issues
 
