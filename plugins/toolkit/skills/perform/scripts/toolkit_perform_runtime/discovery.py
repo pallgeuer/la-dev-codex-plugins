@@ -1,8 +1,11 @@
 """Conventional local action-source discovery for Perform."""
 
+import contextlib
 import os
+import signal
 import subprocess
 import threading
+from functools import partial
 from pathlib import Path
 
 from . import diagnostics as diagnostics_module
@@ -15,10 +18,6 @@ VCS_MARKERS = (".git", ".hg", ".sl")
 
 class FilesystemView:
     """Injectable read-only filesystem operations used during discovery."""
-
-    def expanduser(self, path):
-        """Expand a leading user-home component."""
-        return str(Path(path).expanduser())
 
     def abspath(self, path):
         """Return an absolute normalized path without requiring existence."""
@@ -100,7 +99,7 @@ class DiscoveryResult:
 class GitCommandResult:
     """Bounded result from the optional read-only Git subprocess."""
 
-    __slots__ = ("launch_error", "returncode", "stderr", "stderr_truncated", "stdout", "stdout_truncated", "timed_out")
+    __slots__ = ("capture_incomplete", "launch_error", "returncode", "stderr", "stderr_truncated", "stdout", "stdout_truncated", "timed_out")
 
     def __init__(
         self,
@@ -110,6 +109,7 @@ class GitCommandResult:
         timed_out=False,
         stdout_truncated=False,
         stderr_truncated=False,
+        capture_incomplete=False,
         launch_error=None,
     ):
         """Store process completion, capped output, and failure state."""
@@ -119,6 +119,7 @@ class GitCommandResult:
         self.timed_out = timed_out
         self.stdout_truncated = stdout_truncated
         self.stderr_truncated = stderr_truncated
+        self.capture_incomplete = capture_incomplete
         self.launch_error = launch_error
 
 
@@ -126,6 +127,7 @@ def _capture_pipe(pipe, limit, result):
     """Drain one process pipe while retaining no more than the configured limit."""
     retained = bytearray()
     truncated = False
+    complete = True
     try:
         while True:
             chunk = pipe.read(8192)
@@ -136,22 +138,98 @@ def _capture_pipe(pipe, limit, result):
                 retained.extend(chunk[:remaining])
             if len(chunk) > remaining:
                 truncated = True
+    except (OSError, ValueError):
+        complete = False
     finally:
-        pipe.close()
-    result.append((bytes(retained), truncated))
+        try:
+            pipe.close()
+        except (OSError, ValueError):
+            complete = False
+        result.append((bytes(retained), truncated, complete))
 
 
-def run_bounded_git_root(cwd, popen_factory=None, timeout=GIT_TIMEOUT_SECONDS):
+def _signal_process_tree(process, force):
+    """Signal an isolated process tree, falling back to its direct child."""
+    if os.name == "posix":
+        try:
+            os.killpg(process.pid, signal.SIGKILL if force else signal.SIGTERM)
+            return True
+        except (AttributeError, OSError):
+            pass
+    elif os.name == "nt":
+        try:
+            command = ["taskkill", "/PID", str(process.pid), "/T"]
+            if force:
+                command.append("/F")
+            completed = subprocess.run(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False, timeout=1)
+            if completed.returncode == 0:
+                return True
+        except (AttributeError, OSError, subprocess.TimeoutExpired):
+            pass
+        if not force:
+            try:
+                process.send_signal(subprocess.CTRL_BREAK_EVENT)
+                return True
+            except (AttributeError, OSError, ValueError):
+                pass
+    try:
+        if force:
+            process.kill()
+        else:
+            process.terminate()
+    except OSError:
+        pass
+    return False
+
+
+def _stop_process_tree(process):
+    """Stop one isolated process tree with a short graceful interval."""
+    tree_signaled = _signal_process_tree(process, force=False)
+    still_running = False
+    try:
+        process.wait(timeout=0.25)
+    except subprocess.TimeoutExpired:
+        still_running = True
+    if tree_signaled or still_running:
+        _signal_process_tree(process, force=True)
+    if still_running:
+        process.wait()
+
+
+def _finish_pipe_capture(process, threads, pipes, results):
+    """Finish pipe readers after cleaning descendants that retained handles."""
+    for thread in threads:
+        thread.join(timeout=0.1)
+    if any(thread.is_alive() for thread in threads):
+        _stop_process_tree(process)
+        for thread in threads:
+            thread.join(timeout=1)
+    if any(thread.is_alive() for thread in threads):
+        for pipe in pipes:
+            with contextlib.suppress(OSError, ValueError):
+                pipe.close()
+        for thread in threads:
+            thread.join(timeout=0.1)
+    captures = [result[0] if result else (b"", False, False) for result in results]
+    incomplete = any(thread.is_alive() for thread in threads) or any(not capture[2] for capture in captures)
+    return captures, incomplete
+
+
+def run_bounded_git_root(cwd, popen_factory=None, timeout=GIT_TIMEOUT_SECONDS, env=None):
     """Run the one allowed read-only Git command with capped output and timeout."""
     if popen_factory is None:
         popen_factory = subprocess.Popen
     try:
+        command = ["git", "-C", cwd, "rev-parse", "--show-toplevel"]
         process = popen_factory(
-            ["git", "-C", cwd, "rev-parse", "--show-toplevel"],
+            command,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             shell=False,
+            env=None if env is None else dict(env),
+            start_new_session=os.name == "posix",
+            creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) if os.name == "nt" else 0,
         )
     except OSError as exc:
         return GitCommandResult(launch_error=str(exc))
@@ -170,16 +248,9 @@ def run_bounded_git_root(cwd, popen_factory=None, timeout=GIT_TIMEOUT_SECONDS):
         process.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
         timed_out = True
-        process.terminate()
-        try:
-            process.wait(timeout=0.25)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
-    stdout_thread.join(timeout=1)
-    stderr_thread.join(timeout=1)
-    stdout = stdout_result[0] if stdout_result else (b"", True)
-    stderr = stderr_result[0] if stderr_result else (b"", True)
+        _stop_process_tree(process)
+    captures, capture_incomplete = _finish_pipe_capture(process, (stdout_thread, stderr_thread), (process.stdout, process.stderr), (stdout_result, stderr_result))
+    stdout, stderr = captures
     return GitCommandResult(
         returncode=process.returncode,
         stdout=stdout[0],
@@ -187,6 +258,7 @@ def run_bounded_git_root(cwd, popen_factory=None, timeout=GIT_TIMEOUT_SECONDS):
         timed_out=timed_out,
         stdout_truncated=stdout[1],
         stderr_truncated=stderr[1],
+        capture_incomplete=capture_incomplete,
     )
 
 
@@ -224,6 +296,8 @@ def _resolve_repository(filesystem, cwd, git_runner):
         diagnostics.append(_diagnostic("git_unavailable", "Git repository discovery was unavailable: {}. Falling back to a marker walk.".format(git_result.launch_error), severity="info"))
     elif git_result.timed_out:
         diagnostics.append(_diagnostic("git_timeout", "Git repository discovery exceeded five seconds. Falling back to a marker walk."))
+    elif git_result.capture_incomplete:
+        diagnostics.append(_diagnostic("git_output_incomplete", "Git repository discovery output could not be captured completely. Falling back to a marker walk."))
     elif git_result.stdout_truncated or git_result.stderr_truncated:
         diagnostics.append(_diagnostic("git_output_too_large", "Git repository discovery produced more than 64 KiB of output. Falling back to a marker walk."))
     elif git_result.returncode == 0:
@@ -255,7 +329,7 @@ def discover_action_directories(
     env=None,
     filesystem=None,
     git_runner=None,
-    system_config_path="/etc/codex/config.toml",
+    system_actions_dir="/etc/codex/toolkit_perform_actions",
 ):
     """Discover ordered bundled, system, user, and one-root repository sources."""
     filesystem = filesystem or FilesystemView()
@@ -311,22 +385,36 @@ def discover_action_directories(
     else:
         add_optional_source("bundled", bundled_absolute)
 
-    if filesystem.is_file(system_config_path):
-        add_optional_source("system", filesystem.join(filesystem.dirname(system_config_path), "toolkit_perform_actions"))
+    add_optional_source("system", system_actions_dir)
 
     explicit_codex_home = env.get("CODEX_HOME")
     if explicit_codex_home:
-        expanded_home = filesystem.expanduser(explicit_codex_home)
-        if not Path(expanded_home).is_absolute():
-            expanded_home = filesystem.join(cwd_absolute, expanded_home)
-        user_root = filesystem.abspath(expanded_home)
-        if not filesystem.is_dir(user_root) or not filesystem.accessible_directory(user_root):
+        configured_path = explicit_codex_home
+        if configured_path == "~" or configured_path.startswith("~/"):
+            mapped_home = env.get("HOME")
+            configured_path = (filesystem.join(mapped_home, configured_path[2:]) if configured_path != "~" else mapped_home) if mapped_home else None
+        elif configured_path.startswith("~"):
+            configured_path = None
+        if configured_path is None:
+            diagnostics.append(_diagnostic("invalid_codex_home", "Explicit CODEX_HOME uses a tilde but the supplied environment has no usable HOME.", severity="error", fatality="catalog_fatal"))
+            precedence_incomplete = True
+            user_root = None
+        else:
+            if not Path(configured_path).is_absolute():
+                configured_path = filesystem.join(cwd_absolute, configured_path)
+            user_root = filesystem.abspath(configured_path)
+        if user_root is not None and (not filesystem.is_dir(user_root) or not filesystem.accessible_directory(user_root)):
             diagnostics.append(_diagnostic("invalid_codex_home", "Explicit CODEX_HOME must name an existing accessible directory: {}".format(user_root), severity="error", fatality="catalog_fatal"))
             precedence_incomplete = True
             user_root = None
     else:
-        user_root = filesystem.abspath(filesystem.expanduser("~/.codex"))
-        if filesystem.exists(user_root) and (not filesystem.is_dir(user_root) or not filesystem.accessible_directory(user_root)):
+        mapped_home = env.get("HOME")
+        if not mapped_home:
+            user_root = None
+        else:
+            mapped_home = mapped_home if Path(mapped_home).is_absolute() else filesystem.join(cwd_absolute, mapped_home)
+            user_root = filesystem.abspath(filesystem.join(mapped_home, ".codex"))
+        if user_root is not None and filesystem.exists(user_root) and (not filesystem.is_dir(user_root) or not filesystem.accessible_directory(user_root)):
             diagnostics.append(_diagnostic("invalid_default_codex_home", "The default Codex home is not an accessible directory: {}".format(user_root), severity="error", fatality="catalog_fatal"))
             precedence_incomplete = True
             user_root = None
@@ -337,7 +425,7 @@ def discover_action_directories(
     repository_resolution = "none"
     if filesystem.is_dir(cwd_normalized):
         if git_runner is None:
-            git_runner = run_bounded_git_root
+            git_runner = partial(run_bounded_git_root, env=env)
         repository_root, repository_resolution, repository_diagnostics = _resolve_repository(filesystem, cwd_normalized, git_runner)
         diagnostics.extend(repository_diagnostics)
         if repository_root is not None:

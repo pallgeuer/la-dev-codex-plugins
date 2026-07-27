@@ -1,0 +1,289 @@
+# Standalone Perform CLI and launcher API
+
+Use the source-activated `codex-perform` command to select a configured action and launch it in a new Codex process. Action definitions and catalog construction are documented in [Perform action files and catalogues](action_files.md); executing an action in an existing chat is documented in [Codex Perform skill](codex_skill.md).
+
+## Contents
+
+- [Activate the source-only command](#activate-the-source-only-command)
+- [Resolve the plugin and runtime](#resolve-the-plugin-and-runtime)
+- [Use command forms](#use-command-forms)
+- [Render and override an action](#render-and-override-an-action)
+- [Choose a Codex frontend](#choose-a-codex-frontend)
+- [Launch modes and goals](#launch-modes-and-goals)
+- [Preview and consume output](#preview-and-consume-output)
+- [Public launcher-facing Python API](#public-launcher-facing-python-api)
+- [Troubleshooting](#troubleshooting)
+
+## Activate the source-only command
+
+Source the activation script once in every new Bash session:
+
+```bash
+source /PATH/TO/la-dev-codex-plugins/activate.sh
+```
+
+Often this will be:
+
+```bash
+source ~/.codex/.tmp/marketplaces/la-dev-codex-plugins/activate.sh
+```
+
+You can search for it:
+
+```bash
+find "${CODEX_HOME:-$HOME/.codex}" -path "*/la-dev-codex-plugins/activate.sh"
+```
+
+The script defines the `codex-perform` shell function and one private checkout-location variable. It does not export launcher configuration, install a package, create an environment, or install dependencies. Executing `activate.sh` instead of sourcing it is an error.
+
+The function runs an absolute bootstrap from this checkout under Python isolated mode, so the caller's repository, `PYTHONPATH`, and user site cannot replace the trusted launcher package. It uses `python3` unless `CODEX_PERFORM_PYTHON` names another Python 3.6+ standard-library interpreter:
+
+```bash
+CODEX_PERFORM_PYTHON=/usr/bin/python3 codex-perform list
+```
+
+## Resolve the plugin and runtime
+
+By default, the launcher resolves the Codex executable once and runs:
+
+```text
+codex plugin list --marketplace la-dev-codex-plugins --json
+```
+
+It requires exactly one installed and enabled `toolkit@la-dev-codex-plugins` entry, then resolves `$CODEX_HOME/plugins/cache/la-dev-codex-plugins/toolkit/VERSION`, or the corresponding path below `~/.codex` when `CODEX_HOME` is unset or empty.
+
+A nonempty relative `CODEX_HOME` is expanded against `--cwd` and forwarded to the launched Codex as that same absolute path. A current-user `~` uses `HOME`; named-user tildes are rejected. Plugin discovery, action discovery, executable lookup, configuration, credentials, and persistence therefore use one exact environment and Codex home. When an explicit environment mapping has neither a nonempty `CODEX_HOME` nor `HOME`, action discovery skips its default user source and installed-plugin discovery cannot resolve a cache; use `--plugin-root` to bypass installed discovery. The reported installed version must be valid SemVer, its symlink-resolved directory must remain beneath the expected toolkit cache, the cache manifest version must equal that installed version, and the runtime must export the launcher API version expected by the checkout.
+
+Discovery failures, disabled or missing plugins, bad cache layouts, version mismatches, and incompatible launcher APIs stop the launch. The launcher does not fall back silently to the marketplace checkout because that checkout can differ from the installed plugin.
+
+During marketplace development, bypass installed-plugin discovery explicitly:
+
+```bash
+codex-perform --plugin-root /PATH/TO/la-dev-codex-plugins/plugins/toolkit list
+```
+
+The explicit root is still validated as a `toolkit` plugin with the required Perform runtime and bundled actions. A relative `--plugin-root` is resolved from the shell's current directory, independently of `--cwd`.
+
+## Use command forms
+
+With no command or action, `codex-perform` lists the effective catalog:
+
+```bash
+codex-perform
+codex-perform list
+codex-perform list check-config
+codex-perform list --language rust
+```
+
+List filters are searches rather than selections. A valid bare name, strict selector, or language filter with no matches succeeds with an empty `variants` list; incomplete catalog precedence still reports exit code 3.
+
+Generate or update the stable Markdown catalogue without launching Codex:
+
+```bash
+codex-perform catalogue
+codex-perform catalogue --output docs/action_catalogue.md
+```
+
+See [Generate a Markdown catalogue](action_files.md#generate-a-markdown-catalogue) for output paths and replacement policy.
+
+Inspect all materialized fields without launching:
+
+```bash
+codex-perform show check-config
+codex-perform show 'check-config[rust]'
+codex-perform show help
+```
+
+`show help` returns the installed action-file, Codex-skill, and standalone-CLI guides as named records with descriptions and absolute paths.
+
+```json
+{
+  "selector": "help[agnostic]",
+  "help": "Read the installed Perform guides.",
+  "guides": [
+    {
+      "name": "action_files",
+      "description": "Define, discover, layer, validate, and catalogue Perform actions.",
+      "path": "/RESOLVED/toolkit/skills/perform/references/action_files.md"
+    },
+    {
+      "name": "codex_skill",
+      "description": "Select and run Perform actions inside an existing Codex chat.",
+      "path": "/RESOLVED/toolkit/skills/perform/references/codex_skill.md"
+    },
+    {
+      "name": "standalone_cli",
+      "description": "Select and launch Perform actions with codex-perform or its Python API.",
+      "path": "/RESOLVED/toolkit/skills/perform/references/standalone_cli.md"
+    }
+  ]
+}
+```
+
+Run is the default when the first positional argument is not `catalogue`, `list`, `show`, or `run`:
+
+```bash
+codex-perform check-config
+codex-perform 'check-config[rust]'
+codex-perform run check-config --language rust
+```
+
+A strict `ACTION[LANGUAGE]` selector must exist exactly. It can be combined with `--language` only when both specify the same language. A bare action with one variant selects it. A bare action with several variants selects `agnostic` when available; otherwise the launcher reports every alternative and requires an explicit language.
+
+Unlike the in-chat skill, the standalone launcher performs no semantic natural-language selection. Help is not executable, so `run help` fails.
+
+## Render and override an action
+
+Bind every declared prompt variable with a repeatable literal argument and optionally append one compatible qualification:
+
+```bash
+codex-perform exec-md-goal --var 'MarkdownPlanFile=docs/plan.md'
+codex-perform check-config --language rust --qualification 'Limit the audit to crates/core.'
+```
+
+The launcher requires every variable exactly once using a bare `Name=VALUE` binding. It treats binding values literally and applies the shared rules in [Prompt variables and rendering](action_files.md#prompt-variables-and-rendering).
+
+Structured overrides replace settings owned by action definitions:
+
+```text
+--model MODEL
+--effort EFFORT
+--plan-effort EFFORT
+--interactive
+--non-interactive
+```
+
+Arguments after an exact `--` are copied into the selected Codex frontend:
+
+```bash
+codex-perform find-todos --non-interactive -- --color=never
+```
+
+For an interactive launch, these caller arguments are global Codex options. For a noninteractive launch, they are `codex exec` options. Every entry must be one self-contained `--option` or `--option=value` token. Positional tokens, subcommands, split values, short options, a second `--`, help or version options, and overrides for structured model, effort, Plan-effort, or working-directory settings are rejected.
+
+Invalid syntax uses `invalid_extra_codex_args`; conflicts with launcher-owned settings use `conflicting_extra_codex_args`. Raw `--json` after the separator is a conflict because JSON output belongs to the launcher's structured `--json`/`json_output` setting. Toolkit deliberately does not enumerate ordinary caller options: Codex validates whether each supplied option exists and belongs to the selected frontend. Consult the [current Codex command reference](https://developers.openai.com/codex/cli/reference) when selecting those options.
+
+Action-file `custom_codex_args` are always global Codex options and precede `exec` for a noninteractive launch. Their fail-closed allowlist and field semantics are documented in [Action fields](action_files.md#action-fields).
+
+`--cwd DIRECTORY` controls both layered action discovery and the launched Codex `--cd` root. The `--codex` executable is resolved once from the shell's original current directory or `PATH`, converted to an absolute path without dereferencing its final symbolic link, and reused for installed-plugin discovery and launch.
+
+## Choose a Codex frontend
+
+Without an override, an action's `interactive` policy selects the frontend:
+
+- `"allowed"` uses noninteractive `codex exec`.
+- `"preferred"` uses interactive `codex`.
+- `"required"` uses interactive `codex` and rejects `--non-interactive`.
+
+Both explicit frontend flags can override `"allowed"` and `"preferred"`. `--interactive` remains valid for `"required"`. Without an explicit frontend flag, `--json` selects noninteractive execution for `"allowed"` and `"preferred"` actions because interactive Codex does not emit JSONL. An action marked `"required"` rejects this implicit noninteractive selection, and an explicit `--interactive --json` combination is also rejected.
+
+Before a real launch, nonempty notes, `PERFORM: SELECTOR`, nonempty action-defined Codex arguments, and the rendered prompt are written to stderr. The preview renders backslashes and untrusted control characters as visible escapes while preserving ordinary line breaks; the unmodified prompt is submitted to Codex. Prompt color is enabled only when stderr is a terminal and neither `NO_COLOR` nor `TERM=dumb` disables it.
+
+The launcher places a final `--` before the submitted prompt, so option-looking prompts such as `--help` remain prompt data. It then calls `exec`, replacing the Python launcher with Codex instead of creating a child process.
+
+## Launch modes and goals
+
+Default actions use the frontend chosen by `interactive`.
+
+The standalone launcher rejects every Plan action with `plan_mode_unavailable`. Codex exposes Plan mode as an in-chat command rather than a process-launch flag, so run the action inside an existing Plan-mode chat with `$toolkit:perform`. See the [current Codex command reference](https://developers.openai.com/codex/cli/reference) for Plan-mode controls.
+
+Every Goal action submits a normal bootstrap prompt containing a compact JSON object whose `objective` value is the exact rendered action prompt. The bootstrap asks either Codex frontend to copy that value into a goal tool call and pursue it. It never submits `/goal` as startup text.
+
+Goal creation remains subject to current Codex objective constraints, and the launcher does not preflight product-level objective limits. Put longer detailed instructions in a file and reference that file from the action prompt. Platform-specific argument and environment limits can also reject the launcher before Codex starts.
+
+Caller arguments for Goal actions reject `--ephemeral`, `--disable=goals`, and configuration overrides of `features` or `features.goals`, because each can remove the required goal support. Explicit `--enable=goals` remains allowed. An explicit caller can use `--ephemeral` only for a noninteractive, non-Goal launch.
+
+## Preview and consume output
+
+`--dry-run` builds but does not execute the invocation. Human dry runs show the complete structured launch and an exact terminal-safe Bash command. Removing only `--dry-run` from a successful preview produces the invocation that was shown.
+
+With `--json`, catalogue, list, show, and dry-run results are launcher JSON:
+
+```bash
+codex-perform catalogue --json
+codex-perform list --json
+codex-perform show find-todos --json
+codex-perform find-todos --dry-run --json
+```
+
+For real and dry runs, `--json` selects noninteractive execution when the action permits it and is included in the built `codex exec` invocation. Explicitly requesting an interactive frontend with `--json` is rejected because interactive Codex output is not JSONL, as is implicit JSON selection for an action that requires interactive execution. Prelaunch display remains on stderr so it cannot contaminate machine-readable stdout.
+
+Exit codes are:
+
+- `0` for a successful launcher result or process replacement.
+- `2` for invalid arguments, selectors, bindings, overrides, or launch combinations.
+- `3` when catalog precedence is incomplete.
+- `4` for discovery, layout, import, unexpected runtime, or process-launch failures.
+
+## Public launcher-facing Python API
+
+The package root is a lightweight compatibility check and exports only `toolkit_perform_runtime.LAUNCHER_API_VERSION == 1`. After accepting that version, import the launcher-facing contract from `toolkit_perform_runtime.launcher_api`. It exports `LAUNCHER_API_VERSION`, `StandaloneLauncher`, `load_standalone_launcher`, `PerformRequestError`, `ActionLaunchConfig`, `ActionLaunchSpec`, `LaunchOverrides`, `CodexInvocation`, and `build_codex_invocation`.
+
+Lower-level catalog, discovery, rendering, and bundled-script transport objects are not covered by `LAUNCHER_API_VERSION`. Import them from their defining modules only when necessary and treat them as independently evolving runtime interfaces; `CliContext`, `CliOutcome`, and `JsonArgumentParser` are bundled-script transport internals rather than launcher-facing API.
+
+```python
+import importlib
+import sys
+
+sys.path.insert(0, "/RESOLVED/toolkit/skills/perform/scripts")
+runtime_package = importlib.import_module("toolkit_perform_runtime")
+
+if runtime_package.LAUNCHER_API_VERSION != 1:
+    raise RuntimeError("incompatible Perform launcher API")
+
+launcher_api = importlib.import_module("toolkit_perform_runtime.launcher_api")
+launcher = launcher_api.load_standalone_launcher("/work/project")
+spec = launcher.prepare_launch(
+    "exec-md-goal",
+    variable_bindings=["MarkdownPlanFile=docs/plan.md"],
+)
+overrides = launcher_api.LaunchOverrides(
+    cwd="/work/project",
+    extra_codex_args=["--color=never"],
+)
+invocation = launcher_api.build_codex_invocation(
+    spec,
+    codex_executable="codex",
+    overrides=overrides,
+)
+```
+
+The API builds data only; it never starts Codex. A caller can inspect `invocation.argv` and execute it with a mechanism such as `os.execvp(invocation.argv[0], invocation.argv)`.
+
+### Preferred standalone facade
+
+- `load_standalone_launcher(cwd, env=None)` performs conventional discovery and returns one `StandaloneLauncher` that owns the loaded catalog. The optional environment mapping supplies the exact environment used for home resolution and bounded Git discovery without mutating process globals; missing `HOME` never falls back to the host process.
+- `StandaloneLauncher.list_actions(action=None, language=None)` applies standalone filtering and returns the complete JSON-ready variants and diagnostics payload.
+- `StandaloneLauncher.show_action(action, language=None)` deterministically selects an action and returns its complete JSON-ready configuration, or returns the three installed guide records for built-in help.
+- `StandaloneLauncher.write_action_catalogue(output=None)` safely writes the stable Markdown catalogue and returns its absolute path, changed status, action count, variant count, and diagnostics.
+- `StandaloneLauncher.prepare_launch(action, language=None, variable_bindings=None, qualification=None)` validates selection and `Name=VALUE` bindings, renders the action, and returns an `ActionLaunchSpec`.
+- `StandaloneLauncher.precedence_incomplete` reports whether a partial listing requires exit code 3.
+
+These methods own the standalone selector grammar, bare-action preference for `agnostic`, ambiguity handling, help selection, diagnostics, binding parsing, and catalog-precedence checks. They raise `PerformRequestError`; its `status`, `message`, `alternatives`, and `diagnostics` attributes are the structured error interface. `diagnostics` contains the same stable human-ready catalog strings returned at the top level of successful response payloads. The bundled CLI preserves that list as a top-level `diagnostics` field for JSON errors and as escaped `Diagnostic:` lines on stderr for human errors.
+
+### Launch value objects
+
+- `ActionLaunchConfig` is the immutable materialized action snapshot described in [Catalog-facing Python API](action_files.md#catalog-facing-python-api).
+- `ActionLaunchSpec` pairs that configuration with an immutable rendered prompt and qualification.
+- `LaunchOverrides` accepts `model`, `reasoning_effort`, `plan_reasoning_effort`, `interactive`, `extra_codex_args`, `cwd`, and `json_output`. It validates and stores extra arguments as a tuple; raw `--json` is rejected in favor of `json_output`, and `to_dict()` returns JSON-compatible values. When `json_output` is true and `interactive` is null, invocation building selects noninteractive execution for an action that allows it.
+- `CodexInvocation` exposes immutable `spec`, tuple `argv`, read-only `effective_settings`, `interactive`, `mode`, `submitted_prompt`, and `objective`. `to_dict()` returns the complete dry-run representation.
+- `build_codex_invocation(spec, codex_executable="codex", overrides=None)` applies action fields and caller overrides and returns a `CodexInvocation`.
+
+Returned dictionary and list payloads isolate mutable values so caller mutation does not modify the catalog, launch configuration, or invocation.
+
+## Troubleshooting
+
+Use `codex-perform list`, `codex-perform show ACTION`, and `--dry-run` to separate catalog, selection, rendering, and launch failures. Use `--json` when a stable structured error is useful.
+
+Common launch blockers include:
+
+- The `toolkit` plugin is missing, disabled, duplicated in discovery output, or inconsistent with its cache.
+- `CODEX_HOME`, `--cwd`, `--plugin-root`, or `--codex` cannot be resolved safely.
+- Catalog precedence is incomplete or the requested selector is missing or ambiguous.
+- Required variables are missing or duplicated.
+- A Plan action is requested from the standalone launcher.
+- A noninteractive override conflicts with `"required"`.
+- Extra Codex arguments are malformed, conflict with structured settings, or remove Goal support.
+- Interactive output is combined with `--json`.
+
+For action discovery or schema problems, use [action-file troubleshooting](action_files.md#troubleshooting). For execution in the current chat, use [Codex Perform skill](codex_skill.md).

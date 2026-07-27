@@ -3,6 +3,8 @@ name: Checks
 on:
   pull_request:
   push:
+    branches:
+      - "**"
 
 jobs:
   pre-commit:

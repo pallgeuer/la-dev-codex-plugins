@@ -6,15 +6,16 @@ def unicode_sort_key(value):
     return value.encode("utf-8", errors="surrogatepass")
 
 
-class CatalogRequestError(ValueError):
-    """A catalog operation cannot safely fulfill the caller's request."""
+class PerformRequestError(ValueError):
+    """A Perform operation cannot safely fulfill the caller's request."""
 
-    def __init__(self, status, message, alternatives=None):
-        """Store stable request status, explanation, and available alternatives."""
+    def __init__(self, status, message, alternatives=None, diagnostics=None):
+        """Store stable request status, explanation, alternatives, and catalog diagnostics."""
         super().__init__(message)
         self.status = status
         self.message = message
         self.alternatives = list(alternatives or [])
+        self.diagnostics = list(diagnostics or [])
 
 
 class Diagnostic:

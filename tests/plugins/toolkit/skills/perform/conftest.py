@@ -14,7 +14,7 @@ BUNDLED_ACTIONS = SKILL_ROOT / "assets" / "toolkit_perform_actions"
 
 sys.path.insert(0, str(SCRIPTS_ROOT))
 
-runtime = importlib.import_module("toolkit_perform_runtime")
+catalog_module = importlib.import_module("toolkit_perform_runtime.catalog")
 
 
 def complete_action(**overrides):
@@ -29,7 +29,7 @@ def complete_action(**overrides):
         "no_edits": False,
         "prompt_vars": {},
         "prompt": "Perform the test action.",
-        "prefer_interactive": True,
+        "interactive": "preferred",
         "custom_codex_args": [],
         "notes": "",
     }
@@ -62,7 +62,7 @@ def write_raw_action_file(directory, text, filename="actions.json"):
 
 def load_explicit(*directories):
     """Load an explicit ordered list of temporary catalog sources."""
-    return runtime.load_action_catalog(action_directories=[str(directory) for directory in directories])
+    return catalog_module.load_action_catalog(action_directories=[str(directory) for directory in directories])
 
 
 @pytest.fixture

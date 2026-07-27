@@ -2,7 +2,8 @@
 
 import json
 
-from .catalog import ActionCatalog, CatalogRequestError
+from .catalog import ActionCatalog
+from .diagnostics import PerformRequestError
 
 
 def compact_json(value):
@@ -50,9 +51,11 @@ def merge_response_payload(result=None, error=None):
     """Merge an optional result and request error into one response."""
     payload = {} if result is None else dict(result)
     if error is not None:
-        if not isinstance(error, CatalogRequestError):
-            raise TypeError("error must be a CatalogRequestError")
+        if not isinstance(error, PerformRequestError):
+            raise TypeError("error must be a PerformRequestError")
         payload.update(error_payload(error.status, error.message, error.alternatives))
+        if error.diagnostics:
+            payload["diagnostics"] = list(error.diagnostics)
     return payload
 
 
@@ -61,7 +64,10 @@ def response_payload(catalog, result=None, error=None):
     if not isinstance(catalog, ActionCatalog):
         raise TypeError("catalog must be an ActionCatalog")
     payload = merge_response_payload(result=result, error=error)
-    diagnostics = diagnostic_strings(catalog)
+    diagnostics = list(payload.get("diagnostics", []))
+    for diagnostic in diagnostic_strings(catalog):
+        if diagnostic not in diagnostics:
+            diagnostics.append(diagnostic)
     if diagnostics:
         payload["diagnostics"] = diagnostics
     return payload

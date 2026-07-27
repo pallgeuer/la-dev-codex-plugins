@@ -1,8 +1,10 @@
 """Prompt inspection, literal substitution, and qualification tests."""
 
+import importlib
+
 import pytest
 
-from conftest import runtime
+diagnostics_module = importlib.import_module("toolkit_perform_runtime.diagnostics")
 
 
 def make_catalog(tmp_path, complete, file_data, write_file, load_catalog, **action_updates):
@@ -26,10 +28,10 @@ def test_one_multiple_and_repeated_variables(tmp_path, complete, file_data, writ
         file_data,
         write_file,
         load_catalog,
-        prompt_vars={"%Input%": "Input", "%Kind%": "Kind"},
+        prompt_vars={"Input": "Input", "Kind": "Kind"},
         prompt="Read %Input%, make %Kind%, cite %Input%.",
     )
-    rendered = catalog.render("test[agnostic]", {"%Input%": "a b.txt", "%Kind%": "a report"})
+    rendered = catalog.render("test[agnostic]", {"Input": "a b.txt", "Kind": "a report"})
     assert rendered.prompt == "Read a b.txt, make a report, cite a b.txt."
 
 
@@ -45,8 +47,8 @@ def test_one_multiple_and_repeated_variables(tmp_path, complete, file_data, writ
     ],
 )
 def test_complex_binding_values_remain_literal_data(tmp_path, complete, file_data, write_file, load_catalog, value):
-    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"%Value%": "Value"}, prompt="Value=%Value%")
-    assert catalog.render("test[agnostic]", {"%Value%": value}).prompt == "Value=" + value
+    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"Value": "Value"}, prompt="Value=%Value%")
+    assert catalog.render("test[agnostic]", {"Value": value}).prompt == "Value=" + value
 
 
 def test_substitution_is_one_pass_and_does_not_expand_introduced_placeholder(tmp_path, complete, file_data, write_file, load_catalog):
@@ -56,10 +58,10 @@ def test_substitution_is_one_pass_and_does_not_expand_introduced_placeholder(tmp
         file_data,
         write_file,
         load_catalog,
-        prompt_vars={"%A%": "A", "%B%": "B"},
+        prompt_vars={"A": "A", "B": "B"},
         prompt="%A% then %B%",
     )
-    rendered = catalog.render("test[agnostic]", {"%A%": "%B%", "%B%": "done"})
+    rendered = catalog.render("test[agnostic]", {"A": "%B%", "B": "done"})
     assert rendered.prompt == "%B% then done"
 
 
@@ -67,17 +69,27 @@ def test_substitution_is_one_pass_and_does_not_expand_introduced_placeholder(tmp
     ("variables", "status"),
     [
         ({}, "missing_variables"),
-        ({"%X%": "x", "%Extra%": "extra"}, "extra_variables"),
-        ({"%X%": ""}, "invalid_variable_value"),
-        ({"%X%": 1}, "invalid_variable_value"),
-        ({"%X%": "has\x00nul"}, "invalid_variable_value"),
+        ({"X": "x", "Extra": "extra"}, "extra_variables"),
+        ({"X": ""}, "invalid_variable_value"),
+        ({"X": 1}, "invalid_variable_value"),
+        ({"X": "has\x00nul"}, "invalid_variable_value"),
+        ({"X": "has\ud800surrogate"}, "invalid_variable_value"),
+        ({"%X%": "x"}, "invalid_variable_name"),
     ],
 )
 def test_missing_extra_and_invalid_bindings(tmp_path, complete, file_data, write_file, load_catalog, variables, status):
-    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"%X%": "X"}, prompt="Use %X%.")
-    with pytest.raises(runtime.CatalogRequestError, match="variable") as error:
+    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"X": "X"}, prompt="Use %X%.")
+    with pytest.raises(diagnostics_module.PerformRequestError, match="variable") as error:
         catalog.render("test[agnostic]", variables)
     assert error.value.status == status
+
+
+def test_prompt_variable_bindings_are_case_sensitive(tmp_path, complete, file_data, write_file, load_catalog):
+    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"Area": "Area"}, prompt="Use %Area%.")
+    with pytest.raises(diagnostics_module.PerformRequestError) as error:
+        catalog.render("test[agnostic]", {"area": "src/"})
+    assert error.value.status == "missing_variables"
+    assert "Area" in error.value.message
 
 
 def test_no_edits_prefix_is_shared_by_inspection_and_rendering(tmp_path, complete, file_data, write_file, load_catalog):
@@ -117,41 +129,54 @@ def test_qualification_but_prefix_is_silently_normalized(tmp_path, complete, fil
     ],
 )
 def test_qualification_boundary_uses_final_main_prompt(tmp_path, complete, file_data, write_file, load_catalog, prompt, value, expected):
-    prompt_vars = {"%X%": "Value"} if value is not None else {}
+    prompt_vars = {"X": "Value"} if value is not None else {}
     catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars=prompt_vars, prompt=prompt)
-    variables = {"%X%": value} if value is not None else {}
+    variables = {"X": value} if value is not None else {}
     assert catalog.render("test[agnostic]", variables, qualification="Restrict the scope.").prompt == expected
 
 
 @pytest.mark.parametrize("qualification", [None, "Qualify the action."])
 def test_whitespace_only_final_main_prompt_is_rejected(tmp_path, complete, file_data, write_file, load_catalog, qualification):
-    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"%X%": "Value"}, prompt="%X%")
-    with pytest.raises(runtime.CatalogRequestError) as error:
-        catalog.render("test[agnostic]", {"%X%": " \t"}, qualification=qualification)
+    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"X": "Value"}, prompt="%X%")
+    with pytest.raises(diagnostics_module.PerformRequestError) as error:
+        catalog.render("test[agnostic]", {"X": " \t"}, qualification=qualification)
     assert error.value.status == "empty_rendered_prompt"
 
 
 def test_whitespace_binding_is_valid_when_static_prompt_remains(tmp_path, complete, file_data, write_file, load_catalog):
-    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"%X%": "Value"}, prompt="Use %X% here.")
-    assert catalog.render("test[agnostic]", {"%X%": " \t"}).prompt == "Use  \t here."
+    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"X": "Value"}, prompt="Use %X% here.")
+    assert catalog.render("test[agnostic]", {"X": " \t"}).prompt == "Use  \t here."
 
 
 def test_no_edits_prefix_keeps_whitespace_substitution_nonempty(tmp_path, complete, file_data, write_file, load_catalog):
-    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"%X%": "Value"}, prompt="%X%", no_edits=True)
-    assert catalog.render("test[agnostic]", {"%X%": " \t"}).prompt == "No edits.  \t"
+    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"X": "Value"}, prompt="%X%", no_edits=True)
+    assert catalog.render("test[agnostic]", {"X": " \t"}).prompt == "No edits.  \t"
 
 
-@pytest.mark.parametrize("qualification", ["", "   ", "line one\nline two", "line\rbreak", "\x00control", "\x1fcontrol", "BUT:", "  BUT:  ", 1])
+@pytest.mark.parametrize(
+    "qualification",
+    ["", "   ", "line one\nline two", "line\rbreak", "\x00control", "\x1fcontrol", "next\x85line", "line\u2028separator", "paragraph\u2029separator", "has\ud800surrogate", "BUT:", "  BUT:  ", 1],
+)
 def test_invalid_qualification_structure_is_rejected(tmp_path, complete, file_data, write_file, load_catalog, qualification):
     catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog)
-    with pytest.raises(runtime.CatalogRequestError) as error:
+    with pytest.raises(diagnostics_module.PerformRequestError) as error:
         catalog.render("test[agnostic]", {}, qualification=qualification)
     assert error.value.status == "invalid_qualification"
 
 
+def test_qualification_rejects_every_c0_c1_control_and_unicode_format_class(tmp_path, complete, file_data, write_file, load_catalog):
+    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog)
+    disallowed = [chr(codepoint) for codepoint in (*range(0x20), *range(0x7F, 0xA0))]
+    disallowed.extend(("\u00ad", "\u200d", "\u202e", "\ud800", "\u2028", "\u2029"))
+    for character in disallowed:
+        with pytest.raises(diagnostics_module.PerformRequestError) as error:
+            catalog.render("test[agnostic]", {}, qualification="before{}after".format(character))
+        assert error.value.status == "invalid_qualification"
+
+
 def test_qualification_placeholder_text_is_literal_and_notes_never_enter_prompt(tmp_path, complete, file_data, write_file, load_catalog):
-    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"%X%": "X"}, prompt="Use %X%.", notes="Follow-up %X%.")
-    rendered = catalog.render("test[agnostic]", {"%X%": "value"}, qualification="Keep %X% literal.")
+    catalog, _source = make_catalog(tmp_path, complete, file_data, write_file, load_catalog, prompt_vars={"X": "X"}, prompt="Use %X%.", notes="Follow-up %X%.")
+    rendered = catalog.render("test[agnostic]", {"X": "value"}, qualification="Keep %X% literal.")
     assert rendered.prompt == "Use value. BUT: Keep %X% literal."
     assert "Follow-up" not in rendered.prompt
     assert rendered.to_dict() == {"prompt": "Use value. BUT: Keep %X% literal."}
@@ -166,14 +191,14 @@ def test_goal_mode_final_prompt_includes_every_rendering_transformation(tmp_path
         load_catalog,
         goal_mode=True,
         no_edits=True,
-        prompt_vars={"%Target%": "Target"},
+        prompt_vars={"Target": "Target"},
         prompt="Inspect %Target%.",
         notes="Keep this separate.",
     )
     inspection = catalog.inspect("test[agnostic]")
     rendered = catalog.render(
         "test[agnostic]",
-        {"%Target%": "src/"},
+        {"Target": "src/"},
         qualification="Only report confirmed findings.",
     )
     assert inspection.to_dict()["mode"] == "goal"

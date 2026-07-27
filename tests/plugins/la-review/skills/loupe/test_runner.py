@@ -24,6 +24,11 @@ def executable_availability(*available_executables: str) -> Callable[[str], bool
     return lambda executable: executable in available_executables
 
 
+def unexpected_executable_probe(_executable: str) -> bool:
+    """Fail if invalid configuration reaches executable launch planning."""
+    raise AssertionError("reviewer launch planning should not run")
+
+
 def test_parse_args_requires_review_scope() -> None:
     """Require callers to pass explicit review scope text."""
     runner = load_loupe_runner()
@@ -55,18 +60,39 @@ def test_parse_args_rejects_multiple_review_scope_arguments() -> None:
     assert exc_info.value.code == 2
 
 
+@pytest.mark.parametrize("timeout", ["-1", "nan", "NaN", "inf", "-inf", "Infinity"])
+def test_parse_args_rejects_negative_and_nonfinite_timeouts(timeout: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reject timeout values that cannot produce a finite deadline or strict JSON."""
+    runner = load_loupe_runner()
+    monkeypatch.setattr(runner, "executable_is_available", unexpected_executable_probe)
+
+    with pytest.raises(SystemExit) as exc_info:
+        runner.main(["--dry-run", "--timeout-seconds", timeout, "configured scope"], environment={})
+
+    assert exc_info.value.code == 2
+
+
+def test_parse_args_accepts_zero_timeout() -> None:
+    """Preserve zero as an immediate reviewer timeout."""
+    runner = load_loupe_runner()
+
+    args = runner.parse_args(["--timeout-seconds", "0", "configured scope"], environment={})
+
+    assert args.timeout_seconds == 0
+
+
 def test_dry_run_uses_expected_json_shape_and_reviewer_commands(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
     """Emit dry-run reviewer names and commands using the public JSON keys."""
     runner = load_loupe_runner()
     monkeypatch.setattr(runner, "executable_is_available", executable_availability("claude", "codex", "jq"))
 
-    exit_code = runner.main(["--dry-run", "uncommitted changes"])
+    exit_code = runner.main(["--dry-run", "uncommitted changes"], environment={})
 
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out)
     assert list(payload) == ["review_scope", "git_root", "timeout_seconds", "reviewers"]
     assert payload["review_scope"] == "uncommitted changes"
-    assert payload["timeout_seconds"] == 1200
+    assert payload["timeout_seconds"] == 1800
     assert [list(reviewer) for reviewer in payload["reviewers"]] == [
         ["reviewer_name", "launched_command"],
         ["reviewer_name", "launched_command"],
@@ -81,7 +107,8 @@ def test_dry_run_uses_expected_json_shape_and_reviewer_commands(capsys: pytest.C
                     runner.CODE_REVIEW_COMMAND_PROMPT_TEMPLATE.format(
                         review_scope="uncommitted changes", review_policy=runner.REVIEW_POLICY, review_skill_prohibition=runner.REVIEW_SKILL_PROHIBITION, review_note=runner.REVIEW_NOTE
                     )
-                )
+                ),
+                reasoning_effort="medium",
             ),
         },
         {
@@ -91,7 +118,8 @@ def test_dry_run_uses_expected_json_shape_and_reviewer_commands(capsys: pytest.C
                     runner.REVIEW_COMMAND_PROMPT_TEMPLATE.format(
                         review_scope="uncommitted changes", review_policy=runner.REVIEW_POLICY, review_skill_prohibition=runner.REVIEW_SKILL_PROHIBITION, review_note=runner.REVIEW_NOTE
                     )
-                )
+                ),
+                reasoning_effort="high",
             ),
         },
         {
@@ -101,7 +129,8 @@ def test_dry_run_uses_expected_json_shape_and_reviewer_commands(capsys: pytest.C
                     runner.CORRECTNESS_REVIEW_PROMPT_TEMPLATE.format(
                         review_scope="uncommitted changes", review_policy=runner.REVIEW_POLICY, review_skill_prohibition=runner.REVIEW_SKILL_PROHIBITION, review_note=runner.REVIEW_NOTE
                     )
-                )
+                ),
+                reasoning_effort="high",
             ),
         },
         {
@@ -111,7 +140,8 @@ def test_dry_run_uses_expected_json_shape_and_reviewer_commands(capsys: pytest.C
                     runner.DESIGN_REVIEW_PROMPT_TEMPLATE.format(
                         review_scope="uncommitted changes", review_policy=runner.REVIEW_POLICY, review_skill_prohibition=runner.REVIEW_SKILL_PROHIBITION, review_note=runner.REVIEW_NOTE
                     )
-                )
+                ),
+                reasoning_effort="high",
             ),
         },
     ]
@@ -119,6 +149,163 @@ def test_dry_run_uses_expected_json_shape_and_reviewer_commands(capsys: pytest.C
     assert "\nTask: It is very important to me that the code is well-structured" in payload["reviewers"][3]["launched_command"]
     assert runner.REVIEW_SKILL_PROHIBITION in payload["reviewers"][2]["launched_command"]
     assert runner.REVIEW_SKILL_PROHIBITION in payload["reviewers"][3]["launched_command"]
+
+
+def test_environment_effort_overrides_apply_by_provider_and_reviewer(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+    """Apply reviewer environment values over provider values and provider values over built-in defaults."""
+    runner = load_loupe_runner()
+    monkeypatch.setattr(runner, "executable_is_available", executable_availability("claude", "codex", "jq"))
+    environment = {
+        "LOUPE_EFFORT_CLAUDE": "low",
+        "LOUPE_EFFORT_CLAUDE_CODE_REVIEW": "high",
+        "LOUPE_EFFORT_CODEX": "medium",
+        "LOUPE_EFFORT_CODEX_DESIGN": "ultra",
+    }
+
+    exit_code = runner.main(["--dry-run", "configured scope"], environment=environment)
+
+    assert exit_code == 0
+    commands = [reviewer["launched_command"] for reviewer in json.loads(capsys.readouterr().out)["reviewers"]]
+    assert "--effort high" in commands[0]
+    assert "model_reasoning_effort='\"medium\"'" in commands[1]
+    assert "model_reasoning_effort='\"medium\"'" in commands[2]
+    assert "model_reasoning_effort='\"ultra\"'" in commands[3]
+
+
+def test_cli_effort_overrides_win_by_layer_and_later_values(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prefer CLI reviewer and provider values over environment values, with the final duplicate winning."""
+    runner = load_loupe_runner()
+    monkeypatch.setattr(runner, "executable_is_available", executable_availability("claude", "codex", "jq"))
+    environment = {
+        "LOUPE_EFFORT_CODEX_CORRECTNESS": "ultra",
+        "LOUPE_EFFORT_CODEX_DESIGN": "max",
+    }
+
+    exit_code = runner.main(
+        [
+            "--dry-run",
+            "--effort",
+            "codex=low",
+            "--effort",
+            "codex-correctness=xhigh",
+            "--effort",
+            "codex-correctness=high",
+            "configured scope",
+        ],
+        environment=environment,
+    )
+
+    assert exit_code == 0
+    commands = [reviewer["launched_command"] for reviewer in json.loads(capsys.readouterr().out)["reviewers"]]
+    assert "--effort medium" in commands[0]
+    assert "model_reasoning_effort='\"low\"'" in commands[1]
+    assert "model_reasoning_effort='\"high\"'" in commands[2]
+    assert "model_reasoning_effort='\"low\"'" in commands[3]
+
+
+def test_every_builtin_reviewer_has_stable_effort_configuration_keys() -> None:
+    """Expose provider-wide and reviewer-specific keys and environment variables for every built-in reviewer."""
+    runner = load_loupe_runner()
+
+    key_providers = runner.effort_key_providers(runner.REVIEWERS)
+
+    assert {key: provider.provider_key for key, provider in key_providers.items()} == {
+        "claude": "claude",
+        "codex": "codex",
+        "claude-code-review": "claude",
+        "codex-review": "codex",
+        "codex-correctness": "codex",
+        "codex-design": "codex",
+    }
+    assert {key: runner.effort_environment_variable(key) for key in key_providers} == {
+        "claude": "LOUPE_EFFORT_CLAUDE",
+        "codex": "LOUPE_EFFORT_CODEX",
+        "claude-code-review": "LOUPE_EFFORT_CLAUDE_CODE_REVIEW",
+        "codex-review": "LOUPE_EFFORT_CODEX_REVIEW",
+        "codex-correctness": "LOUPE_EFFORT_CODEX_CORRECTNESS",
+        "codex-design": "LOUPE_EFFORT_CODEX_DESIGN",
+    }
+    assert "--effort medium" in runner.REVIEWERS[0].build_command("configured scope")
+    assert all("model_reasoning_effort='\"high\"'" in reviewer.build_command("configured scope") for reviewer in runner.REVIEWERS[1:])
+
+
+def test_reviewer_configuration_rejects_duplicate_and_colliding_keys() -> None:
+    """Reject reviewer keys that would overwrite provider or reviewer configuration."""
+    runner = load_loupe_runner()
+    duplicate = (
+        runner.Reviewer("First", "printf first", "{review_scope}", reviewer_key="same", provider=runner.CODEX_PROVIDER),
+        runner.Reviewer("Second", "printf second", "{review_scope}", reviewer_key="same", provider=runner.CODEX_PROVIDER),
+    )
+    collision = (runner.Reviewer("Collision", "printf collision", "{review_scope}", reviewer_key="codex", provider=runner.CODEX_PROVIDER),)
+
+    with pytest.raises(ValueError, match="duplicate or colliding"):
+        runner.effort_key_providers(duplicate)
+    with pytest.raises(ValueError, match="duplicate or colliding"):
+        runner.effort_key_providers(collision)
+
+
+def test_reviewer_configuration_rejects_invalid_provider_records() -> None:
+    """Validate provider defaults, registration, and complete reviewer metadata."""
+    runner = load_loupe_runner()
+    invalid_default = runner.ReasoningEffortProvider("invalid", "max", ("low", "high"))
+    unregistered = runner.ReasoningEffortProvider("custom", "low", ("low",))
+
+    with pytest.raises(ValueError, match="default"):
+        runner.effort_key_providers((), providers=(invalid_default,))
+    with pytest.raises(ValueError, match="both reviewer_key and provider"):
+        runner.effort_key_providers((runner.Reviewer("Incomplete", "printf incomplete", "{review_scope}", reviewer_key="incomplete"),))
+    with pytest.raises(ValueError, match="unregistered"):
+        runner.effort_key_providers((runner.Reviewer("Unknown", "printf unknown", "{review_scope}", reviewer_key="unknown", provider=unregistered),))
+
+
+def test_unconfigured_custom_reviewer_remains_valid() -> None:
+    """Allow custom reviewers that do not participate in effort configuration."""
+    runner = load_loupe_runner()
+    reviewer = runner.Reviewer("Custom", "printf custom", "{review_scope}")
+
+    assert runner.resolve_reasoning_efforts((reviewer,), {}, {}) == {}
+    assert runner.effort_key_providers((reviewer,))
+
+
+@pytest.mark.parametrize(
+    "assignment",
+    [
+        "broken",
+        "=high",
+        "codex=",
+        "unknown=high",
+        "claude=minimal",
+        "codex=maximum",
+    ],
+)
+def test_invalid_cli_effort_overrides_fail_before_launch(assignment: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reject malformed, unknown, and provider-incompatible CLI effort overrides before probing executables."""
+    runner = load_loupe_runner()
+    monkeypatch.setattr(runner, "executable_is_available", unexpected_executable_probe)
+
+    with pytest.raises(SystemExit) as exc_info:
+        runner.main(["--dry-run", "--effort", assignment, "configured scope"], environment={})
+
+    assert exc_info.value.code == 2
+
+
+@pytest.mark.parametrize(
+    ("variable", "reasoning_effort"),
+    [
+        ("LOUPE_EFFORT_CODEX", ""),
+        ("LOUPE_EFFORT_CODEX_DESIGN", "maximum"),
+        ("LOUPE_EFFORT_CLAUDE_CODE_REVIEW", "minimal"),
+    ],
+)
+def test_invalid_environment_effort_overrides_fail_before_launch(variable: str, reasoning_effort: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reject blank and provider-incompatible environment defaults before probing executables."""
+    runner = load_loupe_runner()
+    monkeypatch.setattr(runner, "executable_is_available", unexpected_executable_probe)
+
+    with pytest.raises(SystemExit) as exc_info:
+        runner.main(["--dry-run", "configured scope"], environment={variable: reasoning_effort})
+
+    assert exc_info.value.code == 2
 
 
 def test_dry_run_skips_claude_reviewers_when_claude_is_missing(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
@@ -333,6 +520,29 @@ def test_failed_reviewer_produces_failed_status_and_nonzero_exit(capsys: pytest.
     assert failure["status"] == "failed"
     assert failure["return_code"] == 4
     assert failure["stderr"] == "problem"
+
+
+def test_zero_timeout_immediately_stops_active_reviewer(capsys: pytest.CaptureFixture[str]) -> None:
+    """Treat a zero timeout as an immediate global reviewer timeout."""
+    runner = load_loupe_runner()
+    reviewers = (runner.Reviewer("slow", "sleep 10", "{review_scope}"),)
+
+    exit_code = runner.main(["--timeout-seconds", "0", "immediate timeout"], reviewers=reviewers)
+
+    assert exit_code == 1
+    result = json.loads(capsys.readouterr().out)["reviewers"][0]
+    assert result["status"] == "timed_out"
+    assert result["timed_out"] is True
+
+
+def test_json_output_rejects_nonfinite_numbers(capsys: pytest.CaptureFixture[str]) -> None:
+    """Keep emitted reviewer artifacts valid for strict JSON parsers."""
+    runner = load_loupe_runner()
+
+    with pytest.raises(ValueError, match="Out of range"):
+        runner.emit_json_output({"invalid": float("nan")}, None)
+
+    assert capsys.readouterr().out == ""
 
 
 def test_review_output_file_matches_stdout(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:

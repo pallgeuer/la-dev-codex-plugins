@@ -75,15 +75,27 @@ Run only Perform tests:
 uvx --python 3.8 --from pytest==8.3.5 pytest tests/plugins/toolkit/skills/perform
 ```
 
+Run the source-only Perform launcher tests:
+
+```bash
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/test_codex_perform_*.py
+```
+
+Run the release-version validator and declaration tests:
+
+```bash
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/test_validate_release.py tests/test_versions.py
+```
+
 Validate the bundled Perform catalog after editing it:
 
 ```bash
-python3 -m json.tool plugins/toolkit/skills/perform/assets/toolkit_perform_actions/generic_actions.json > /dev/null
+python3 -m json.tool plugins/toolkit/skills/perform/assets/toolkit_perform_actions/actions.json > /dev/null
 ```
 
 ## Check Python 3.6+ compatibility
 
-Run Vermin against the shipped plugin and package code:
+Run Vermin against the shipped plugin, repository helper, and package code:
 
 ```bash
 uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run vermin --all-files --hook-stage manual

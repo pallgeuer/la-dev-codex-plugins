@@ -8,10 +8,11 @@ It currently exposes the following plugins:
   - Includes the **Loupe** skill (`loupe`)
     - Invoke with `$la-review:loupe`
     - Default review scope is current uncommitted changes, unless otherwise specified
+
 - **Action Toolkit** (`toolkit`)
   - Includes the **Perform** skill (`perform`)
     - Runs reusable, configurable Codex actions from layered JSON action files
-    - Invoke with `$toolkit:perform`
+    - Invoke with `$toolkit:perform` or `codex-perform`
     - Select an exact `ACTION[LANGUAGE]` variant, use a bare action name, or describe a task that clearly matches an available action
 
 ## Install
@@ -161,6 +162,28 @@ terminal_title = ["activity", "project-name"]
 
 ## Using plugins
 
+### Launch Codex
+
+Normally you just launch codex using:
+
+```bash
+codex
+```
+
+You can however change the default model and/or reasoning efforts using commands like:
+
+```bash
+codex --model gpt-5.6
+codex -c model_reasoning_effort=high
+codex -c plan_mode_reasoning_effort=xhigh
+```
+
+This customizes for example what the reasoning efforts are reset to automatically on each `/clear`, e.g. also when deciding to implement a plan in a fresh context. Note that combinations are freely possible:
+
+```bash
+codex -c model_reasoning_effort=medium -c plan_mode_reasoning_effort=high
+```
+
 ### Loupe skill
 
 Default review of current uncommitted changes:
@@ -169,7 +192,7 @@ Default review of current uncommitted changes:
 $la-review:loupe
 ```
 
-Tip: Typing `$lou` and then accepting the Codex autocomplete suggestion is usually enough to insert the full `$la-review:loupe` invocation without typing it out manually.
+**Tip:** Typing `$lou` and then accepting the Codex autocomplete suggestion is usually enough to insert the full `$la-review:loupe` invocation without typing it out manually.
 
 Review just unstaged changes (should include untracked changes, but explicit is better than implicit):
 
@@ -195,6 +218,32 @@ Review a pull request:
 ```text
 $la-review:loupe PR #123
 ```
+
+Loupe uses `medium` reasoning effort for Claude reviewers and `high` for Codex reviewers by default. Provider-wide and reviewer-specific customization uses these stable keys:
+
+| Key                  | Persistent environment variable   |
+|----------------------|-----------------------------------|
+| `claude`             | `LOUPE_EFFORT_CLAUDE`             |
+| `codex`              | `LOUPE_EFFORT_CODEX`              |
+| `claude-code-review` | `LOUPE_EFFORT_CLAUDE_CODE_REVIEW` |
+| `codex-review`       | `LOUPE_EFFORT_CODEX_REVIEW`       |
+| `codex-correctness`  | `LOUPE_EFFORT_CODEX_CORRECTNESS`  |
+| `codex-design`       | `LOUPE_EFFORT_CODEX_DESIGN`       |
+
+Export these variables normally or persist them for Codex-launched commands in `~/.codex/config.toml`, for example:
+
+```toml
+[shell_environment_policy]
+set = { LOUPE_EFFORT_CLAUDE = "high", LOUPE_EFFORT_CODEX = "medium", LOUPE_EFFORT_CODEX_DESIGN = "xhigh" }
+```
+
+For a one-off in-chat override, use a request such as:
+
+```text
+$la-review:loupe last commit; high Claude effort, medium Codex effort
+```
+
+Reviewer-specific one-off overrides can be requested in the same way, such as `xhigh Codex Design effort`. One-off requests take precedence over persistent environment defaults, with reviewer-specific values winning within each layer. Claude accepts `low`, `medium`, `high`, `xhigh`, and `max`; Codex accepts `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, and `ultra`.
 
 ### Perform skill
 
@@ -223,24 +272,55 @@ Select an action with a clear natural-language request:
 $toolkit:perform list the todos in tools/
 ```
 
-Read or query the built-in action-file help with:
+Read or query the built-in Perform help with:
 
 ```text
 $toolkit:perform help
 $toolkit:perform help How can I define custom repo-specific actions?
 ```
 
-Perform discovers direct `*.json` files from these `toolkit_perform_actions` directories, in increasing precedence:
+Generate or update a stable Markdown quick reference for the effective actions:
 
-- The action directory bundled with the installed skill
-- On Unix, `/etc/codex/toolkit_perform_actions/`, when `/etc/codex/config.toml` is a regular file
-- `$CODEX_HOME/toolkit_perform_actions/`, defaulting to `~/.codex/toolkit_perform_actions/` when `CODEX_HOME` is unset or empty
-- `<repository-root>/.codex/toolkit_perform_actions/`, when `<repository-root>/.codex/config.toml` is a regular file
+```text
+$toolkit:perform update-action-catalogue
+$toolkit:perform update-action-catalogue docs/action_catalogue.md
+```
 
-See the [complete Perform user guide](plugins/toolkit/skills/perform/references/action-files.md) for action creation, fields, precedence, variants, inheritance, variables, execution modes, overrides, ignores, and troubleshooting. The installed skill exposes the same guide interactively through `$toolkit:perform help`.
+The default output is `<repository-root>/.codex/toolkit_perform_actions/action_catalogue.md`. Explicit relative outputs may use parent traversal and are not confined to the repository; parent-directory symlinks are followed, while a symlink in the final target component is refused. The source-only launcher provides the same deterministic generator directly through `codex-perform catalogue [--output PATH]`.
+
+The repository includes a source-only `codex-perform` launcher. It does not need to be installed as a Python package and has no non-standard Python dependencies so that it works out of the box with any system Python 3.6+. In each new Bash session, source the repository activation script:
+
+```bash
+source /PATH/TO/la-dev-codex-plugins/activate.sh
+```
+
+This provides the `codex-perform` command, which you can then use (it internally calls `python3` in isolated mode which then replaces itself with a `codex` process):
+
+```bash
+codex-perform
+codex-perform catalogue
+codex-perform show find-todos
+codex-perform find-todos
+codex-perform exec-md-goal --var 'MarkdownPlanFile=docs/plan.md'
+```
+
+Use `CODEX_PERFORM_PYTHON=/PATH/TO/python` to select another Python 3.6+ standard-library interpreter. During marketplace development, `--plugin-root /PATH/TO/la-dev-codex-plugins/plugins/toolkit` explicitly uses the checkout instead of installed-plugin discovery. See the [standalone launcher and runtime API documentation](plugins/toolkit/skills/perform/references/standalone_cli.md) for selection, overrides, output modes, and embedding.
+
+The Perform skill discovers direct `*.json` files from these `toolkit_perform_actions` directories, in increasing precedence:
+
+- The action directory bundled with the installed skill: `/PATH/TO/skills/perform/assets/toolkit_perform_actions/`
+- The system Codex configuration: On Unix this is `/etc/codex/toolkit_perform_actions/`; no corresponding `config.toml` is required
+- The user Codex configuration: `$CODEX_HOME/toolkit_perform_actions/`, defaulting to `~/.codex/toolkit_perform_actions/` when `CODEX_HOME` is unset or empty; no corresponding `config.toml` is required
+- The repository-local Codex configuration: `<repository-root>/.codex/toolkit_perform_actions/`; a corresponding `<repository-root>/.codex/config.toml` is required
+
+For help and documentation on the Perform skill, see:
+
+- [Perform action files and catalogues](plugins/toolkit/skills/perform/references/action_files.md) for action creation, discovery, fields, precedence, variants, inheritance, variables, overrides, ignores, catalogue generation, and configuration troubleshooting.
+- [Codex Perform skill guide](plugins/toolkit/skills/perform/references/codex_skill.md) for in-chat selection and execution.
+- [Standalone Perform CLI guide](plugins/toolkit/skills/perform/references/standalone_cli.md) for activation, process launching, output modes, and the runtime API.
+
+The installed help also exposes the information from all three guides through `$toolkit:perform help` and `codex-perform show help`.
 
 ## Development
 
-See `TESTING.md`.
-
-The shipped plugin scripts and package source code must support Python 3.6+ and must use only the Python standard library.
+See `TESTING.md`. The shipped plugin scripts and package source code must support Python 3.6+ and must use only the Python standard library.

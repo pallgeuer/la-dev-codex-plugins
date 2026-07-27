@@ -7,15 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from conftest import runtime
-
+catalog_module = importlib.import_module("toolkit_perform_runtime.catalog")
 discovery_module = importlib.import_module("toolkit_perform_runtime.discovery")
 
 
 def git_result(root=None, returncode=0, **overrides):
     """Return a synthetic bounded Git result."""
     stdout = b"" if root is None else (str(root) + "\n").encode("utf-8")
-    return runtime.GitCommandResult(returncode=returncode, stdout=stdout, **overrides)
+    return discovery_module.GitCommandResult(returncode=returncode, stdout=stdout, **overrides)
 
 
 def no_repository(_cwd):
@@ -23,7 +22,7 @@ def no_repository(_cwd):
     return git_result(returncode=128)
 
 
-class HermeticFilesystem(runtime.FilesystemView):
+class HermeticFilesystem(discovery_module.FilesystemView):
     """Hide ambient VCS markers above one temporary-test boundary."""
 
     def __init__(self, boundary):
@@ -44,7 +43,7 @@ def discover(bundled, cwd, env=None, git_runner=no_repository, filesystem=None):
     """Run discovery with deterministic test defaults."""
     if filesystem is None:
         filesystem = HermeticFilesystem(Path(bundled).parent)
-    return runtime.discover_action_directories(str(bundled), cwd=str(cwd), env={} if env is None else env, git_runner=git_runner, filesystem=filesystem)
+    return discovery_module.discover_action_directories(str(bundled), cwd=str(cwd), env={} if env is None else env, git_runner=git_runner, filesystem=filesystem)
 
 
 def kinds(result):
@@ -63,16 +62,47 @@ def test_explicit_valid_codex_home_and_user_actions_without_config(tmp_path):
 
 
 @pytest.mark.parametrize("value", [None, ""])
-def test_absent_or_empty_codex_home_defaults_to_dot_codex(tmp_path, monkeypatch, value):
+def test_absent_or_empty_codex_home_defaults_to_mapped_home(tmp_path, monkeypatch, value):
     bundled = tmp_path / "bundled"
     bundled.mkdir()
     home = tmp_path / "home"
     (home / ".codex" / "toolkit_perform_actions").mkdir(parents=True)
-    monkeypatch.setenv("HOME", str(home))
-    env = {} if value is None else {"CODEX_HOME": value}
+    ambient_home = tmp_path / "ambient-home"
+    (ambient_home / ".codex" / "toolkit_perform_actions").mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(ambient_home))
+    env = {"HOME": str(home)}
+    if value is not None:
+        env["CODEX_HOME"] = value
     result = discover(bundled, tmp_path, env=env)
     assert kinds(result) == ["bundled", "user"]
     assert result.sources[-1].normalized_path == str((home / ".codex" / "toolkit_perform_actions").resolve())
+
+
+def test_supplied_environment_without_home_loads_no_ambient_user_source(tmp_path, monkeypatch):
+    bundled = tmp_path / "bundled"
+    bundled.mkdir()
+    ambient_home = tmp_path / "ambient-home"
+    (ambient_home / ".codex" / "toolkit_perform_actions").mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(ambient_home))
+    result = discover(bundled, tmp_path, env={})
+    assert kinds(result) == ["bundled"]
+
+
+def test_explicit_tilde_codex_home_uses_mapped_home_or_fails_closed(tmp_path, monkeypatch):
+    bundled = tmp_path / "bundled"
+    bundled.mkdir()
+    mapped_home = tmp_path / "mapped-home"
+    (mapped_home / "codex-home" / "toolkit_perform_actions").mkdir(parents=True)
+    ambient_home = tmp_path / "ambient-home"
+    (ambient_home / "codex-home" / "toolkit_perform_actions").mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(ambient_home))
+
+    mapped = discover(bundled, tmp_path, env={"HOME": str(mapped_home), "CODEX_HOME": "~/codex-home"})
+    missing = discover(bundled, tmp_path, env={"CODEX_HOME": "~/codex-home"})
+
+    assert mapped.sources[-1].normalized_path == str((mapped_home / "codex-home" / "toolkit_perform_actions").resolve())
+    assert missing.precedence_incomplete is True
+    assert any(diagnostic.code == "invalid_codex_home" for diagnostic in missing.diagnostics)
 
 
 def test_relative_codex_home_resolves_against_requested_cwd(tmp_path):
@@ -102,7 +132,7 @@ def test_explicit_invalid_codex_home_is_fatal_without_default_fallback(tmp_path,
     assert [diagnostic.code for diagnostic in result.diagnostics] == ["invalid_codex_home"]
 
 
-class DenyDirectoryFilesystem(runtime.FilesystemView):
+class DenyDirectoryFilesystem(discovery_module.FilesystemView):
     """Filesystem view that makes one existing directory inaccessible."""
 
     def __init__(self, denied):
@@ -124,12 +154,11 @@ def test_inaccessible_explicit_codex_home_is_fatal(tmp_path):
     assert any(diagnostic.code == "invalid_codex_home" for diagnostic in result.diagnostics)
 
 
-class MappedSystemFilesystem(runtime.FilesystemView):
+class MappedSystemFilesystem(discovery_module.FilesystemView):
     """Map documented system paths to temporary test paths without touching /etc."""
 
-    def __init__(self, mapped_actions, config_present=True):
+    def __init__(self, mapped_actions):
         self.mapped_actions = str(mapped_actions)
-        self.config_present = config_present
 
     def _map(self, path):
         if path == "/etc/codex/toolkit_perform_actions":
@@ -139,12 +168,6 @@ class MappedSystemFilesystem(runtime.FilesystemView):
     def exists(self, path):
         """Map system action existence into the temporary directory."""
         return super().exists(self._map(path))
-
-    def is_file(self, path):
-        """Represent only the documented system config activation file."""
-        if path == "/etc/codex/config.toml":
-            return self.config_present
-        return super().is_file(self._map(path))
 
     def is_dir(self, path):
         """Map system action directory checks."""
@@ -159,15 +182,25 @@ class MappedSystemFilesystem(runtime.FilesystemView):
         return super().realpath(self._map(path))
 
 
-def test_documented_unix_system_source_requires_exact_config_activation(tmp_path):
+def test_documented_unix_system_source_does_not_require_config(tmp_path):
     bundled = tmp_path / "bundled"
     bundled.mkdir()
     system_actions = tmp_path / "system-actions"
     system_actions.mkdir()
-    present = discover(bundled, tmp_path, filesystem=MappedSystemFilesystem(system_actions, config_present=True))
-    absent = discover(bundled, tmp_path, filesystem=MappedSystemFilesystem(system_actions, config_present=False))
-    assert kinds(present) == ["bundled", "system"]
-    assert kinds(absent) == ["bundled"]
+    result = discover(bundled, tmp_path, filesystem=MappedSystemFilesystem(system_actions))
+    assert kinds(result) == ["bundled", "system"]
+
+
+def test_explicit_system_actions_directory_replaces_default(tmp_path):
+    bundled = tmp_path / "bundled"
+    bundled.mkdir()
+    system_actions = tmp_path / "system-actions"
+    system_actions.mkdir()
+    result = discovery_module.discover_action_directories(str(bundled), cwd=str(tmp_path), env={}, git_runner=no_repository, system_actions_dir=str(system_actions))
+    assert kinds(result) == ["bundled", "system"]
+    assert result.sources[-1].normalized_path == str(system_actions.resolve())
+    with pytest.raises(TypeError):
+        discovery_module.discover_action_directories(str(bundled), cwd=str(tmp_path), env={}, git_runner=no_repository, system_config_path="/etc/codex/config.toml")
 
 
 def test_successful_git_resolution_activates_only_root_repository_actions(tmp_path):
@@ -235,13 +268,14 @@ def test_no_vcs_root_loads_no_repository_source(tmp_path):
 @pytest.mark.parametrize(
     ("result", "code"),
     [
-        (runtime.GitCommandResult(launch_error="missing"), "git_unavailable"),
-        (runtime.GitCommandResult(timed_out=True), "git_timeout"),
-        (runtime.GitCommandResult(returncode=0, stdout=b"one\ntwo\n"), "git_malformed_output"),
-        (runtime.GitCommandResult(returncode=0, stdout=b"relative-root\n"), "git_malformed_output"),
-        (runtime.GitCommandResult(returncode=0, stdout=b"\xff"), "git_invalid_utf8"),
-        (runtime.GitCommandResult(returncode=0, stdout=b"/missing\n"), "git_invalid_root"),
-        (runtime.GitCommandResult(returncode=0, stdout=b"x", stdout_truncated=True), "git_output_too_large"),
+        (discovery_module.GitCommandResult(launch_error="missing"), "git_unavailable"),
+        (discovery_module.GitCommandResult(timed_out=True), "git_timeout"),
+        (discovery_module.GitCommandResult(returncode=0, stdout=b"one\ntwo\n"), "git_malformed_output"),
+        (discovery_module.GitCommandResult(returncode=0, stdout=b"relative-root\n"), "git_malformed_output"),
+        (discovery_module.GitCommandResult(returncode=0, stdout=b"\xff"), "git_invalid_utf8"),
+        (discovery_module.GitCommandResult(returncode=0, stdout=b"/missing\n"), "git_invalid_root"),
+        (discovery_module.GitCommandResult(returncode=0, stdout=b"x", stdout_truncated=True), "git_output_too_large"),
+        (discovery_module.GitCommandResult(returncode=0, capture_incomplete=True), "git_output_incomplete"),
     ],
 )
 def test_git_problem_diagnostics_fall_back_without_accepting_invalid_root(tmp_path, result, code):
@@ -337,36 +371,32 @@ def test_bounded_git_launches_only_exact_read_only_command_without_shell(tmp_pat
         calls.append((command, kwargs))
         return process
 
-    result = runtime.run_bounded_git_root(str(tmp_path), popen_factory=popen)
+    result = discovery_module.run_bounded_git_root(str(tmp_path), popen_factory=popen)
     assert result.returncode == 0
-    assert calls == [
-        (
-            ["git", "-C", str(tmp_path), "rev-parse", "--show-toplevel"],
-            {
-                "stdin": discovery_module.subprocess.DEVNULL,
-                "stdout": discovery_module.subprocess.PIPE,
-                "stderr": discovery_module.subprocess.PIPE,
-                "shell": False,
-            },
-        )
-    ]
+    expected_kwargs = {
+        "stdin": discovery_module.subprocess.DEVNULL,
+        "stdout": discovery_module.subprocess.PIPE,
+        "stderr": discovery_module.subprocess.PIPE,
+        "shell": False,
+        "env": None,
+        "start_new_session": os.name == "posix",
+        "creationflags": getattr(discovery_module.subprocess, "CREATE_NEW_PROCESS_GROUP", 0) if os.name == "nt" else 0,
+    }
+    assert calls == [(["git", "-C", str(tmp_path), "rev-parse", "--show-toplevel"], expected_kwargs)]
     assert all("codex" not in part and "uv" not in part for part in calls[0][0])
 
 
-def test_bounded_git_caps_both_output_streams(tmp_path):
-    process = FakeProcess(stdout=b"x" * (discovery_module.GIT_OUTPUT_LIMIT + 10), stderr=b"y" * (discovery_module.GIT_OUTPUT_LIMIT + 20))
-    result = runtime.run_bounded_git_root(str(tmp_path), popen_factory=lambda _command, **_kwargs: process)
-    assert len(result.stdout) == discovery_module.GIT_OUTPUT_LIMIT
-    assert len(result.stderr) == discovery_module.GIT_OUTPUT_LIMIT
-    assert result.stdout_truncated is True
-    assert result.stderr_truncated is True
+def test_bounded_git_receives_exact_supplied_environment(tmp_path):
+    calls = []
+    process = FakeProcess(returncode=128)
 
+    def popen(command, **kwargs):
+        calls.append((command, kwargs))
+        return process
 
-def test_bounded_git_terminates_on_timeout(tmp_path):
-    process = FakeProcess(timeout_once=True)
-    result = runtime.run_bounded_git_root(str(tmp_path), popen_factory=lambda _command, **_kwargs: process, timeout=0.01)
-    assert result.timed_out is True
-    assert process.terminated is True
+    environment = {"HOME": "/isolated", "PATH": "/bin"}
+    discovery_module.run_bounded_git_root(str(tmp_path), popen_factory=popen, env=environment)
+    assert calls[0][1]["env"] == environment
 
 
 def test_explicit_ordered_directories_bypass_conventional_discovery(tmp_path, complete, file_data, write_file):
@@ -374,7 +404,7 @@ def test_explicit_ordered_directories_bypass_conventional_discovery(tmp_path, co
     second = tmp_path / "second"
     write_file(first, file_data(actions={"test": {"agnostic": complete(gloss="first")}}))
     write_file(second, file_data(actions={"test": {"agnostic": complete(gloss="second")}}))
-    catalog = runtime.load_action_catalog(action_directories=[str(first), str(second)], bundled_dir="/missing", cwd="/missing")
+    catalog = catalog_module.load_action_catalog(action_directories=[str(first), str(second)], bundled_dir="/missing", cwd="/missing")
     assert catalog.discovery.repository_resolution == "none"
     assert [source.source_order for source in catalog.discovery.sources] == [0, 1]
     assert catalog.inspect("test[agnostic]").action.fields["gloss"] == "second"

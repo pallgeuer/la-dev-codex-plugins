@@ -3,11 +3,11 @@
 import argparse
 import io
 import sys
-from pathlib import Path
 
 from . import api
 from . import catalog as catalog_module
-from .catalog import CatalogRequestError
+from .diagnostics import PerformRequestError
+from .paths import bundled_actions_dir
 
 _SEEN_ARGUMENTS_ATTRIBUTE = "_json_argument_parser_seen"
 
@@ -70,11 +70,11 @@ class CliOutcome:
     __slots__ = ("error", "result")
 
     def __init__(self, result=None, error=None):
-        """Store an optional result and catalog request error."""
+        """Store an optional result and Perform request error."""
         if result is not None and not isinstance(result, dict):
             raise TypeError("result must be a dictionary or None")
-        if error is not None and not isinstance(error, CatalogRequestError):
-            raise TypeError("error must be a CatalogRequestError or None")
+        if error is not None and not isinstance(error, PerformRequestError):
+            raise TypeError("error must be a PerformRequestError or None")
         self.result = result
         self.error = error
 
@@ -92,11 +92,6 @@ class CliContext:
         """Load and retain the conventional Perform catalog."""
         self.catalog = catalog_module.load_action_catalog(bundled_dir=bundled_actions_dir(), cwd=cwd)
         return self.catalog
-
-
-def bundled_actions_dir():
-    """Resolve the action directory bundled beside the Perform runtime."""
-    return str(Path(__file__).resolve().parents[2] / "assets" / "toolkit_perform_actions")
 
 
 def encode_json(value):
@@ -136,10 +131,10 @@ def run_cli(command):
         outcome = command(context)
         if not isinstance(outcome, CliOutcome):
             raise TypeError("command must return a CliOutcome")
-    except CatalogRequestError as exc:
+    except PerformRequestError as exc:
         outcome = CliOutcome(error=exc)
     except Exception as exc:
-        outcome = CliOutcome(error=CatalogRequestError("runtime_error", _exception_message(exc)))
+        outcome = CliOutcome(error=PerformRequestError("runtime_error", _exception_message(exc)))
     exit_code = 0 if outcome.error is None else api.error_exit_code(outcome.error.status)
     try:
         if context.catalog is None:
@@ -158,7 +153,6 @@ __all__ = (
     "CliContext",
     "CliOutcome",
     "JsonArgumentParser",
-    "bundled_actions_dir",
     "emit_json",
     "encode_json",
     "run_cli",

@@ -46,7 +46,7 @@ repos:
 
       - id: ty
         name: ty
-        entry: uvx --python 3.8 --from ty==0.0.60 --with pytest==8.3.5 ty check plugins src tests
+        entry: uvx --python 3.8 --from ty==0.0.60 --with pytest==8.3.5 ty check plugins scripts src tests
         language: system
         pass_filenames: false
         stages: [pre-commit, pre-push, manual]
@@ -60,7 +60,7 @@ repos:
 
       - id: vermin
         name: vermin
-        entry: uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins src
+        entry: uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins scripts src
         language: system
         pass_filenames: false
         stages: [pre-commit, pre-push, manual]

@@ -3,48 +3,30 @@
 import copy
 import json
 import re
-import unicodedata
 from pathlib import Path
 
 from . import diagnostics as diagnostics_module
 from . import discovery as discovery_module
-from . import rendering
-from .diagnostics import CatalogRequestError, Diagnostic
+from . import launching as launching_module
+from . import rendering, validation
+from .diagnostics import Diagnostic, PerformRequestError
 
 ACTION_NAME_REGEX = r"^[a-z0-9][a-z0-9._-]*$"
 LANGUAGE_NAME_REGEX = r"^[a-z0-9][a-z0-9.+_-]*$"
-MODEL_REGEX = r"^[A-Za-z0-9][A-Za-z0-9._:+/-]*$"
-EFFORT_REGEX = r"^[a-z][a-z0-9_-]*$"
+VARIABLE_NAME_REGEX = validation.VARIABLE_NAME_REGEX
 PLACEHOLDER_REGEX = r"%[A-Za-z][A-Za-z0-9_]*%"
 STRICT_SELECTOR_REGEX = r"^([a-z0-9][a-z0-9._-]*)\[([a-z0-9][a-z0-9.+_-]*)\]$"
 
 ACTION_NAME_PATTERN = re.compile(ACTION_NAME_REGEX)
 LANGUAGE_NAME_PATTERN = re.compile(LANGUAGE_NAME_REGEX)
-MODEL_PATTERN = re.compile(MODEL_REGEX)
-EFFORT_PATTERN = re.compile(EFFORT_REGEX)
+VARIABLE_NAME_PATTERN = validation.VARIABLE_NAME_PATTERN
 PLACEHOLDER_PATTERN = re.compile(PLACEHOLDER_REGEX)
 STRICT_SELECTOR_PATTERN = re.compile(STRICT_SELECTOR_REGEX)
 
-ACTION_FIELDS = (
-    "gloss",
-    "model",
-    "reasoning_effort",
-    "goal_mode",
-    "plan_mode",
-    "plan_reasoning_effort",
-    "no_edits",
-    "prompt_vars",
-    "prompt",
-    "prefer_interactive",
-    "custom_codex_args",
-    "notes",
-)
-ACTION_FIELD_SET = frozenset(ACTION_FIELDS)
 ROOT_FIELDS = frozenset(("version", "ignore_actions", "actions"))
 HELP_SELECTOR = "help[agnostic]"
-HELP_GLOSS = "Explain Perform and its action-file format"
-HELP_MESSAGE = "Read references/action-files.md for the immutable built-in help action."
-RESERVED_CODEX_CONFIG_KEYS = frozenset(("model", "model_reasoning_effort", "plan_mode_reasoning_effort"))
+HELP_GLOSS = "Explain Perform action files and launch methods"
+HELP_MESSAGE = "Read references/action_files.md for action-file configuration, discovery, layering, and catalogue generation. Read references/codex_skill.md for launching with $toolkit:perform inside Codex. Read references/standalone_cli.md for launching with codex-perform and using its Python API."
 NO_EDITS_SENTENCE = "No edits."
 
 
@@ -57,29 +39,23 @@ class DuplicateKeyError(ValueError):
         self.key = key
 
 
-def _full_match(pattern, value):
-    """Match a documented anchored regex without dollar-before-newline behavior."""
-    match = pattern.match(value)
-    return match is not None and match.end() == len(value)
-
-
 def is_action_name(value):
     """Return whether a value is a valid bare action name."""
-    return isinstance(value, str) and _full_match(ACTION_NAME_PATTERN, value)
+    return isinstance(value, str) and validation.full_match(ACTION_NAME_PATTERN, value)
 
 
 def is_language_name(value):
     """Return whether a value is a valid language component."""
-    return isinstance(value, str) and _full_match(LANGUAGE_NAME_PATTERN, value)
+    return isinstance(value, str) and validation.full_match(LANGUAGE_NAME_PATTERN, value)
 
 
 def parse_selector(value):
     """Parse and canonicalize one strict ACTION[LANGUAGE] selector."""
     if not isinstance(value, str):
-        raise CatalogRequestError("invalid_selector", "The selector must be a string.")
+        raise PerformRequestError("invalid_selector", "The selector must be a string.")
     match = STRICT_SELECTOR_PATTERN.match(value)
     if match is None or match.end() != len(value):
-        raise CatalogRequestError("invalid_selector", "Expected a strict ACTION[LANGUAGE] selector using the documented ASCII grammar.")
+        raise PerformRequestError("invalid_selector", "Expected a strict ACTION[LANGUAGE] selector using the documented ASCII grammar.")
     return match.group(1), match.group(2), "{}[{}]".format(match.group(1), match.group(2))
 
 
@@ -108,49 +84,7 @@ def loads_unique_json(text):
 
 def _contains_display_control(value):
     """Return whether short display metadata contains a control or line separator."""
-    return any(unicodedata.category(character) in ("Cc", "Zl", "Zp") for character in value)
-
-
-def _reserved_config_key(key):
-    """Return whether one Codex config key belongs to structured action policy."""
-    return any(key == reserved or key.startswith(reserved + ".") for reserved in RESERVED_CODEX_CONFIG_KEYS)
-
-
-def _validate_custom_codex_args(value):
-    """Return an optional code and message for invalid or conflicting Codex arguments."""
-    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
-        return "invalid_custom_codex_args", "custom_codex_args must be a list containing only strings."
-    if any(not item or "\x00" in item for item in value):
-        return "invalid_custom_codex_args", "custom_codex_args entries must be nonempty strings without NUL characters."
-
-    index = 0
-    while index < len(value):
-        argument = value[index]
-        if argument in ("-m", "--model") or (argument.startswith("-m") and not argument.startswith("--")) or argument.startswith("--model="):
-            return "conflicting_custom_codex_args", "custom_codex_args must not override model; use the structured model field."
-
-        assignment = None
-        if argument in ("-c", "--config"):
-            if index + 1 >= len(value):
-                return "invalid_custom_codex_args", "-c and --config in custom_codex_args require a following key=value argument."
-            assignment = value[index + 1]
-            index += 1
-        elif argument.startswith("--config="):
-            assignment = argument[len("--config=") :]
-        elif argument.startswith("-c") and not argument.startswith("--"):
-            assignment = argument[2:]
-            if assignment.startswith("="):
-                assignment = assignment[1:]
-
-        if assignment is not None:
-            key, separator, _configured_value = assignment.partition("=")
-            key = key.strip()
-            if not separator or not key:
-                return "invalid_custom_codex_args", "Codex config overrides in custom_codex_args must use key=value syntax."
-            if _reserved_config_key(key):
-                return "conflicting_custom_codex_args", "custom_codex_args must not override reserved config key {!r}; use its structured action field.".format(key)
-        index += 1
-    return None, None
+    return validation.contains_disallowed_single_line_character(value)
 
 
 def _has_manual_no_edits_prefix(prompt):
@@ -324,10 +258,10 @@ def _origin_diagnostic(field_origins, definition_origin, implicated_fields, acti
 def _validate_prompt_variables(prompt_vars, prompt, field_origins, definition_origin, action, language, diagnostics):
     """Validate declaration/use agreement in one materialized prompt."""
     declared = set(prompt_vars)
-    used = set(PLACEHOLDER_PATTERN.findall(prompt))
-    missing_from_prompt = sorted(declared - used, key=lambda value: value.encode("ascii"))
+    used = {placeholder[1:-1] for placeholder in PLACEHOLDER_PATTERN.findall(prompt)}
+    missing_from_prompt = sorted(declared - used, key=diagnostics_module.unicode_sort_key)
     undeclared = sorted(used - declared, key=lambda value: value.encode("ascii"))
-    for placeholder in missing_from_prompt:
+    for name in missing_from_prompt:
         diagnostics.append(
             _origin_diagnostic(
                 field_origins,
@@ -336,22 +270,167 @@ def _validate_prompt_variables(prompt_vars, prompt, field_origins, definition_or
                 action,
                 language,
                 "unused_prompt_variable",
-                "Declared placeholder {} does not occur in the materialized prompt.".format(placeholder),
+                "Declared prompt variable {} does not occur as %{}% in the materialized prompt.".format(name, name),
             )
         )
-    for placeholder in undeclared:
+    for name in undeclared:
         diagnostics.append(
             _origin_diagnostic(
-                field_origins, definition_origin, ("prompt_vars", "prompt"), action, language, "undeclared_prompt_variable", "Prompt placeholder {} is not declared in prompt_vars.".format(placeholder)
+                field_origins,
+                definition_origin,
+                ("prompt_vars", "prompt"),
+                action,
+                language,
+                "undeclared_prompt_variable",
+                "Prompt placeholder %{}% has no prompt_vars declaration for variable {}.".format(name, name),
             )
         )
+
+
+def _validate_gloss_field(_field, value):
+    """Return any local gloss validation issues."""
+    if not isinstance(value, str) or not value.strip() or _contains_display_control(value):
+        return [("invalid_gloss", "gloss must be a nonempty single-line string without Unicode control or separator characters.")]
+    return []
+
+
+def _validate_model_field(_field, value):
+    """Return any local model validation issues."""
+    if not validation.valid_model(value):
+        return [("invalid_model", "model must be exactly 'default' or match {} without trimming.".format(validation.MODEL_REGEX))]
+    return []
+
+
+def _validate_effort_field(field, value):
+    """Return any local reasoning-effort validation issues."""
+    if not validation.valid_effort(value):
+        return [("invalid_effort", "{} must match {} without trimming.".format(field, validation.EFFORT_REGEX))]
+    return []
+
+
+def _validate_boolean_field(field, value):
+    """Return any local Boolean validation issues."""
+    if type(value) is not bool:
+        return [("invalid_boolean", "{} must be a JSON Boolean.".format(field))]
+    return []
+
+
+def _validate_interactivity_field(_field, value):
+    """Return any local interactivity validation issues."""
+    if not validation.valid_interactivity(value):
+        return [("invalid_interactivity", "interactive must be exactly 'allowed', 'preferred', or 'required'.")]
+    return []
+
+
+def _validate_prompt_vars_field(_field, value):
+    """Return any local prompt-variable validation issues."""
+    if not isinstance(value, dict):
+        return [("invalid_prompt_vars", "prompt_vars must be an object.")]
+    issues = []
+    for name, description in value.items():
+        if not isinstance(name, str) or not validation.full_match(VARIABLE_NAME_PATTERN, name):
+            issues.append(("invalid_variable_name", "Prompt variable names must match {}.".format(VARIABLE_NAME_REGEX)))
+        if not isinstance(description, str) or not description.strip() or _contains_display_control(description):
+            issues.append(("invalid_variable_description", "Every prompt variable description must be a nonempty single-line string without Unicode control or separator characters."))
+    return issues
+
+
+def _validate_prompt_field(_field, value):
+    """Return any local prompt validation issues."""
+    if not isinstance(value, str) or not value.strip() or "\x00" in value or validation.contains_surrogate(value):
+        return [("invalid_prompt", "prompt must be a nonempty string without NUL or Unicode surrogate characters after trimming.")]
+    return []
+
+
+def _validate_custom_codex_args_field(_field, value):
+    """Return any local custom Codex argument validation issues."""
+    code, message = validation.validate_action_codex_args(value)
+    return [] if code is None else [(code, message)]
+
+
+def _validate_notes_field(_field, value):
+    """Return any local notes validation issues."""
+    if not isinstance(value, str) or validation.contains_surrogate(value):
+        return [("invalid_notes", "notes must be a string without Unicode surrogate characters.")]
+    return []
+
+
+_FIELD_VALIDATORS = {
+    "gloss": _validate_gloss_field,
+    "model": _validate_model_field,
+    "reasoning_effort": _validate_effort_field,
+    "goal_mode": _validate_boolean_field,
+    "plan_mode": _validate_boolean_field,
+    "plan_reasoning_effort": _validate_effort_field,
+    "no_edits": _validate_boolean_field,
+    "prompt_vars": _validate_prompt_vars_field,
+    "prompt": _validate_prompt_field,
+    "interactive": _validate_interactivity_field,
+    "custom_codex_args": _validate_custom_codex_args_field,
+    "notes": _validate_notes_field,
+}
+
+if frozenset(_FIELD_VALIDATORS) != validation.ACTION_FIELD_SET:
+    raise RuntimeError("Action field validators must exactly cover ACTION_FIELDS.")
+
+
+def _conflicting_modes_issue(fields):
+    """Return the goal/plan conflict issue when both modes are enabled."""
+    if fields.get("goal_mode") is True and fields.get("plan_mode") is True:
+        return ("goal_mode", "plan_mode"), "conflicting_modes", "goal_mode and plan_mode cannot both be true."
+    return None
+
+
+def _plan_interactivity_issue(fields):
+    """Return the plan interactivity issue when required mode is absent."""
+    if fields.get("plan_mode") is True and "interactive" in fields and fields["interactive"] != "required":
+        return ("plan_mode", "interactive"), "plan_requires_interactive", "Plan-mode actions require interactive to be 'required'."
+    return None
+
+
+def _plan_no_edits_issue(fields):
+    """Return the plan edit-policy issue when no_edits is not true."""
+    if fields.get("plan_mode") is True and "no_edits" in fields and fields["no_edits"] is not True:
+        return ("plan_mode", "no_edits"), "plan_requires_no_edits", "Plan-mode actions require no_edits to be true."
+    return None
+
+
+def _non_plan_effort_issue(fields):
+    """Return the effort mismatch issue for non-plan actions."""
+    if fields.get("plan_mode") is False and "reasoning_effort" in fields and "plan_reasoning_effort" in fields and fields["reasoning_effort"] != fields["plan_reasoning_effort"]:
+        return (
+            ("plan_mode", "reasoning_effort", "plan_reasoning_effort"),
+            "unequal_efforts_without_plan",
+            "reasoning_effort and plan_reasoning_effort must be equal when plan_mode is false.",
+        )
+    return None
+
+
+def _manual_no_edits_issue(fields):
+    """Return the duplicate no-edits prefix issue when present."""
+    if fields.get("no_edits") is True and isinstance(fields.get("prompt"), str) and _has_manual_no_edits_prefix(fields["prompt"]):
+        return (
+            ("no_edits", "prompt"),
+            "manual_no_edits_prefix",
+            "Remove the manual 'No edits.' prefix; rendering adds it automatically when no_edits is true.",
+        )
+    return None
+
+
+_CROSS_FIELD_VALIDATORS = (
+    _conflicting_modes_issue,
+    _plan_interactivity_issue,
+    _plan_no_edits_issue,
+    _non_plan_effort_issue,
+    _manual_no_edits_issue,
+)
 
 
 def _validate_fields(fields, field_origins, definition_origin, action, language, complete):
     """Validate supplied fields locally or a fully materialized action."""
     diagnostics = []
     selector = "{}[{}]".format(action, language)
-    unknown = sorted(set(fields) - ACTION_FIELD_SET, key=lambda value: diagnostics_module.unicode_sort_key(str(value)))
+    unknown = sorted(set(fields) - validation.ACTION_FIELD_SET, key=lambda value: diagnostics_module.unicode_sort_key(str(value)))
     diagnostics.extend(
         _origin_diagnostic(field_origins, definition_origin, (field,), action, language, "unknown_action_field", "Unknown version 1 action field {!r}.".format(field)) for field in unknown
     )
@@ -359,7 +438,7 @@ def _validate_fields(fields, field_origins, definition_origin, action, language,
         return diagnostics
 
     if complete:
-        missing = [field for field in ACTION_FIELDS if field not in fields]
+        missing = [field for field in validation.ACTION_FIELDS if field not in fields]
         if missing:
             diagnostics.append(
                 _origin_diagnostic(field_origins, definition_origin, (), action, language, "incomplete_action", "Materialized {} is missing required fields: {}.".format(selector, ", ".join(missing)))
@@ -367,85 +446,14 @@ def _validate_fields(fields, field_origins, definition_origin, action, language,
             return diagnostics
 
     for field, value in fields.items():
-        if field == "gloss":
-            if not isinstance(value, str) or not value.strip() or _contains_display_control(value):
-                diagnostics.append(
-                    _origin_diagnostic(
-                        field_origins, definition_origin, (field,), action, language, "invalid_gloss", "gloss must be a nonempty single-line string without Unicode control or separator characters."
-                    )
-                )
-        elif field == "model":
-            if not isinstance(value, str) or (value != "default" and not _full_match(MODEL_PATTERN, value)):
-                diagnostics.append(
-                    _origin_diagnostic(
-                        field_origins, definition_origin, (field,), action, language, "invalid_model", "model must be exactly 'default' or match {} without trimming.".format(MODEL_REGEX)
-                    )
-                )
-        elif field in ("reasoning_effort", "plan_reasoning_effort"):
-            if not isinstance(value, str) or not _full_match(EFFORT_PATTERN, value):
-                diagnostics.append(_origin_diagnostic(field_origins, definition_origin, (field,), action, language, "invalid_effort", "{} must match {} without trimming.".format(field, EFFORT_REGEX)))
-        elif field in ("goal_mode", "plan_mode", "no_edits", "prefer_interactive"):
-            if type(value) is not bool:
-                diagnostics.append(_origin_diagnostic(field_origins, definition_origin, (field,), action, language, "invalid_boolean", "{} must be a JSON Boolean.".format(field)))
-        elif field == "prompt_vars":
-            if not isinstance(value, dict):
-                diagnostics.append(_origin_diagnostic(field_origins, definition_origin, (field,), action, language, "invalid_prompt_vars", "prompt_vars must be an object."))
-            else:
-                for placeholder, description in value.items():
-                    if not isinstance(placeholder, str) or not _full_match(PLACEHOLDER_PATTERN, placeholder):
-                        diagnostics.append(
-                            _origin_diagnostic(field_origins, definition_origin, (field,), action, language, "invalid_placeholder", "Prompt variable keys must match {}.".format(PLACEHOLDER_REGEX))
-                        )
-                    if not isinstance(description, str) or not description.strip() or _contains_display_control(description):
-                        diagnostics.append(
-                            _origin_diagnostic(
-                                field_origins,
-                                definition_origin,
-                                (field,),
-                                action,
-                                language,
-                                "invalid_placeholder_description",
-                                "Every prompt variable description must be a nonempty single-line string without Unicode control or separator characters.",
-                            )
-                        )
-        elif field == "prompt":
-            if not isinstance(value, str) or not value.strip():
-                diagnostics.append(_origin_diagnostic(field_origins, definition_origin, (field,), action, language, "invalid_prompt", "prompt must be a nonempty string after trimming."))
-        elif field == "custom_codex_args":
-            code, message = _validate_custom_codex_args(value)
-            if code is not None:
-                diagnostics.append(_origin_diagnostic(field_origins, definition_origin, (field,), action, language, code, message))
-        elif field == "notes" and not isinstance(value, str):
-            diagnostics.append(_origin_diagnostic(field_origins, definition_origin, (field,), action, language, "invalid_notes", "notes must be a string."))
+        for code, message in _FIELD_VALIDATORS[field](field, value):
+            diagnostics.append(_origin_diagnostic(field_origins, definition_origin, (field,), action, language, code, message))
 
-    goal_mode = fields.get("goal_mode")
-    plan_mode = fields.get("plan_mode")
-    if goal_mode is True and plan_mode is True:
-        diagnostics.append(_origin_diagnostic(field_origins, definition_origin, ("goal_mode", "plan_mode"), action, language, "conflicting_modes", "goal_mode and plan_mode cannot both be true."))
-    if plan_mode is False and "reasoning_effort" in fields and "plan_reasoning_effort" in fields and fields["reasoning_effort"] != fields["plan_reasoning_effort"]:
-        diagnostics.append(
-            _origin_diagnostic(
-                field_origins,
-                definition_origin,
-                ("plan_mode", "reasoning_effort", "plan_reasoning_effort"),
-                action,
-                language,
-                "unequal_efforts_without_plan",
-                "reasoning_effort and plan_reasoning_effort must be equal when plan_mode is false.",
-            )
-        )
-    if fields.get("no_edits") is True and isinstance(fields.get("prompt"), str) and _has_manual_no_edits_prefix(fields["prompt"]):
-        diagnostics.append(
-            _origin_diagnostic(
-                field_origins,
-                definition_origin,
-                ("no_edits", "prompt"),
-                action,
-                language,
-                "manual_no_edits_prefix",
-                "Remove the manual 'No edits.' prefix; rendering adds it automatically when no_edits is true.",
-            )
-        )
+    for validator in _CROSS_FIELD_VALIDATORS:
+        issue = validator(fields)
+        if issue is not None:
+            implicated_fields, code, message = issue
+            diagnostics.append(_origin_diagnostic(field_origins, definition_origin, implicated_fields, action, language, code, message))
     if complete and isinstance(fields.get("prompt_vars"), dict) and isinstance(fields.get("prompt"), str):
         _validate_prompt_variables(fields["prompt_vars"], fields["prompt"], field_origins, definition_origin, action, language, diagnostics)
     return diagnostics
@@ -498,7 +506,7 @@ def _apply_file(data, source, filename, patches, diagnostics):
             continue
         try:
             action, language = parse_ignore_selector(ignore_selector)
-        except CatalogRequestError:
+        except PerformRequestError:
             diagnostics.append(
                 _file_diagnostic(
                     source, filename, "invalid_ignore_selector", "Invalid ignore selector {!r}; expected ACTION or ACTION[LANGUAGE].".format(ignore_selector), json_path=path, fatality="nonfatal"
@@ -585,12 +593,15 @@ def _apply_file(data, source, filename, patches, diagnostics):
 def _materialize(patches, diagnostics):
     """Apply agnostic inheritance and final validation to accumulated patches."""
     actions = {}
-    action_names = sorted({identity[0] for identity in patches}, key=lambda value: value.encode("ascii"))
-    for action in action_names:
-        languages = sorted((identity[1] for identity in patches if identity[0] == action), key=lambda value: value.encode("ascii"))
-        base = patches.get((action, "agnostic"))
+    patches_by_action = {}
+    for (action, language), patch in patches.items():
+        patches_by_action.setdefault(action, {})[language] = patch
+    for action in sorted(patches_by_action, key=lambda value: value.encode("ascii")):
+        action_patches = patches_by_action[action]
+        languages = sorted(action_patches, key=lambda value: value.encode("ascii"))
+        base = action_patches.get("agnostic")
         for language in languages:
-            patch = patches[(action, language)]
+            patch = action_patches[language]
             if language == "agnostic":
                 fields = copy.deepcopy(patch.fields)
                 field_origins = dict(patch.field_origins)
@@ -623,7 +634,7 @@ class ActionCatalog:
     def list_actions(self, name=None):
         """Return all summaries or variants of one exact bare action name."""
         if name is not None and not is_action_name(name):
-            raise CatalogRequestError("invalid_name", "Action-name filters must match {}.".format(ACTION_NAME_REGEX))
+            raise PerformRequestError("invalid_name", "Action-name filters must match {}.".format(ACTION_NAME_REGEX))
         summaries = [action.summary() for action in self._actions.values() if name is None or action.name == name]
         if name is None or name == "help":
             summaries.append(ActionSummary("help", "agnostic", HELP_GLOSS, {}))
@@ -632,10 +643,10 @@ class ActionCatalog:
     def _require_complete_precedence(self):
         """Reject prompt-sensitive operations when an override source is unknowable."""
         if self.precedence_incomplete:
-            raise CatalogRequestError("fatal_catalog", "Catalog precedence is incomplete; fix the fatal discovery or file diagnostic before inspecting or rendering an action.")
+            raise PerformRequestError("fatal_catalog", "Catalog precedence is incomplete; fix the fatal discovery or file diagnostic before inspecting or rendering an action.")
 
-    def inspect(self, selector):
-        """Return the exact effective base prompt for one strict selector."""
+    def _resolve_action(self, selector):
+        """Resolve one strict selector without constructing derived prompt data."""
         name, language, canonical = parse_selector(selector)
         if canonical == HELP_SELECTOR:
             return BuiltInHelpResult()
@@ -643,16 +654,35 @@ class ActionCatalog:
         action = self._actions.get((name, language))
         if action is None:
             alternatives = [summary.selector for summary in self.list_actions(name=name)]
-            raise CatalogRequestError("not_found", "No effective action matches strict selector {}.".format(canonical), alternatives=alternatives)
+            raise PerformRequestError("not_found", "No effective action matches strict selector {}.".format(canonical), alternatives=alternatives)
+        return action
+
+    def inspect(self, selector):
+        """Return the exact effective base prompt for one strict selector."""
+        action = self._resolve_action(selector)
+        if isinstance(action, BuiltInHelpResult):
+            return action
         return ActionInspection(action, rendering.build_base_prompt(action.fields["prompt"], action.fields["no_edits"]))
+
+    def launch_config(self, selector):
+        """Return every effective field needed by a standalone launcher."""
+        action = self._resolve_action(selector)
+        if isinstance(action, BuiltInHelpResult):
+            raise PerformRequestError("not_executable", "The immutable built-in help action has no launch configuration.")
+        return launching_module.ActionLaunchConfig(action)
 
     def render(self, selector, variables, qualification=None):
         """Render one exact action after binding and qualification validation."""
-        inspection = self.inspect(selector)
-        if isinstance(inspection, BuiltInHelpResult):
-            raise CatalogRequestError("not_executable", "The immutable built-in help action cannot be rendered; inspect it instead.")
-        prompt, normalized_qualification = rendering.render_prompt(inspection.action.fields, variables, PLACEHOLDER_PATTERN, qualification)
-        return RenderedAction(inspection.action, prompt, normalized_qualification)
+        action = self._resolve_action(selector)
+        if isinstance(action, BuiltInHelpResult):
+            raise PerformRequestError("not_executable", "The immutable built-in help action cannot be rendered; inspect it instead.")
+        prompt, normalized_qualification = rendering.render_prompt(action.fields, variables, PLACEHOLDER_PATTERN, qualification)
+        return RenderedAction(action, prompt, normalized_qualification)
+
+    def prepare_launch(self, selector, variables, qualification=None):
+        """Render one action and retain its complete launcher configuration."""
+        rendered = self.render(selector, variables, qualification=qualification)
+        return launching_module.ActionLaunchSpec(launching_module.ActionLaunchConfig(rendered.action), rendered.prompt, rendered.qualification)
 
 
 def _list_source_files(source, diagnostics):
@@ -693,7 +723,7 @@ def _list_source_files(source, diagnostics):
     return [name for _encoded, name in sorted(filenames, key=lambda item: item[0])]
 
 
-def load_action_catalog(bundled_dir=None, cwd=None, env=None, action_directories=None, filesystem=None, git_runner=None, system_config_path="/etc/codex/config.toml"):
+def load_action_catalog(bundled_dir=None, cwd=None, env=None, action_directories=None, filesystem=None, git_runner=None, system_actions_dir="/etc/codex/toolkit_perform_actions"):
     """Discover or explicitly load action directories into one effective catalog."""
     if action_directories is not None:
         discovery = discovery_module.explicit_discovery(action_directories)
@@ -706,7 +736,7 @@ def load_action_catalog(bundled_dir=None, cwd=None, env=None, action_directories
             env=env,
             filesystem=filesystem,
             git_runner=git_runner,
-            system_config_path=system_config_path,
+            system_actions_dir=system_actions_dir,
         )
     patches = {}
     diagnostics = []

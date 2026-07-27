@@ -13,6 +13,7 @@ from conftest import SCRIPTS_ROOT
 
 LIST_SCRIPT = SCRIPTS_ROOT / "list_perform_actions.py"
 GET_SCRIPT = SCRIPTS_ROOT / "get_perform_action.py"
+CATALOGUE_SCRIPT = SCRIPTS_ROOT / "write_perform_action_catalogue.py"
 REMOVED_OUTPUT_KEYS = {
     "schema_version",
     "status",
@@ -25,7 +26,7 @@ REMOVED_OUTPUT_KEYS = {
     "model",
     "reasoning_effort",
     "plan_reasoning_effort",
-    "prefer_interactive",
+    "interactive",
     "custom_codex_args",
     "goal_mode",
     "plan_mode",
@@ -85,7 +86,7 @@ def assert_removed_keys_absent(value):
 
 
 def test_scripts_have_portable_shebang_and_executable_mode():
-    for script in (LIST_SCRIPT, GET_SCRIPT):
+    for script in (LIST_SCRIPT, GET_SCRIPT, CATALOGUE_SCRIPT):
         assert script.read_text(encoding="utf-8").startswith("#!/usr/bin/env python3\n")
         assert script.stat().st_mode & stat.S_IXUSR
 
@@ -95,6 +96,7 @@ def test_scripts_have_portable_shebang_and_executable_mode():
     [
         (LIST_SCRIPT, ["--name=first", "--name=second", "--invalid", "--help", "-h"], "--fallback"),
         (GET_SCRIPT, ["--inspect=first[agnostic]", "--inspect=second[agnostic]", "--invalid", "-h", "--help"], "--qualification"),
+        (CATALOGUE_SCRIPT, ["--output=first", "--output=second", "--invalid", "-h", "--help"], "--output"),
     ],
 )
 def test_help_is_compact_json_and_always_short_circuits(tmp_path, script, mixed_arguments, documented_option):
@@ -119,13 +121,13 @@ def test_listing_is_one_compact_json_line(tmp_path):
     assert completed.returncode == 0
     assert completed.stderr == b""
     assert b'"variants":[' in completed.stdout
-    assert {variant["selector"] for variant in response["variants"]} >= {"find-todos[agnostic]", "help[agnostic]", "md-goal[agnostic]"}
+    assert {variant["selector"] for variant in response["variants"]} >= {"exec-md-goal[agnostic]", "find-todos[agnostic]", "help[agnostic]"}
     assert next(variant for variant in response["variants"] if variant["selector"] == "find-todos[agnostic]") == {
         "selector": "find-todos[agnostic]",
         "gloss": "Enumerate all kinds of discernible TODOs in a repo",
     }
-    assert next(variant for variant in response["variants"] if variant["selector"] == "md-goal[agnostic]")["prompt_vars"] == {
-        "%MarkdownPlanFile%": "Markdown file containing details of the plan to implement."
+    assert next(variant for variant in response["variants"] if variant["selector"] == "exec-md-goal[agnostic]")["prompt_vars"] == {
+        "MarkdownPlanFile": "Markdown file containing details of the plan to implement."
     }
     assert_removed_keys_absent(response)
 
@@ -141,14 +143,13 @@ def test_name_filter_and_one_call_fallback(tmp_path):
     assert "find-todos[agnostic]" in [variant["selector"] for variant in fallback["variants"]]
 
 
-def test_name_filter_miss_without_fallback_is_compact_error(tmp_path):
+def test_name_filter_miss_without_fallback_is_empty_success(tmp_path):
     cwd = tmp_path / "outside"
     cwd.mkdir()
     completed = run_script(LIST_SCRIPT, ["--name=missing"], cwd, clean_environment(tmp_path))
     response = parse_stdout(completed)
-    assert completed.returncode == 2
-    assert response["error"]["code"] == "not_found"
-    assert set(response) == {"error"}
+    assert completed.returncode == 0
+    assert response == {"variants": []}
 
 
 @pytest.mark.parametrize(
@@ -157,15 +158,17 @@ def test_name_filter_miss_without_fallback_is_compact_error(tmp_path):
         (LIST_SCRIPT, ["--name=Not Valid"], "invalid_name"),
         (LIST_SCRIPT, ["--fallback"], "invalid_arguments"),
         (GET_SCRIPT, [], "invalid_arguments"),
-        (GET_SCRIPT, ["--inspect=find-todos[agnostic]", "--var=%X%=x"], "invalid_arguments"),
+        (GET_SCRIPT, ["--inspect=find-todos[agnostic]", "--var=X=x"], "invalid_arguments"),
         (GET_SCRIPT, ["--render=find-todos[agnostic]", "--var=malformed"], "invalid_variable_argument"),
-        (GET_SCRIPT, ["--render=find-todos[agnostic]", "--var=%X%=one", "--var=%X%=two"], "duplicate_variable_argument"),
+        (GET_SCRIPT, ["--render=find-todos[agnostic]", "--var=X=one", "--var=X=two"], "duplicate_variable_argument"),
+        (GET_SCRIPT, ["--render=find-todos[agnostic]", "--var=%X%=one"], "invalid_variable_argument"),
         (GET_SCRIPT, ["--inspect=find-todos[agnostic]", "--json"], "invalid_arguments"),
         (GET_SCRIPT, ["--request-json=-"], "invalid_arguments"),
         (LIST_SCRIPT, ["--nam=find-todos"], "invalid_arguments"),
         (LIST_SCRIPT, ["--fall"], "invalid_arguments"),
         (GET_SCRIPT, ["--ins=find-todos[agnostic]"], "invalid_arguments"),
         (GET_SCRIPT, ["--render=find-todos[agnostic]", "--qual=tools"], "invalid_arguments"),
+        (CATALOGUE_SCRIPT, ["--out=actions.md"], "invalid_arguments"),
     ],
 )
 def test_invalid_direct_arguments_are_json_errors(tmp_path, script, arguments, code):
@@ -183,10 +186,12 @@ def test_invalid_direct_arguments_are_json_errors(tmp_path, script, arguments, c
         (LIST_SCRIPT, ["--name=first", "--name=second"]),
         (LIST_SCRIPT, ["--name=first", "--fallback", "--fallback"]),
         (LIST_SCRIPT, ["--cwd=/first", "--cwd=/second"]),
-        (GET_SCRIPT, ["--inspect=find-todos[agnostic]", "--inspect=md-goal[agnostic]"]),
-        (GET_SCRIPT, ["--render=find-todos[agnostic]", "--render=md-goal[agnostic]"]),
+        (GET_SCRIPT, ["--inspect=find-todos[agnostic]", "--inspect=exec-md-goal[agnostic]"]),
+        (GET_SCRIPT, ["--render=find-todos[agnostic]", "--render=exec-md-goal[agnostic]"]),
         (GET_SCRIPT, ["--render=find-todos[agnostic]", "--qualification=first", "--qualification=second"]),
         (GET_SCRIPT, ["--inspect=find-todos[agnostic]", "--cwd=/first", "--cwd=/second"]),
+        (CATALOGUE_SCRIPT, ["--output=/first", "--output=/second"]),
+        (CATALOGUE_SCRIPT, ["--cwd=/first", "--cwd=/second"]),
     ],
 )
 def test_singleton_arguments_cannot_repeat(tmp_path, script, arguments):
@@ -223,12 +228,12 @@ def test_get_accepts_only_canonical_strict_selectors(tmp_path, selector):
 def test_inspect_output_contains_only_prompt_mode_variables_and_nonempty_notes(tmp_path):
     cwd = tmp_path / "outside"
     cwd.mkdir()
-    completed = run_script(GET_SCRIPT, ["--inspect=md-goal[agnostic]"], cwd, clean_environment(tmp_path))
+    completed = run_script(GET_SCRIPT, ["--inspect=exec-md-goal[agnostic]"], cwd, clean_environment(tmp_path))
     response = parse_stdout(completed)
     assert completed.returncode == 0
     assert set(response) == {"prompt", "mode", "prompt_vars", "notes"}
     assert response["mode"] == "goal"
-    assert response["prompt_vars"] == {"%MarkdownPlanFile%": "Markdown file containing details of the plan to implement."}
+    assert response["prompt_vars"] == {"MarkdownPlanFile": "Markdown file containing details of the plan to implement."}
     assert response["notes"]
     assert_removed_keys_absent(response)
 
@@ -241,14 +246,31 @@ def test_inspect_omits_empty_optional_fields(tmp_path):
     assert response["mode"] == "default"
 
 
+def test_bundled_cross_platform_action_inspects_and_renders_os_list(tmp_path):
+    cwd = tmp_path / "outside"
+    cwd.mkdir()
+    env = clean_environment(tmp_path)
+    inspection = parse_stdout(run_script(GET_SCRIPT, ["--inspect=check-cross-platform[agnostic]"], cwd, env))
+    assert set(inspection) == {"prompt", "mode", "prompt_vars"}
+    assert inspection["mode"] == "default"
+    assert inspection["prompt"].startswith("No edits. ")
+    assert inspection["prompt_vars"] == {"OSList": "Free-form list of operating systems to assess, including any requested versions or architectures."}
+    os_list = "Linux, macOS, Windows 11 (x86_64)"
+    rendered = parse_stdout(run_script(GET_SCRIPT, ["--render=check-cross-platform[agnostic]", "--var=OSList={}".format(os_list)], cwd, env))
+    assert set(rendered) == {"prompt"}
+    assert rendered["prompt"].startswith("No edits. ")
+    assert os_list in rendered["prompt"]
+    assert "%OSList%" not in rendered["prompt"]
+
+
 def test_direct_render_end_to_end_with_literal_complex_data(tmp_path, complete, file_data, write_file):
     cwd = tmp_path / "outside"
     cwd.mkdir()
     codex_home = tmp_path / "codex-home"
     codex_home.mkdir()
-    user_catalog(codex_home, file_data, write_file, {"shell-data": {"agnostic": complete(prompt_vars={"%Value%": "Literal value"}, prompt="Handle %Value%.", notes="Visible note.")}})
+    user_catalog(codex_home, file_data, write_file, {"shell-data": {"agnostic": complete(prompt_vars={"Value": "Literal value"}, prompt="Handle %Value%.", notes="Visible note.")}})
     value = "quotes '` $() ; \\ \u03bb=equals\n--next"
-    arguments = ["--render=shell-data[agnostic]", "--var=%Value%={}".format(value), "--qualification=Restrict %Value% literally."]
+    arguments = ["--render=shell-data[agnostic]", "--var=Value={}".format(value), "--qualification=Restrict %Value% literally."]
     completed = run_script(GET_SCRIPT, arguments, cwd, clean_environment(tmp_path, codex_home))
     response = parse_stdout(completed)
     assert completed.returncode == 0
@@ -273,8 +295,8 @@ def test_direct_variable_values_remain_literal(tmp_path, complete, file_data, wr
     cwd.mkdir()
     codex_home = tmp_path / "codex-home"
     codex_home.mkdir()
-    user_catalog(codex_home, file_data, write_file, {"data": {"agnostic": complete(prompt_vars={"%Value%": "Value"}, prompt="Value=%Value%")}})
-    completed = run_script(GET_SCRIPT, ["--render=data[agnostic]", "--var=%Value%={}".format(value)], cwd, clean_environment(tmp_path, codex_home))
+    user_catalog(codex_home, file_data, write_file, {"data": {"agnostic": complete(prompt_vars={"Value": "Value"}, prompt="Value=%Value%")}})
+    completed = run_script(GET_SCRIPT, ["--render=data[agnostic]", "--var=Value={}".format(value)], cwd, clean_environment(tmp_path, codex_home))
     assert completed.returncode == 0
     assert parse_stdout(completed) == {"prompt": "Value=" + value}
 
@@ -284,8 +306,8 @@ def test_distinct_repeated_variable_arguments_remain_supported(tmp_path, complet
     cwd.mkdir()
     codex_home = tmp_path / "codex-home"
     codex_home.mkdir()
-    user_catalog(codex_home, file_data, write_file, {"data": {"agnostic": complete(prompt_vars={"%A%": "First", "%B%": "Second"}, prompt="%A% then %B%")}})
-    completed = run_script(GET_SCRIPT, ["--render=data[agnostic]", "--var=%A%=one", "--var=%B%=two"], cwd, clean_environment(tmp_path, codex_home))
+    user_catalog(codex_home, file_data, write_file, {"data": {"agnostic": complete(prompt_vars={"A": "First", "B": "Second"}, prompt="%A% then %B%")}})
+    completed = run_script(GET_SCRIPT, ["--render=data[agnostic]", "--var=A=one", "--var=B=two"], cwd, clean_environment(tmp_path, codex_home))
     assert completed.returncode == 0
     assert parse_stdout(completed) == {"prompt": "one then two"}
 
@@ -295,10 +317,10 @@ def test_shell_like_direct_values_never_execute(tmp_path, complete, file_data, w
     cwd.mkdir()
     codex_home = tmp_path / "codex-home"
     codex_home.mkdir()
-    user_catalog(codex_home, file_data, write_file, {"shell-data": {"agnostic": complete(prompt_vars={"%Value%": "Value"}, prompt="Use %Value%.")}})
+    user_catalog(codex_home, file_data, write_file, {"shell-data": {"agnostic": complete(prompt_vars={"Value": "Value"}, prompt="Use %Value%.")}})
     marker = cwd / "must-not-exist"
     malicious = "$(touch {}) `touch {}` ; $HOME".format(marker, marker)
-    completed = run_script(GET_SCRIPT, ["--render=shell-data[agnostic]", "--var=%Value%={}".format(malicious)], cwd, clean_environment(tmp_path, codex_home))
+    completed = run_script(GET_SCRIPT, ["--render=shell-data[agnostic]", "--var=Value={}".format(malicious)], cwd, clean_environment(tmp_path, codex_home))
     assert completed.returncode == 0
     assert marker.exists() is False
     assert malicious in parse_stdout(completed)["prompt"]
@@ -309,11 +331,11 @@ def test_documented_posix_quoting_keeps_shell_like_values_literal(tmp_path, comp
     cwd.mkdir()
     codex_home = tmp_path / "codex-home"
     codex_home.mkdir()
-    user_catalog(codex_home, file_data, write_file, {"shell-data": {"agnostic": complete(prompt_vars={"%Value%": "Value"}, prompt="Use %Value%.")}})
+    user_catalog(codex_home, file_data, write_file, {"shell-data": {"agnostic": complete(prompt_vars={"Value": "Value"}, prompt="Use %Value%.")}})
     marker = cwd / "must-not-exist"
     value = "quotes ' $(touch {}) `touch {}` ; $HOME\n--leading-option".format(marker, marker)
     qualification = "Keep ' $(touch {}) `touch {}` ; literal.".format(marker, marker)
-    arguments = [str(GET_SCRIPT.resolve()), "--render=shell-data[agnostic]", "--var=%Value%={}".format(value), "--qualification={}".format(qualification)]
+    arguments = [str(GET_SCRIPT.resolve()), "--render=shell-data[agnostic]", "--var=Value={}".format(value), "--qualification={}".format(qualification)]
     command = " ".join(posix_single_quote(argument) for argument in arguments)
     completed = subprocess.run(["sh", "-c", command], cwd=str(cwd), env=clean_environment(tmp_path, codex_home), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
     assert completed.returncode == 0
@@ -333,7 +355,7 @@ def test_option_like_qualification_is_data(tmp_path):
 def test_render_requires_every_declared_direct_variable(tmp_path):
     cwd = tmp_path / "outside"
     cwd.mkdir()
-    completed = run_script(GET_SCRIPT, ["--render=md-goal[agnostic]"], cwd, clean_environment(tmp_path))
+    completed = run_script(GET_SCRIPT, ["--render=exec-md-goal[agnostic]"], cwd, clean_environment(tmp_path))
     assert completed.returncode == 2
     assert parse_stdout(completed)["error"]["code"] == "missing_variables"
 
@@ -343,8 +365,8 @@ def test_render_rejects_an_empty_substituted_main_prompt(tmp_path, complete, fil
     cwd.mkdir()
     codex_home = tmp_path / "codex-home"
     codex_home.mkdir()
-    user_catalog(codex_home, file_data, write_file, {"blank": {"agnostic": complete(prompt_vars={"%Value%": "Value"}, prompt="%Value%")}})
-    completed = run_script(GET_SCRIPT, ["--render=blank[agnostic]", "--var=%Value%= \t"], cwd, clean_environment(tmp_path, codex_home))
+    user_catalog(codex_home, file_data, write_file, {"blank": {"agnostic": complete(prompt_vars={"Value": "Value"}, prompt="%Value%")}})
+    completed = run_script(GET_SCRIPT, ["--render=blank[agnostic]", "--var=Value= \t"], cwd, clean_environment(tmp_path, codex_home))
     assert completed.returncode == 2
     assert parse_stdout(completed)["error"]["code"] == "empty_rendered_prompt"
 
@@ -362,7 +384,7 @@ def test_scripts_emit_literal_utf8_under_ascii_stdout(tmp_path, complete, file_d
             "unicode": {
                 "agnostic": complete(
                     gloss="Unicode \u03bb action",
-                    prompt_vars={"%Value%": "Unicode \u03bb value"},
+                    prompt_vars={"Value": "Unicode \u03bb value"},
                     prompt="Handle %Value% and \u03bb.",
                     notes="Unicode \u03bb note.",
                 )
@@ -373,7 +395,7 @@ def test_scripts_emit_literal_utf8_under_ascii_stdout(tmp_path, complete, file_d
     env["PYTHONIOENCODING"] = "ascii"
     listing = run_script(LIST_SCRIPT, ["--name=unicode"], cwd, env)
     inspection = run_script(GET_SCRIPT, ["--inspect=unicode[agnostic]"], cwd, env)
-    rendered = run_script(GET_SCRIPT, ["--render=unicode[agnostic]", "--var=%Value%=\u03bb", "--qualification=Keep \u03bb literal."], cwd, env)
+    rendered = run_script(GET_SCRIPT, ["--render=unicode[agnostic]", "--var=Value=\u03bb", "--qualification=Keep \u03bb literal."], cwd, env)
     for completed in (listing, inspection, rendered):
         assert completed.returncode == 0
         assert "\u03bb".encode("utf-8") in completed.stdout
@@ -382,7 +404,7 @@ def test_scripts_emit_literal_utf8_under_ascii_stdout(tmp_path, complete, file_d
     assert parse_stdout(rendered)["prompt"] == "Handle \u03bb and \u03bb. BUT: Keep \u03bb literal."
 
 
-def test_scripts_escape_lone_surrogates_as_valid_utf8_json(tmp_path, complete, file_data, write_file):
+def test_scripts_reject_lone_surrogates_as_invalid_action_text(tmp_path, complete, file_data, write_file):
     cwd = tmp_path / "outside"
     cwd.mkdir()
     codex_home = tmp_path / "codex-home"
@@ -392,13 +414,15 @@ def test_scripts_escape_lone_surrogates_as_valid_utf8_json(tmp_path, complete, f
     env = clean_environment(tmp_path, codex_home)
     listing = run_script(LIST_SCRIPT, ["--name=surrogate"], cwd, env)
     inspection = run_script(GET_SCRIPT, ["--inspect=surrogate[agnostic]"], cwd, env)
-    for completed in (listing, inspection):
-        assert completed.returncode == 0
-        assert b"\\ud800" in completed.stdout
-        assert completed.stderr == b""
-        parse_stdout(completed)
-    assert parse_stdout(listing)["variants"][0]["gloss"] == "Gloss " + surrogate
-    assert parse_stdout(inspection)["prompt"] == "Prompt " + surrogate
+    assert listing.returncode == 0
+    listing_payload = parse_stdout(listing)
+    assert listing_payload["variants"] == []
+    assert "Unicode surrogate" in " ".join(listing_payload["diagnostics"])
+    assert inspection.returncode == 2
+    assert inspection.stderr == b""
+    inspection_payload = parse_stdout(inspection)
+    assert inspection_payload["error"]["code"] == "not_found"
+    assert "Unicode surrogate" in " ".join(inspection_payload["diagnostics"])
 
 
 def test_scripts_isolate_lone_surrogates_in_invalid_json_keys(tmp_path, complete, file_data, write_file):
@@ -455,13 +479,76 @@ def test_fatal_explicit_codex_home_allows_partial_listing_but_blocks_inspection(
     assert "prompt" not in inspection_response
 
 
+def test_catalogue_script_writes_absolute_output_and_preserves_identical_file(tmp_path):
+    cwd = tmp_path / "outside"
+    cwd.mkdir()
+    output = tmp_path / "action_catalogue.md"
+    env = clean_environment(tmp_path)
+    first = run_script(CATALOGUE_SCRIPT, ["--output={}".format(output)], cwd, env, executable_direct=True)
+    first_response = parse_stdout(first)
+    first_stat = output.stat()
+    second = run_script(CATALOGUE_SCRIPT, ["--output={}".format(output)], cwd, env)
+    second_response = parse_stdout(second)
+    second_stat = output.stat()
+
+    assert first.returncode == 0
+    assert first.stderr == b""
+    assert first_response["path"] == str(output)
+    assert first_response["changed"] is True
+    assert first_response["action_count"] >= 2
+    assert first_response["variant_count"] >= first_response["action_count"]
+    assert second.returncode == 0
+    assert second_response == {**first_response, "changed": False}
+    assert second_stat.st_ino == first_stat.st_ino
+    assert second_stat.st_mtime_ns == first_stat.st_mtime_ns
+    content = output.read_text(encoding="utf-8")
+    assert content.startswith("<!-- toolkit-perform-action-catalogue:v1 -->\n")
+    assert "| `update-action-catalogue` | `agnostic` |" in content
+    assert "Diagnostic:" not in content
+
+
+def test_catalogue_script_default_and_relative_paths_use_repository_root(tmp_path):
+    repository = tmp_path / "repository"
+    nested = repository / "nested"
+    nested.mkdir(parents=True)
+    (repository / ".git").mkdir()
+    env = clean_environment(tmp_path)
+
+    default = run_script(CATALOGUE_SCRIPT, [], nested, env)
+    default_response = parse_stdout(default)
+    default_path = repository / ".codex" / "toolkit_perform_actions" / "action_catalogue.md"
+    assert default.returncode == 0
+    assert default_response["path"] == str(default_path)
+    assert default_path.is_file()
+
+    docs = repository / "docs"
+    docs.mkdir()
+    relative = run_script(CATALOGUE_SCRIPT, ["--output=docs/actions.md"], nested, env)
+    relative_response = parse_stdout(relative)
+    assert relative.returncode == 0
+    assert relative_response["path"] == str(docs / "actions.md")
+
+
+def test_catalogue_script_refuses_unmarked_output(tmp_path):
+    cwd = tmp_path / "outside"
+    cwd.mkdir()
+    output = tmp_path / "manual.md"
+    output.write_text("manual\n", encoding="ascii")
+    completed = run_script(CATALOGUE_SCRIPT, ["--output={}".format(output)], cwd, clean_environment(tmp_path))
+    response = parse_stdout(completed)
+    assert completed.returncode == 2
+    assert response["error"]["code"] == "unsafe_output"
+    assert output.read_text(encoding="ascii") == "manual\n"
+
+
 def test_absolute_scripts_resolve_adjacent_runtime_and_assets_without_install_or_pythonpath(tmp_path):
     cwd = tmp_path / "outside"
     cwd.mkdir()
     env = clean_environment(tmp_path)
     assert "PYTHONPATH" not in env
     before = set(cwd.iterdir())
-    for script, arguments in ((LIST_SCRIPT, []), (GET_SCRIPT, ["--inspect=find-todos[agnostic]"])):
+    catalogue = tmp_path / "catalogue.md"
+    for script, arguments in ((LIST_SCRIPT, []), (GET_SCRIPT, ["--inspect=find-todos[agnostic]"]), (CATALOGUE_SCRIPT, ["--output={}".format(catalogue)])):
         completed = run_script(script.resolve(), arguments, cwd, env, executable_direct=True)
         assert completed.returncode == 0
         assert parse_stdout(completed)
@@ -476,9 +563,11 @@ def test_builtin_help_is_listed_and_inspected_as_a_normal_result(tmp_path):
     listing = parse_stdout(run_script(LIST_SCRIPT, ["--name=help"], cwd, env))
     get_help = run_script(GET_SCRIPT, ["--inspect=help[agnostic]"], cwd, env)
     response = parse_stdout(get_help)
-    assert listing["variants"] == [{"selector": "help[agnostic]", "gloss": "Explain Perform and its action-file format"}]
+    assert listing["variants"] == [{"selector": "help[agnostic]", "gloss": "Explain Perform action files and launch methods"}]
     assert get_help.returncode == 0
-    assert response == {"help": "Read references/action-files.md for the immutable built-in help action."}
+    assert response == {
+        "help": "Read references/action_files.md for action-file configuration, discovery, layering, and catalogue generation. Read references/codex_skill.md for launching with $toolkit:perform inside Codex. Read references/standalone_cli.md for launching with codex-perform and using its Python API."
+    }
 
 
 def test_builtin_help_cannot_be_rendered(tmp_path):
@@ -498,5 +587,8 @@ def test_builtin_help_remains_available_when_catalog_precedence_is_fatal(tmp_pat
     completed = run_script(GET_SCRIPT, ["--inspect=help[agnostic]"], cwd, env)
     response = parse_stdout(completed)
     assert completed.returncode == 0
-    assert response["help"] == "Read references/action-files.md for the immutable built-in help action."
+    assert (
+        response["help"]
+        == "Read references/action_files.md for action-file configuration, discovery, layering, and catalogue generation. Read references/codex_skill.md for launching with $toolkit:perform inside Codex. Read references/standalone_cli.md for launching with codex-perform and using its Python API."
+    )
     assert response["diagnostics"]

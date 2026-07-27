@@ -1,6 +1,8 @@
 """Language inheritance, overrides, ignores, and precedence tests."""
 
-from conftest import runtime
+import importlib
+
+catalog_module = importlib.import_module("toolkit_perform_runtime.catalog")
 
 
 def listed(catalog, name):
@@ -26,17 +28,17 @@ def test_partial_json_and_yaml_variants_inherit_agnostic(tmp_path, complete, fil
 
 def test_prompt_vars_and_custom_arguments_replace_whole_inherited_fields(tmp_path, complete, file_data, write_file, load_catalog):
     source = tmp_path / "source"
-    base = complete(prompt_vars={"%A%": "A"}, prompt="Use %A%.", custom_codex_args=["--base"])
-    language = {"prompt_vars": {"%B%": "B"}, "prompt": "Use %B%.", "custom_codex_args": ["--language"]}
+    base = complete(prompt_vars={"A": "A"}, prompt="Use %A%.", custom_codex_args=["--search"])
+    language = {"prompt_vars": {"B": "B"}, "prompt": "Use %B%.", "custom_codex_args": ["--no-alt-screen"]}
     write_file(source, file_data(actions={"test": {"agnostic": base, "python": language}}))
     action = load_catalog(source).inspect("test[python]").action
-    assert action.fields["prompt_vars"] == {"%B%": "B"}
-    assert action.fields["custom_codex_args"] == ["--language"]
+    assert action.fields["prompt_vars"] == {"B": "B"}
+    assert action.fields["custom_codex_args"] == ["--no-alt-screen"]
 
 
 def test_complete_specific_implementation_survives_invalid_agnostic(tmp_path, complete, file_data, write_file, load_catalog):
     source = tmp_path / "source"
-    invalid_base = complete(goal_mode=True, plan_mode=True)
+    invalid_base = complete(goal_mode=True, plan_mode=True, no_edits=True, interactive="required")
     write_file(source, file_data(actions={"test": {"agnostic": invalid_base, "python": complete(prompt="Python.")}}))
     catalog = load_catalog(source)
     assert listed(catalog, "test") == ["test[python]"]
@@ -54,7 +56,7 @@ def test_partial_specific_implementation_fails_without_usable_base(tmp_path, fil
 
 def test_specific_prompt_must_replace_inherited_prompt_vars_when_needed(tmp_path, complete, file_data, write_file, load_catalog):
     source = tmp_path / "source"
-    base = complete(prompt_vars={"%A%": "A"}, prompt="Use %A%.")
+    base = complete(prompt_vars={"A": "A"}, prompt="Use %A%.")
     write_file(source, file_data(actions={"test": {"agnostic": base, "python": {"prompt": "No variables."}}}))
     catalog = load_catalog(source)
     assert listed(catalog, "test") == ["test[agnostic]"]
@@ -64,7 +66,7 @@ def test_specific_prompt_must_replace_inherited_prompt_vars_when_needed(tmp_path
 def test_cross_field_invariants_are_rechecked_after_inheritance(tmp_path, complete, file_data, write_file, load_catalog):
     source = tmp_path / "source"
     actions = {
-        "conflicting-modes": {"agnostic": complete(goal_mode=True), "python": {"plan_mode": True}},
+        "conflicting-modes": {"agnostic": complete(goal_mode=True, no_edits=True, interactive="required"), "python": {"plan_mode": True}},
         "unequal-efforts": {"agnostic": complete(), "python": {"plan_reasoning_effort": "high"}},
     }
     write_file(source, file_data(actions=actions))
@@ -73,6 +75,32 @@ def test_cross_field_invariants_are_rechecked_after_inheritance(tmp_path, comple
     assert listed(catalog, "unequal-efforts") == ["unequal-efforts[agnostic]"]
     assert any(diagnostic.code == "conflicting_modes" and diagnostic.selector == "conflicting-modes[python]" for diagnostic in catalog.diagnostics)
     assert any(diagnostic.code == "unequal_efforts_without_plan" and diagnostic.selector == "unequal-efforts[python]" for diagnostic in catalog.diagnostics)
+
+
+def test_plan_interactivity_invariant_is_rechecked_after_inheritance(tmp_path, complete, file_data, write_file, load_catalog):
+    source = tmp_path / "source"
+    actions = {
+        "valid": {"agnostic": complete(interactive="required", no_edits=True), "python": {"plan_mode": True}},
+        "invalid": {"agnostic": complete(interactive="preferred", no_edits=True), "python": {"plan_mode": True}},
+    }
+    write_file(source, file_data(actions=actions))
+    catalog = load_catalog(source)
+    assert listed(catalog, "valid") == ["valid[agnostic]", "valid[python]"]
+    assert listed(catalog, "invalid") == ["invalid[agnostic]"]
+    assert any(diagnostic.code == "plan_requires_interactive" and diagnostic.selector == "invalid[python]" for diagnostic in catalog.diagnostics)
+
+
+def test_plan_no_edits_invariant_is_rechecked_after_inheritance(tmp_path, complete, file_data, write_file, load_catalog):
+    source = tmp_path / "source"
+    actions = {
+        "valid": {"agnostic": complete(interactive="required", no_edits=True), "python": {"plan_mode": True}},
+        "invalid": {"agnostic": complete(interactive="required"), "python": {"plan_mode": True}},
+    }
+    write_file(source, file_data(actions=actions))
+    catalog = load_catalog(source)
+    assert listed(catalog, "valid") == ["valid[agnostic]", "valid[python]"]
+    assert listed(catalog, "invalid") == ["invalid[agnostic]"]
+    assert any(diagnostic.code == "plan_requires_no_edits" and diagnostic.selector == "invalid[python]" for diagnostic in catalog.diagnostics)
 
 
 def test_no_edits_prefix_is_rechecked_after_inheritance(tmp_path, complete, file_data, write_file, load_catalog):
@@ -162,7 +190,7 @@ def test_bundled_system_user_repository_precedence(tmp_path, complete, file_data
         directory = tmp_path / kind
         write_file(directory, file_data(actions={"test": {"agnostic": complete(gloss=kind)}}))
         sources.append((kind, str(directory)))
-    catalog = runtime.load_action_catalog(action_directories=sources)
+    catalog = catalog_module.load_action_catalog(action_directories=sources)
     action = catalog.inspect("test[agnostic]").action
     assert action.fields["gloss"] == "repository"
     assert not hasattr(action, "provenance")
@@ -173,7 +201,7 @@ def test_effective_variant_inherits_base_and_overlays_higher_precedence_fields(t
     user = tmp_path / "user"
     write_file(bundled, file_data(actions={"test": {"agnostic": complete(gloss="Base", model="bundled-model"), "python": {"gloss": "Python"}}}))
     write_file(user, file_data(actions={"test": {"python": {"prompt": "User Python."}}}))
-    catalog = runtime.load_action_catalog(action_directories=[("bundled", str(bundled)), ("user", str(user))])
+    catalog = catalog_module.load_action_catalog(action_directories=[("bundled", str(bundled)), ("user", str(user))])
     action = catalog.inspect("test[python]").action
     assert action.fields["model"] == "bundled-model"
     assert action.fields["gloss"] == "Python"
@@ -184,7 +212,7 @@ def test_materialized_diagnostic_ignores_later_unrelated_override_origin(tmp_pat
     source = tmp_path / "source"
     write_file(
         source,
-        file_data(actions={"test": {"agnostic": complete(prompt_vars={"%X%": "X"}, prompt="Use %X%."), "python": {"prompt_vars": {}}}}),
+        file_data(actions={"test": {"agnostic": complete(prompt_vars={"X": "X"}, prompt="Use %X%."), "python": {"prompt_vars": {}}}}),
         "10-fields.json",
     )
     write_file(source, file_data(actions={"test": {"python": {"gloss": "Later gloss"}}}), "20-gloss.json")
@@ -209,7 +237,7 @@ def test_cross_field_diagnostic_uses_latest_implicated_field_origin(tmp_path, co
 
 def test_cross_field_same_origin_tie_uses_correction_target_path(tmp_path, complete, file_data, write_file, load_catalog):
     source = tmp_path / "source"
-    write_file(source, file_data(actions={"test": {"agnostic": complete(), "python": {"goal_mode": True, "plan_mode": True}}}))
+    write_file(source, file_data(actions={"test": {"agnostic": complete(no_edits=True, interactive="required"), "python": {"goal_mode": True, "plan_mode": True}}}))
     catalog = load_catalog(source)
     diagnostic = next(diagnostic for diagnostic in catalog.diagnostics if diagnostic.code == "conflicting_modes")
     assert diagnostic.json_path == "/actions/test/python/plan_mode"

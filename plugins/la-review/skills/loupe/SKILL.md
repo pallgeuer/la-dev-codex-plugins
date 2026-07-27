@@ -14,6 +14,8 @@ Do not modify repository files, stage changes, commit, install dependencies, or 
 1. Based on the user's specific request, resolve what string you need to pass to `scripts/run_reviewers.py` in order to precisely specify the target review scope:
    - Use `uncommitted changes (staged + unstaged + untracked)` when the user does not provide a specific request.
    - Pass all user-provided scope text through to the script, for example `last two commits`, `HEAD~2..HEAD`, or `PR 123`.
+   - If the user requests a reasoning effort for this Loupe run, keep that instruction out of the review scope and translate it into one or more `--effort KEY=VALUE` options. Provider keys are `claude` and `codex`; reviewer keys are `claude-code-review`, `codex-review`, `codex-correctness`, and `codex-design`. Claude accepts `low`, `medium`, `high`, `xhigh`, or `max`; Codex accepts `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, or `ultra`.
+   - Do not pass an `--effort` option unless the user requests a one-run override. The runner automatically applies any persistent `LOUPE_EFFORT_*` environment configuration.
 
 2. Create a private temporary artifact directory and remember the exact path as `LOUPE_ARTIFACT_DIR` for future commands:
 
@@ -47,16 +49,17 @@ Do not modify repository files, stage changes, commit, install dependencies, or 
 4. Run the `scripts/run_reviewers.py` script that is bundled with this skill exactly once, and with escalated sandbox permissions, writing a copy of the exact stdout to an artifact file via the script's `--output` option:
 
    ```bash
-   <absolute path to>/scripts/run_reviewers.py "<target review scope>" --output "$LOUPE_ARTIFACT_DIR/reviewers.json"
+   <absolute path to>/scripts/run_reviewers.py "<target review scope>" --output "$LOUPE_ARTIFACT_DIR/reviewers.json" [--effort KEY=VALUE ...]
    ```
 
    - The script accepts a single positional argument with text corresponding to the target review scope.
+   - Each repeatable `--effort KEY=VALUE` option applies a one-run provider-wide or reviewer-specific reasoning-effort override.
    - The `--output` option writes exactly the same JSON text that the script emits on stdout.
    - The script has a shebang that ensures it is automatically run with whichever `python3` has highest priority in the current environment's `PATH`.
    - Request `sandbox_permissions: "require_escalated"` for this command, using the justification that the launched child `codex` and `claude` processes need to read and write their normal state to their respective home directory locations (`~/.codex` and `~/.claude`).
    - Run the command and all polling reads with `max_output_tokens` set to `30000`.
    - After `exec_command` returns a `session_id` for the still-running script, poll it using empty `write_stdin` calls. For each poll, set `yield_time_ms` to the longest interval supported by the active `write_stdin` tool and permitted by higher-priority instructions (currently `300000`). Do not voluntarily shorten this interval just to provide more frequent progress updates. Continue polling until the process exits. Use this direct `exec_command`/`write_stdin` flow rather than wrapping it in `exec`.
-   - The script may take a very long time to return (default timeout is 20 minutes). Never kill the script yourself; allow its own timeout to trigger if it takes too long.
+   - The script may take a very long time to return (default timeout is 30 minutes). Never kill the script yourself; allow its own timeout to trigger if it takes too long.
    - The script emits JSON that includes both general and reviewer-specific information, including in particular each reviewer name (`reviewer_name`) and full response (`stdout`).
    - Do not do anything else while waiting for the script to return. Polling waits for process output or completion. When a polling call returns while the script is still running, just say `Continuing to wait for the external reviews...`.
    - If the script exits nonzero, continue with any reviewer output it produced. A timeout or failure of one reviewer must not block you from using the analysis of the remaining reviewers.

@@ -15,11 +15,15 @@ Tests must not be placed inside `plugins/<plugin-name>/` unless a test fixture i
 
 ## Release versioning
 
+Do not bump the repository version or any plugin version during ordinary development or implementation work. Change versions only when the user explicitly requests a version bump or asks to prepare/make an actual release. The rules below govern those explicit versioning and release tasks; they do not authorize automatic development-time bumps.
+
 The repository and every plugin have independent semantic versions. The repository version is declared in `setup.cfg` and `src/la_dev_codex_plugins/__init__.py` and displayed in the opening sentence of `README.md`; all three values must match. Each plugin version is declared in its own `plugins/<plugin-name>/.codex-plugin/plugin.json` manifest and does not need to match the repository or any other plugin.
 
 Marketplace release refs should be annotated Git tags named `vX.Y.Z`, where `X.Y.Z` is the repository version, and listed at https://github.com/pallgeuer/la-dev-codex-plugins/tags.
 
-For a release that changes plugins, bump each changed plugin according to semantic versioning and leave unchanged plugin versions untouched. Bump the repository exactly once using the highest bump level among the changed plugins: a major plugin bump requires a repository major bump, a minor plugin bump requires a repository minor bump, and patch-only plugin bumps require a repository patch bump. For repository-only changes, choose the repository bump independently according to semantic versioning.
+For every release, classify repository-only changes independently from plugin changes. Bump each changed existing plugin according to semantic versioning and leave unchanged plugin versions untouched. A new plugin identity starts at `0.1.0` and is not incremented for its first release. A renamed plugin is a removed identity plus a new identity rather than a continuation of the old plugin version.
+
+Bump the repository exactly once using the highest effective bump required by repository-only changes, structural marketplace changes, and changed plugins. Adding a plugin requires at least a repository minor bump. Removing or renaming a plugin is a breaking repository change. A plugin patch contributes a repository patch, and a plugin minor contributes a repository minor. A plugin major contributes a repository major when the repository is at or above `1.0.0`, but contributes a repository minor while the repository remains below `1.0.0`. As with every component in initial development, a breaking repository change below `1.0.0` advances the repository minor; moving the repository to `1.0.0` is reserved for an explicit declaration that its public interface is stable.
 
 ## Python runtime requirements for plugin scripts
 

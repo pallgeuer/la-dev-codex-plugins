@@ -14,14 +14,16 @@ Resolve every script and reference from this installed skill directory. Invoke s
 Preserve the complete text after `$toolkit:perform`.
 
 1. With no arguments, run `scripts/list_perform_actions.py`, show the variants as a compact user-facing table, briefly explain strict `ACTION[LANGUAGE]`, bare `ACTION`, and natural-language selection, surface diagnostics, and stop.
-2. When the first token is exactly `help` or `help[agnostic]`, including when text follows it, read [references/action-files.md](references/action-files.md), answer from it, and stop without loading the catalog.
+2. When the first token is exactly `help` or `help[agnostic]`, including when text follows it, read [references/action_files.md](references/action_files.md), [references/codex_skill.md](references/codex_skill.md), and [references/standalone_cli.md](references/standalone_cli.md), answer from them, and stop without loading the catalog.
 3. Treat a first token matching `^[a-z0-9][a-z0-9._-]*\[[a-z0-9][a-z0-9.+_-]*\]$` as strict. Select only that canonical selector; never fall back.
 4. For a first token matching `^[a-z0-9][a-z0-9._-]*$`, run `scripts/list_perform_actions.py --name='TOKEN' --fallback`. If the result contains variants for that exact name, consider only those variants. Otherwise use the complete result for general soft selection.
 5. For any other first token, run `scripts/list_perform_actions.py` and use the complete result for general soft selection.
 
+When presenting action choices to the user, display `ACTION` instead of `ACTION[agnostic]` when `agnostic` is that action's only available variant. Display canonical `ACTION[LANGUAGE]` selectors when an action has multiple variants or its only variant is language-specific. This is display-only; retain the canonical selector for selection, inspection, rendering, and execution.
+
 For a known bare action with one variant, select it. With several variants, use positive language evidence from the invocation and relevant repository/file context; otherwise prefer `agnostic`, or ask when no `agnostic` variant exists. For general soft selection, compare names, languages, glosses, prompt-variable descriptions, and explicit scope. Decline weak or incompatible matches. Treat words consumed by selection, such as `find todos`, as selection context rather than an automatic qualification.
 
-If selection resolves to `help[agnostic]`, read the reference and answer without entering the executable pipeline. After selecting any configured action, use only its canonical selector.
+If selection resolves to `help[agnostic]`, read all three references and answer without entering the executable pipeline. After selecting any configured action, use only its canonical selector.
 
 ## Inspect and prepare
 
@@ -43,7 +45,7 @@ Before rendering:
 If there are no prompt variables and no qualification, the inspected `prompt` is final; do not call the renderer. Otherwise run one render command:
 
 ```text
-scripts/get_perform_action.py --render='ACTION[LANGUAGE]' --var='%Name%=VALUE' --qualification='Compatible adjustment.'
+scripts/get_perform_action.py --render='ACTION[LANGUAGE]' --var='Name=VALUE' --qualification='Compatible adjustment.'
 ```
 
 Repeat `--var` once per binding and omit `--qualification` when unused. Pass every dynamic value in `--option='value'` form as one POSIX single-quoted shell argument, replacing each embedded `'` with `'"'"'`; never use unquoted interpolation, `eval`, shell evaluation, or stdin. When a command API accepts an argument vector, prefer that over composing shell text. Values may contain spaces, option-looking text, quotes, Unicode, newlines, dollar signs, backticks, percent signs, and additional equals signs, but not NUL.
@@ -52,7 +54,7 @@ Direct arguments are visible to process inspection and may be recorded by launch
 
 ## Show and execute
 
-Show nonempty notes verbatim. Then show the exact final prompt as an unlabeled Markdown blockquote immediately before starting work: prefix every nonempty prompt line with `> ` and every blank prompt line with `>`. The quote markers are display-only and never enter the prompt or Goal objective.
+Immediately before execution, show `PERFORM: ACTION[LANGUAGE]` with the exact canonical selector being executed. Then show nonempty notes verbatim, followed by the exact final prompt as an unlabeled Markdown blockquote immediately before starting work: prefix every nonempty prompt line with `> ` and every blank prompt line with `>`. The selector line and quote markers are display-only and never enter the prompt or Goal objective.
 
 For `goal`, create the goal with the exact final prompt as its sole objective, then execute it. If goal creation is unavailable, do not run outside Goal mode; show the relevant notes, explain the limitation, and provide `/goal ` followed by the exact prompt for manual submission.
 
