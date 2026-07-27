@@ -126,7 +126,7 @@
         "plan_reasoning_effort": "medium",
         "no_edits": false,
         "prompt_vars": {},
-        "prompt": "Audit the current repository and enforce ASCII-only source code and configuration wherever reasonable and possible. Allow non-ASCII characters for example in documentation files when a literal Unicode character is genuinely necessary or seems intentionally desired. Replace avoidable non-ASCII characters with ASCII equivalents or suitable totally equivalent escape codes. Add, update, or confirm the presence of automated checks to prevent regressions. Strictly preserve all existing code behavior.",
+        "prompt": "Audit the current repository and enforce ASCII-only source code and configuration wherever reasonable and possible. Allow non-ASCII characters for example in documentation files when a literal Unicode character is genuinely necessary or seems intentionally desired. Replace avoidable non-ASCII characters with ASCII equivalents or suitable totally equivalent escape codes. Add, update, or confirm the presence of automated checks (prefer checking via tests as opposed to via an extra dedicated pre-commit check or so) to prevent regressions. Strictly preserve all existing code behavior.",
         "interactive": "allowed",
         "custom_codex_args": [],
         "notes": ""

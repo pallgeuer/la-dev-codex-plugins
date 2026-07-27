@@ -7,7 +7,6 @@ from pathlib import Path
 from . import _perform_output as output
 from . import _perform_runtime as launcher_runtime
 
-CliError = launcher_runtime.CliError
 COMMANDS = frozenset(("catalogue", "list", "run", "show"))
 RUN_ONLY_DESTINATIONS = (
     "dry_run",
@@ -30,7 +29,7 @@ class PerformArgumentParser(argparse.ArgumentParser):
 
     def error(self, message):
         """Raise one normal usage error."""
-        raise CliError(message, code="invalid_arguments")
+        raise launcher_runtime.CliError(message, code="invalid_arguments")
 
 
 def normalize_argv(argv, parser=None):
@@ -119,13 +118,13 @@ def _reject_irrelevant_options(args, codex_args, parser):
     if codex_args and args.command != "run":
         used.append("Codex arguments after --")
     if used:
-        raise CliError("{} does not accept these options or arguments: {}.".format(args.command, ", ".join(used)), code="invalid_arguments")
+        raise launcher_runtime.CliError("{} does not accept these options or arguments: {}.".format(args.command, ", ".join(used)), code="invalid_arguments")
 
 
 def _run_command(args, codex_args, runtime, launcher, environment):
     """Prepare, inspect, or execute one selected action."""
     if args.action is None:
-        raise CliError("run requires an action name or strict selector.", code="invalid_arguments")
+        raise launcher_runtime.CliError("run requires an action name or strict selector.", code="invalid_arguments")
     spec = launcher.prepare_launch(args.action, language=args.language, variable_bindings=args.variables, qualification=args.qualification)
     overrides = runtime.LaunchOverrides(
         model=args.model,
@@ -148,13 +147,13 @@ def _run_command(args, codex_args, runtime, launcher, environment):
     try:
         launcher_runtime.replace_process(invocation.argv, env=environment)
     except (OSError, UnicodeError, ValueError) as exc:
-        raise CliError("Could not launch Codex: {}".format(exc), exit_code=4, code="launch_failed") from exc
+        raise launcher_runtime.CliError("Could not launch Codex: {}".format(exc), exit_code=4, code="launch_failed") from exc
 
 
 def _show_command(args, launcher):
     """Show built-in help or one complete effective action."""
     if args.action is None:
-        raise CliError("show requires an action name or strict selector.", code="invalid_arguments")
+        raise launcher_runtime.CliError("show requires an action name or strict selector.", code="invalid_arguments")
     payload = launcher.show_action(args.action, language=args.language)
     if args.json:
         output.write_json(payload)
@@ -185,18 +184,18 @@ def _catalogue_command(args, launcher):
 
 def _normalize_error(exc):
     """Convert one runtime exception to the launcher error contract."""
-    if isinstance(exc, CliError):
+    if isinstance(exc, launcher_runtime.CliError):
         return exc
     status = getattr(exc, "status", None)
     if isinstance(status, str):
-        return CliError(
+        return launcher_runtime.CliError(
             getattr(exc, "message", str(exc)),
             exit_code=3 if status == "fatal_catalog" else 4 if status == "runtime_error" else 2,
             code=status,
             alternatives=getattr(exc, "alternatives", None),
             diagnostics=getattr(exc, "diagnostics", None),
         )
-    return CliError(str(exc), exit_code=4, code="runtime_error")
+    return launcher_runtime.CliError(str(exc), exit_code=4, code="runtime_error")
 
 
 def main(argv=None):
