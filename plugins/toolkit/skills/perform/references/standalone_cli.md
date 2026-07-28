@@ -1,9 +1,10 @@
 # Standalone Perform CLI and launcher API
 
-Use the source-activated `codex-perform` command to select a configured action and launch it in a new Codex process. Action definitions and catalog construction are documented in [Perform action files and catalogues](action_files.md); executing an action in an existing chat is documented in [Codex Perform skill](codex_skill.md).
+Use the standalone `codex-perform` command to select a configured action and launch it in a new Codex process. Install it in a Python virtual environment (optional) or activate it directly from a repository checkout simply by sourcing `activate.sh`. Action definitions and catalog construction are documented in [Perform action files and catalogues](action_files.md); executing an action in an existing chat is documented in [Codex Perform skill](codex_skill.md).
 
 ## Contents
 
+- [Install the command in a virtual environment](#install-the-command-in-a-virtual-environment)
 - [Activate the source-only command](#activate-the-source-only-command)
 - [Resolve the plugin and runtime](#resolve-the-plugin-and-runtime)
 - [Use command forms](#use-command-forms)
@@ -13,6 +14,23 @@ Use the source-activated `codex-perform` command to select a configured action a
 - [Preview and consume output](#preview-and-consume-output)
 - [Public launcher-facing Python API](#public-launcher-facing-python-api)
 - [Troubleshooting](#troubleshooting)
+
+## Install the command in a virtual environment
+
+Create and activate a Python 3.6+ virtual environment, then install the dependency-free launcher distribution:
+
+```bash
+python3 -m venv /PATH/TO/VENV
+source /PATH/TO/VENV/bin/activate
+python -m pip install la-dev-codex-plugins
+codex-perform --version
+```
+
+The installed command always uses its virtual environment's interpreter and re-executes it under Python isolated mode before importing `la_dev_codex_plugins`. The caller's current directory, `PYTHONPATH`, user site-packages, and `CODEX_PERFORM_PYTHON` therefore cannot replace the installed launcher or redirect it to another Python.
+
+The Python distribution contains only the launcher. It does not install Codex, the marketplace, the Toolkit plugin, or the Toolkit runtime and actions. Install and enable `toolkit@la-dev-codex-plugins` separately for the active Codex home, or use `--plugin-root` during marketplace development.
+
+If the shell already has a source-activated `codex-perform` function, that function takes precedence over the venv executable. Start a fresh shell or run `unset -f codex-perform` before using the installed command.
 
 ## Activate the source-only command
 
@@ -42,6 +60,8 @@ The function runs an absolute bootstrap from this checkout under Python isolated
 CODEX_PERFORM_PYTHON=/usr/bin/python3 codex-perform list
 ```
 
+This interpreter override belongs only to source activation. It does not affect the command installed in a virtual environment.
+
 ## Resolve the plugin and runtime
 
 By default, the launcher resolves the Codex executable once and runs:
@@ -52,7 +72,7 @@ codex plugin list --marketplace la-dev-codex-plugins --json
 
 It requires exactly one installed and enabled `toolkit@la-dev-codex-plugins` entry, then resolves `$CODEX_HOME/plugins/cache/la-dev-codex-plugins/toolkit/VERSION`, or the corresponding path below `~/.codex` when `CODEX_HOME` is unset or empty.
 
-A nonempty relative `CODEX_HOME` is expanded against `--cwd` and forwarded to the launched Codex as that same absolute path. A current-user `~` uses `HOME`; named-user tildes are rejected. Plugin discovery, action discovery, executable lookup, configuration, credentials, and persistence therefore use one exact environment and Codex home. When an explicit environment mapping has neither a nonempty `CODEX_HOME` nor `HOME`, action discovery skips its default user source and installed-plugin discovery cannot resolve a cache; use `--plugin-root` to bypass installed discovery. The reported installed version must be valid SemVer, its symlink-resolved directory must remain beneath the expected toolkit cache, the cache manifest version must equal that installed version, and the runtime must export the launcher API version expected by the checkout.
+A nonempty relative `CODEX_HOME` is expanded against `--cwd` and forwarded to the launched Codex as that same absolute path. A current-user `~` uses `HOME`; named-user tildes are rejected. Plugin discovery, action discovery, executable lookup, configuration, credentials, and persistence therefore use one exact environment and Codex home. When an explicit environment mapping has neither a nonempty `CODEX_HOME` nor `HOME`, action discovery skips its default user source and installed-plugin discovery cannot resolve a cache; use `--plugin-root` to bypass installed discovery. The reported installed version must be valid SemVer, its symlink-resolved directory must remain beneath the expected toolkit cache, the cache manifest version must equal that installed version, and the runtime must export the launcher API version expected by the active launcher.
 
 Discovery failures, disabled or missing plugins, bad cache layouts, version mismatches, and incompatible launcher APIs stop the launch. The launcher does not fall back silently to the marketplace checkout because that checkout can differ from the installed plugin.
 

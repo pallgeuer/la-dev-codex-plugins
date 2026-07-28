@@ -2,6 +2,9 @@
 .pytest_cache/
 .ruff_cache/
 .venv/
+build/
+dist/
+src/*.egg-info/
 .idea/
 __pycache__/
 *.py[cod]

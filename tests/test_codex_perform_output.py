@@ -138,13 +138,13 @@ def test_list_uses_separate_name_and_language_columns_and_wraps_gloss(monkeypatc
         "variants": [
             {
                 "selector": "audit-test-organization[agnostic]",
-                "gloss": "Audit test suite organization and quality",
+                "gloss": "Short fixture gloss",
                 "prompt_vars": {},
             },
             {
                 "selector": "check-cross-platform[agnostic]",
-                "gloss": "Check repository support for specified operating systems",
-                "prompt_vars": {"OSList": "Free-form list of operating systems to assess, including any requested versions or architectures."},
+                "gloss": "A deliberately long fixture gloss that wraps",
+                "prompt_vars": {"Target": "A deliberately long fixture description that also wraps across lines."},
             },
         ]
     }
@@ -153,12 +153,11 @@ def test_list_uses_separate_name_and_language_columns_and_wraps_gloss(monkeypatc
     assert captured.err == ""
     assert captured.out == (
         "NAME                     LANGUAGE  GLOSS\n"
-        "audit-test-organization  agnostic  Audit test suite organization and quality\n"
-        "check-cross-platform     agnostic  Check repository support for specified\n"
-        "                                   operating systems\n"
-        "                                   OSList: Free-form list of operating systems\n"
-        "                                           to assess, including any requested\n"
-        "                                           versions or architectures.\n"
+        "audit-test-organization  agnostic  Short fixture gloss\n"
+        "check-cross-platform     agnostic  A deliberately long fixture gloss that wraps\n"
+        "                                   Target: A deliberately long fixture\n"
+        "                                           description that also wraps across\n"
+        "                                           lines.\n"
     )
 
 

@@ -1,6 +1,6 @@
 # Releasing
 
-This runbook describes how to make a stable release of the repository and its Codex plugin marketplace. A release consists of version updates committed to `main`, an unsigned annotated Git tag named `vX.Y.Z`, and a published GitHub Release. GitHub supplies the source archives automatically; this project does not build or publish Python packages or attach release artifacts.
+This runbook describes how to make a stable release of the repository, its Codex plugin marketplace, and its dependency-free Python distribution. A release consists of version updates committed to `main`, an unsigned annotated Git tag named `vX.Y.Z`, a validated Python-package preflight, and a published GitHub Release. Publishing the GitHub Release triggers trusted publication of the matching minimal sdist and universal wheel to PyPI.
 
 Run all commands from the repository root. Replace example values such as `X.Y.Z` before executing them. Stop whenever a command fails and resolve the failure before continuing.
 
@@ -11,6 +11,8 @@ The release maintainer needs:
 - Push access to `pallgeuer/la-dev-codex-plugins`.
 - Git, Python 3, `uvx`, ripgrep (`rg`), and the GitHub CLI (`gh`).
 - A GitHub CLI session authorized to read Actions and create releases.
+- Access to approve the protected `pypi` GitHub environment when approval is required.
+- A configured PyPI trusted publisher for project `la-dev-codex-plugins`, repository `pallgeuer/la-dev-codex-plugins`, workflow `python-package-release.yml`, and environment `pypi`.
 
 Check the tools and authentication:
 
@@ -262,6 +264,8 @@ The manual-stage suite validates JSON, TOML, YAML, linting, formatting, typing, 
 uvx --python 3.8 --from pytest==8.3.5 pytest tests/test_validate_release.py tests/test_versions.py
 ```
 
+The Python distribution is built only during release preflight and publication. Its workflow builds the wheel from the sdist, validates exact archive contents and metadata, and installs the wheel without package-index access on Python 3.6, Python 3.8, and the newest stable Python.
+
 Run the dependency-free supported-platform smoke checks with the active Python interpreter. CI repeats these checks on Ubuntu 18.04 with Python 3.6, the oldest non-deprecated hosted macOS Intel runner with Python 3.8, and the current `macos-latest` Arm64 runner with the newest stable Python 3.x:
 
 ```bash
@@ -367,11 +371,66 @@ REMOTE_RELEASE_COMMIT="$(git ls-remote origin "refs/tags/$TAG^{}" | cut -f1)"
 test "$REMOTE_RELEASE_COMMIT" = "$RELEASE_COMMIT"
 ```
 
-## 8. Publish the GitHub Release
+Run the non-publishing Python-package preflight against the exact tag:
+
+```bash
+PACKAGE_PREFLIGHT_PREVIOUS_ID="$(
+    gh run list \
+        --repo "$EXPECTED_REPOSITORY" \
+        --workflow "Python package release" \
+        --event workflow_dispatch \
+        --limit 1 \
+        --json databaseId \
+        --jq '.[0].databaseId // 0'
+)"
+gh workflow run python-package-release.yml \
+    --repo "$EXPECTED_REPOSITORY" \
+    --ref "$TAG" \
+    -f ref="$TAG"
+```
+
+Wait for GitHub to register the manual run for the tag and watch it to completion:
+
+```bash
+PACKAGE_PREFLIGHT_ID=""
+PACKAGE_PREFLIGHT_DEADLINE=$((SECONDS + 300))
+while test -z "$PACKAGE_PREFLIGHT_ID" && test "$SECONDS" -lt "$PACKAGE_PREFLIGHT_DEADLINE"; do
+    PACKAGE_PREFLIGHT_ID="$(
+        gh run list \
+            --repo "$EXPECTED_REPOSITORY" \
+            --workflow "Python package release" \
+            --event workflow_dispatch \
+            --limit 100 \
+            --json databaseId,headSha \
+            --jq "[.[] | select(.databaseId > $PACKAGE_PREFLIGHT_PREVIOUS_ID and .headSha == \"$RELEASE_COMMIT\")] | max_by(.databaseId).databaseId // empty"
+    )" || break
+    test -n "$PACKAGE_PREFLIGHT_ID" || sleep 5
+done
+if test -z "$PACKAGE_PREFLIGHT_ID"; then
+    echo "Python package preflight did not register for $TAG within five minutes." >&2
+    gh run list --repo "$EXPECTED_REPOSITORY" --workflow "Python package release" --limit 10
+    false
+else
+    gh run watch "$PACKAGE_PREFLIGHT_ID" --repo "$EXPECTED_REPOSITORY" --exit-status
+fi
+```
+
+The manual workflow never publishes. If it fails, keep the immutable remote tag but do not publish the GitHub Release. A code or packaging defect requires a new corrective repository release because the pushed tag must not be moved; an infrastructure-only failure may be retried against the same tag.
+
+## 8. Publish the GitHub Release and Python distribution
 
 Create and immediately publish a stable GitHub Release. Explicitly starting the generated notes at `LAST_TAG` makes the comparison correct even if earlier tags do not have corresponding GitHub Releases:
 
 ```bash
+PACKAGE_PUBLISH_PREVIOUS_ID="$(
+    gh run list \
+        --repo "$EXPECTED_REPOSITORY" \
+        --workflow "Python package release" \
+        --event release \
+        --limit 1 \
+        --json databaseId \
+        --jq '.[0].databaseId // 0'
+)"
 gh release create "$TAG" \
     --repo "$EXPECTED_REPOSITORY" \
     --verify-tag \
@@ -383,6 +442,8 @@ gh release create "$TAG" \
 ```
 
 This command must use the already-pushed annotated tag; `--verify-tag` prevents GitHub CLI from silently creating a different tag.
+
+Publishing the stable GitHub Release triggers the `Python package release` workflow for the same tag. That workflow repeats artifact construction and validation, then requests trusted publication through the protected `pypi` environment. It does not use `skip-existing`; a duplicate or inconsistent upload fails visibly.
 
 Verify the published release:
 
@@ -396,6 +457,34 @@ gh release view "$TAG" --repo "$EXPECTED_REPOSITORY" --json name,tagName,isDraft
 
 Open the URL printed by the final command and check that the title, generated notes, comparison range, tag, and Latest status are correct. Correct wording or categorization mistakes by editing the GitHub Release notes; do not change the tag.
 
+Wait for the publication workflow run and require success:
+
+```bash
+PACKAGE_PUBLISH_ID=""
+PACKAGE_PUBLISH_DEADLINE=$((SECONDS + 300))
+while test -z "$PACKAGE_PUBLISH_ID" && test "$SECONDS" -lt "$PACKAGE_PUBLISH_DEADLINE"; do
+    PACKAGE_PUBLISH_ID="$(
+        gh run list \
+            --repo "$EXPECTED_REPOSITORY" \
+            --workflow "Python package release" \
+            --event release \
+            --limit 100 \
+            --json databaseId,headSha \
+            --jq "[.[] | select(.databaseId > $PACKAGE_PUBLISH_PREVIOUS_ID and .headSha == \"$RELEASE_COMMIT\")] | max_by(.databaseId).databaseId // empty"
+    )" || break
+    test -n "$PACKAGE_PUBLISH_ID" || sleep 5
+done
+if test -z "$PACKAGE_PUBLISH_ID"; then
+    echo "Python package publication did not register for $TAG within five minutes." >&2
+    gh run list --repo "$EXPECTED_REPOSITORY" --workflow "Python package release" --limit 10
+    false
+else
+    gh run watch "$PACKAGE_PUBLISH_ID" --repo "$EXPECTED_REPOSITORY" --exit-status
+fi
+```
+
+Open `https://pypi.org/project/la-dev-codex-plugins/$NEW_REPO_VERSION/` and verify that it shows one source distribution and one `py3-none-any` wheel with the expected description, Python requirement, and trusted-publishing provenance.
+
 No local Codex marketplace or plugin installation needs to be modified as part of release verification.
 
 ## 9. Recovery rules
@@ -404,6 +493,9 @@ No local Codex marketplace or plugin installation needs to be modified as part o
 - If tag creation succeeds but the tag push fails, resolve the push or authentication problem and retry the same explicit tag push.
 - If the tag is pushed but `gh release create` reports failure, keep the tag and first run `gh release view "$TAG" --repo "$EXPECTED_REPOSITORY"` in case creation succeeded but its response was lost. Retry creation against the same verified tag only when the release is confirmed absent.
 - Never force-push, move, or replace a tag after it has been pushed or published.
+- If the package preflight fails before GitHub Release publication, do not publish that release. Retry infrastructure failures against the same tag; fix package defects in a new release without moving the existing tag.
+- If trusted publication fails before any file reaches PyPI, correct the environment, publisher, permission, or transient service problem and rerun the failed workflow job against the unchanged release.
+- If only part of a Python distribution reaches PyPI, stop and inspect the immutable uploaded files before taking further action. Do not enable `skip-existing` or replace an uploaded filename; complete recovery manually only when the remaining artifact is byte-for-byte from the validated release workflow.
 - If a published release contains a functional problem, fix it and make a new release using this complete procedure. Classify the corrective changes normally; a backward-compatible bug fix is usually a patch, but a feature or incompatible correction requires its corresponding bump.
 - Generated release notes may be edited after publication without changing the release tag or source snapshot.
 
@@ -413,4 +505,4 @@ Most of the recipe is command-driven, but the maintainer must make and verify th
 
 1. Before version editing, inspect all commits and diffs since `LAST_TAG`, classify each changed existing plugin and the independent repository changes, and choose the plugin and repository bumps.
 2. Before committing, run the release validator, review its component summary and the complete staged snapshot, and confirm every version declaration.
-3. After publication, inspect the GitHub Release page and generated notes. No local plugin reinstall or package upload is required.
+3. After publication, inspect the GitHub Release, successful package workflow, and PyPI project version. No local plugin reinstall or manual package upload is required.

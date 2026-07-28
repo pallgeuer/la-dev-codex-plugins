@@ -75,10 +75,10 @@ Run only Perform tests:
 uvx --python 3.8 --from pytest==8.3.5 pytest tests/plugins/toolkit/skills/perform
 ```
 
-Run the source-only Perform launcher tests:
+Run the standalone Perform launcher and Python-distribution tests:
 
 ```bash
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/test_codex_perform_*.py
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/test_codex_perform_*.py tests/test_python_distribution.py
 ```
 
 Run the release-version validator and declaration tests:
@@ -94,6 +94,28 @@ python3 tests/supported_platform_smoke.py
 ```
 
 This smoke program covers shipped action discovery and inspection, atomic catalogue writes, the source-activated launcher, bounded process termination, and Loupe's Bash subprocess path. It is deliberately compatible with Python 3.6 and uses only the standard library so that CI can run it with Ubuntu 18.04's native interpreter.
+
+Build and validate the exact Python source and wheel distributions:
+
+```bash
+rm -rf build dist src/la_dev_codex_plugins.egg-info
+uvx --python 3.10 --from build==1.5.0 python -m build
+uvx --python 3.10 --from twine==6.2.0 twine check dist/*
+python3 scripts/validate_python_distribution.py dist --version \"$(sed -n 's/^version = //p' setup.cfg)\"
+```
+
+These commands create ignored build artifacts in the checkout. The validator requires one minimal sdist and one `py3-none-any` wheel, rejects runtime dependencies and unexpected files, and verifies that the installed bootstrap re-executes isolated Python. The `Python package release` workflow performs this build only for manual release preflights and published GitHub Releases.
+
+After building, install the wheel into a disposable virtual environment and run the distribution smoke checks:
+
+```bash
+python3 -m venv /tmp/la-dev-codex-plugins-package-test
+/tmp/la-dev-codex-plugins-package-test/bin/python -m pip install --no-index --no-deps dist/*.whl
+PATH=\"/tmp/la-dev-codex-plugins-package-test/bin:$PATH\" \
+    /tmp/la-dev-codex-plugins-package-test/bin/python tests/python_package_distribution/smoke_installed_package.py \
+    --expected-version \"$(sed -n 's/^version = //p' setup.cfg)\" \
+    --plugin-root plugins/toolkit
+```
 
 The macOS selector reads the official `actions/runner-images` availability table and fails closed if it cannot identify one ordinary non-deprecated GA Intel label:
 
@@ -121,7 +143,7 @@ Run it only for Loupe scripts:
 uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins/la-review/skills/loupe/scripts
 ```
 
-Use `-t=3.6-` rather than trying to run the pytest suite under Python 3.6. Vermin analyzes the complete runtime source for minimum Python-version requirements, while `tests/supported_platform_smoke.py` supplies focused runtime execution under Python 3.6 without requiring uv or third-party test packages.
+Use `-t=3.6-` rather than trying to run the pytest suite under Python 3.6. Vermin analyzes the complete runtime source, source launcher, and installed bootstrap for minimum Python-version requirements, while `tests/supported_platform_smoke.py` and `tests/python_package_distribution/smoke_installed_package.py` supply focused runtime execution under Python 3.6 without requiring uv or third-party test packages.
 
 ## Recommended pre-commit check
 

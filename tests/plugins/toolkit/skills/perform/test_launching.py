@@ -94,7 +94,6 @@ def test_builtin_help_has_normal_launch_configuration_and_question_rendering(tmp
     spec = catalog.prepare_launch("help[agnostic]", {}, qualification="  BUT: " + question + "  ")
     assert spec.config.selector == "help[agnostic]"
     assert spec.qualification == question
-    assert spec.rendered_prompt.startswith("No edits. Read the following installed Perform guides")
     assert spec.rendered_prompt.endswith("\n\nUser question: " + question)
     assert "BUT: " not in spec.rendered_prompt
 

@@ -8,6 +8,10 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PLUGINS_ROOT = REPO_ROOT / "plugins"
 SRC_ROOT = REPO_ROOT / "src"
+STANDALONE_RUNTIME_FILES = (
+    REPO_ROOT / "package_scripts" / "codex-perform",
+    REPO_ROOT / "source_launcher" / "codex_perform.py",
+)
 
 
 def _stdlib_top_level_modules():
@@ -82,3 +86,15 @@ def test_src_package_imports_only_stdlib_or_local_modules():
                 violations.append(f"{path.relative_to(REPO_ROOT)}:{line}: import {module}")
 
     assert not violations, "Non-stdlib imports in src package:\n" + "\n".join(violations)
+
+
+def test_standalone_launcher_files_import_only_stdlib_modules():
+    stdlib_modules = _stdlib_top_level_modules()
+    violations = []
+
+    for path in STANDALONE_RUNTIME_FILES:
+        for line, module in _imported_top_level_modules(path):
+            if module not in stdlib_modules:
+                violations.append(f"{path.relative_to(REPO_ROOT)}:{line}: import {module}")
+
+    assert not violations, "Non-stdlib imports in standalone launcher files:\n" + "\n".join(violations)

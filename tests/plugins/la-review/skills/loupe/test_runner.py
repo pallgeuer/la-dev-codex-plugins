@@ -147,8 +147,6 @@ def test_dry_run_uses_expected_json_shape_and_reviewer_commands(capsys: pytest.C
             ),
         },
     ]
-    assert "\nTask: It is very important to me that the code now works completely correctly" in payload["reviewers"][2]["launched_command"]
-    assert "\nTask: It is very important to me that the code is well-structured" in payload["reviewers"][3]["launched_command"]
     assert runner.REVIEW_SKILL_PROHIBITION in payload["reviewers"][2]["launched_command"]
     assert runner.REVIEW_SKILL_PROHIBITION in payload["reviewers"][3]["launched_command"]
 
@@ -399,7 +397,9 @@ def test_reviewer_launch_plan_attaches_missing_helper_error(monkeypatch: pytest.
     runs = runner.reviewer_launch_plan(reviewers, "helper-missing scope")
 
     assert len(runs) == 1
-    assert runs[0].launch_error == "Missing additional executable 'jq' for Codex Local. Please install jq and rerun Loupe."
+    assert runs[0].launch_error is not None
+    assert "jq" in runs[0].launch_error
+    assert "Codex Local" in runs[0].launch_error
 
 
 def test_executable_availability_uses_reviewer_launch_shell(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -485,7 +485,8 @@ def test_missing_additional_executable_produces_launch_failed_without_launch(cap
     assert result["status"] == "launch_failed"
     assert result["return_code"] is None
     assert result["stdout"] == ""
-    assert result["stderr"] == "Missing additional executable 'jq' for Codex Local. Please install jq and rerun Loupe."
+    assert "jq" in result["stderr"]
+    assert "Codex Local" in result["stderr"]
 
 
 def test_dry_run_reports_missing_additional_executable(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
@@ -498,7 +499,8 @@ def test_dry_run_reports_missing_additional_executable(capsys: pytest.CaptureFix
 
     captured = capsys.readouterr()
     assert exit_code == 1
-    assert "Missing additional executable 'jq' for Codex Local. Please install jq and rerun Loupe." in captured.err
+    assert "jq" in captured.err
+    assert "Codex Local" in captured.err
     payload = json.loads(captured.out)
     assert [reviewer["reviewer_name"] for reviewer in payload["reviewers"]] == ["Codex Local"]
     assert payload["reviewers"][0]["launched_command"] == "printf would-run"

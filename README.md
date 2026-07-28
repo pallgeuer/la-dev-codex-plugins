@@ -22,7 +22,7 @@ The officially supported host operating systems are:
 - Ubuntu 18.04 or newer, with the shipped runtime code supporting the system Python 3.6+ included with Ubuntu 18.04+
 - macOS 14 or newer, with Python 3.6 or newer installed separately; current macOS releases do not include a system `python3`
 
-The repository runs dependency-free runtime smoke checks on Ubuntu 18.04 with Python 3.6, on the oldest non-deprecated GitHub-hosted macOS Intel runner with Python 3.8, and on the current `macos-latest` Arm64 runner with the newest stable Python 3.x. The full lint, type-check, compatibility-analysis, and functional test suite runs on current Ubuntu with Python 3.8 semantics. GitHub retires older macOS runner images over time, so exact macOS 14 execution continues only while GitHub offers it as a non-deprecated hosted image; after that point, the support floor relies on static portability assessment and the portable standard-library runtime constraints rather than continuous execution on macOS 14. Shipped plugin scripts and the source launcher require only Python 3.6+ and the Python standard library. Loupe additionally requires Bash, Git, `jq`, and at least one supported external reviewer executable (`codex` or `claude`); it reports unavailable reviewer tools rather than attempting to install them.
+The repository runs dependency-free runtime smoke checks on Ubuntu 18.04 with Python 3.6, on the oldest non-deprecated GitHub-hosted macOS Intel runner with Python 3.8, and on the current `macos-latest` Arm64 runner with the newest stable Python 3.x. The full lint, type-check, compatibility-analysis, and functional test suite runs on current Ubuntu with Python 3.8 semantics. GitHub retires older macOS runner images over time, so exact macOS 14 execution continues only while GitHub offers it as a non-deprecated hosted image; after that point, the support floor relies on static portability assessment and the portable standard-library runtime constraints rather than continuous execution on macOS 14. Shipped plugin scripts, the source launcher, and the installable Python distribution require only Python 3.6+ and the Python standard library. Loupe additionally requires Bash, Git, `jq`, and at least one supported external reviewer executable (`codex` or `claude`); it reports unavailable reviewer tools rather than attempting to install them.
 
 Only the Ubuntu and macOS hosts listed above are officially supported. Native Windows and WSL are not supported, tested, or maintained, and the runtime intentionally relies on POSIX process, filesystem, signal, and shell behavior.
 
@@ -297,9 +297,26 @@ $toolkit:perform update-action-catalogue
 $toolkit:perform update-action-catalogue docs/action_catalogue.md
 ```
 
-The default output is `<repository-root>/.codex/toolkit_perform_actions/action_catalogue.md`. Explicit relative outputs may use parent traversal and are not confined to the repository; parent-directory symlinks are followed, while a symlink in the final target component is refused. The source-only launcher provides the same deterministic generator directly through `codex-perform catalogue [--output PATH]`.
+The default output is `<repository-root>/.codex/toolkit_perform_actions/action_catalogue.md`. Explicit relative outputs may use parent traversal and are not confined to the repository; parent-directory symlinks are followed, while a symlink in the final target component is refused. The standalone launcher provides the same deterministic generator directly through `codex-perform catalogue [--output PATH]`.
 
-The repository includes a source-only `codex-perform` launcher. On supported hosts, it does not need to be installed as a Python package and has no non-standard Python dependencies, so it works with any available standard-library Python 3.6+. Ubuntu 18.04 includes a suitable system Python; on macOS, install Python first, for example with `brew install python`. In each new Bash session, source the repository activation script:
+The dependency-free `codex-perform` launcher is available either as a Python package installed in a virtual environment or directly from a repository checkout. Both paths support Python 3.6+ and isolate the launcher import from the caller's current directory, `PYTHONPATH`, and user site-packages. The Python package contains only launcher tooling; it does not install Codex, the marketplace, or any plugin runtime and assets.
+
+#### Install the launcher in a virtual environment
+
+Create and activate a virtual environment, then install the repository distribution from PyPI:
+
+```bash
+python3 -m venv /PATH/TO/VENV
+source /PATH/TO/VENV/bin/activate
+python -m pip install la-dev-codex-plugins
+codex-perform --version
+```
+
+The installed command is available whenever that environment is active and always uses its Python interpreter. On old Python installations, add `--only-binary=:all:` to the `pip install` command to require the supported universal wheel rather than attempting a source build.
+
+#### Activate the source-only launcher
+
+No Python package installation is required for the source path. Ubuntu 18.04 includes a suitable system Python; on macOS, install Python first, for example with `brew install python`. In each new Bash session, source the repository activation script:
 
 ```bash
 # FIND IT:  find "${CODEX_HOME:-$HOME/.codex}" -path "*/la-dev-codex-plugins/activate.sh"
@@ -307,11 +324,14 @@ The repository includes a source-only `codex-perform` launcher. On supported hos
 source /PATH/TO/la-dev-codex-plugins/activate.sh
 ```
 
-This provides the `codex-perform` command, which you can then use. Runs are interactive by default; ordinary noninteractive runs (`--non-interactive` or its alias `--ni`) show the action and prompt on stderr, hide Codex progress, and leave only the final response on stdout. Add `--verbose` to restore live progress:
+This defines `codex-perform` as a shell function. If a shell already contains that function, it takes precedence over an executable from a subsequently activated virtual environment; start a fresh shell or run `unset -f codex-perform` before using the venv-installed command.
+
+With either installation path, runs are interactive by default; ordinary noninteractive runs (`--non-interactive` or its alias `--ni`) show the action and prompt on stderr, hide Codex progress, and leave only the final response on stdout. Add `--verbose` to restore live progress:
 
 ```bash
 codex-perform
 codex-perform --help
+codex-perform --version
 codex-perform catalogue
 codex-perform show find-todos
 codex-perform show help
@@ -325,9 +345,9 @@ codex-perform find-todos --json
 codex-perform exec-md-goal --var 'MarkdownPlanFile=docs/plans/plan.md'
 ```
 
-The launcher internally calls `python3` in isolated mode. Interactive, verbose noninteractive, and JSONL launches replace that Python process with Codex; final-response-only launches supervise `codex exec` so failed-run diagnostics can be replayed.
+The source activation internally calls `python3` in isolated mode, while the installed command re-executes its owning virtual-environment interpreter in isolated mode. Interactive, verbose noninteractive, and JSONL launches replace that Python process with Codex; final-response-only launches supervise `codex exec` so failed-run diagnostics can be replayed.
 
-Use `CODEX_PERFORM_PYTHON=/PATH/TO/python` to select another Python 3.6+ standard-library interpreter. During marketplace development, `--plugin-root /PATH/TO/la-dev-codex-plugins/plugins/toolkit` explicitly uses the checkout instead of installed-plugin discovery. See the [standalone launcher and runtime API documentation](plugins/toolkit/skills/perform/references/standalone_cli.md) for selection, overrides, output modes, and embedding.
+For source activation only, use `CODEX_PERFORM_PYTHON=/PATH/TO/python` to select another Python 3.6+ standard-library interpreter. The installed command deliberately ignores that variable and remains bound to its virtual environment. During marketplace development, `--plugin-root /PATH/TO/la-dev-codex-plugins/plugins/toolkit` explicitly uses the checkout instead of installed-plugin discovery. See the [standalone launcher and runtime API documentation](plugins/toolkit/skills/perform/references/standalone_cli.md) for installation, selection, overrides, output modes, and embedding.
 
 The Perform skill discovers direct `*.json` files from these `toolkit_perform_actions` directories, in increasing precedence:
 

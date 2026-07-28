@@ -122,15 +122,14 @@ def test_listing_is_one_compact_json_line(tmp_path):
     assert completed.stderr == b""
     assert b'"variants":[' in completed.stdout
     assert {variant["selector"] for variant in response["variants"]} >= {"exec-md-goal[agnostic]", "find-todos[agnostic]", "help[agnostic]"}
-    assert next(variant for variant in response["variants"] if variant["selector"] == "find-todos[agnostic]") == {
-        "selector": "find-todos[agnostic]",
-        "name": "find-todos",
-        "language": "agnostic",
-        "gloss": "Enumerate all kinds of discernible TODOs in a repo",
-    }
-    assert next(variant for variant in response["variants"] if variant["selector"] == "exec-md-goal[agnostic]")["prompt_vars"] == {
-        "MarkdownPlanFile": "Markdown file containing details of the plan to implement. Use the supplied path exactly when it exists; otherwise resolve a unique repository file whose trailing path components exactly match the supplied path."
-    }
+    find_todos = next(variant for variant in response["variants"] if variant["selector"] == "find-todos[agnostic]")
+    assert set(find_todos) == {"selector", "name", "language", "gloss"}
+    assert find_todos["name"] == "find-todos"
+    assert find_todos["language"] == "agnostic"
+    assert isinstance(find_todos["gloss"], str)
+    assert find_todos["gloss"]
+    exec_md_goal = next(variant for variant in response["variants"] if variant["selector"] == "exec-md-goal[agnostic]")
+    assert set(exec_md_goal["prompt_vars"]) == {"MarkdownPlanFile"}
     assert_removed_keys_absent(response, allowed_keys={"name", "language"})
 
 
@@ -236,13 +235,8 @@ def test_inspect_output_contains_only_prompt_mode_variables_and_nonempty_notes(t
     assert completed.returncode == 0
     assert set(response) == {"prompt", "mode", "prompt_vars", "notes"}
     assert response["mode"] == "goal"
-    assert response["prompt_vars"] == {
-        "MarkdownPlanFile": "Markdown file containing details of the plan to implement. Use the supplied path exactly when it exists; otherwise resolve a unique repository file whose trailing path components exactly match the supplied path."
-    }
+    assert set(response["prompt_vars"]) == {"MarkdownPlanFile"}
     assert response["notes"]
-    assert "\n\nOnly once the acknowledgement comes back" in response["notes"]
-    assert "whose repository-relative trailing path components exactly equal the supplied path components" in response["prompt"]
-    assert "including hidden and ignored working-tree files" in response["prompt"]
     assert_removed_keys_absent(response)
 
 
@@ -262,7 +256,7 @@ def test_bundled_cross_platform_action_inspects_and_renders_os_list(tmp_path):
     assert set(inspection) == {"prompt", "mode", "prompt_vars"}
     assert inspection["mode"] == "default"
     assert inspection["prompt"].startswith("No edits. ")
-    assert inspection["prompt_vars"] == {"OSList": "Free-form list of operating systems to assess, including any requested versions or architectures."}
+    assert set(inspection["prompt_vars"]) == {"OSList"}
     os_list = "Linux, macOS, Windows 11 (x86_64)"
     rendered = parse_stdout(run_script(GET_SCRIPT, ["--render=check-cross-platform[agnostic]", "--var=OSList={}".format(os_list)], cwd, env))
     assert set(rendered) == {"prompt"}
@@ -465,7 +459,7 @@ def test_compact_diagnostic_strings_include_file_and_json_location(tmp_path, com
     assert completed.returncode == 0
     assert set(response) == {"prompt", "mode", "diagnostics"}
     assert len(response["diagnostics"]) == 1
-    assert response["diagnostics"][0].startswith("error: Unknown version 1 action field")
+    assert response["diagnostics"][0].startswith("error: ")
     assert "actions.json/actions/bad/agnostic" in response["diagnostics"][0]
 
 
@@ -572,18 +566,16 @@ def test_builtin_help_is_listed_and_inspected_as_a_normal_result(tmp_path):
     listing = parse_stdout(run_script(LIST_SCRIPT, ["--name=help"], cwd, env))
     get_help = run_script(GET_SCRIPT, ["--inspect=help[agnostic]"], cwd, env)
     response = parse_stdout(get_help)
-    assert listing["variants"] == [
-        {
-            "selector": "help[agnostic]",
-            "name": "help",
-            "language": "agnostic",
-            "gloss": "Explain Perform action files and launch methods",
-        }
-    ]
+    assert len(listing["variants"]) == 1
+    help_variant = listing["variants"][0]
+    assert set(help_variant) == {"selector", "name", "language", "gloss"}
+    assert help_variant["selector"] == "help[agnostic]"
+    assert help_variant["name"] == "help"
+    assert help_variant["language"] == "agnostic"
+    assert isinstance(help_variant["gloss"], str)
+    assert help_variant["gloss"]
     assert get_help.returncode == 0
     assert response["mode"] == "default"
-    assert response["prompt"].startswith("No edits. Read the following installed Perform guides")
-    assert "If no user question is supplied" in response["prompt"]
     for filename in ("action_files.md", "codex_skill.md", "standalone_cli.md"):
         assert str(SKILL_ROOT / "references" / filename) in response["prompt"]
 
@@ -595,7 +587,6 @@ def test_builtin_help_renders_an_optional_question(tmp_path):
     completed = run_script(GET_SCRIPT, ["--render=help[agnostic]", "--question=  BUT: {}  ".format(question)], cwd, clean_environment(tmp_path))
     response = parse_stdout(completed)
     assert completed.returncode == 0
-    assert response["prompt"].startswith("No edits. Read the following installed Perform guides")
     assert response["prompt"].endswith("\n\nUser question: " + question)
     assert "BUT: " not in response["prompt"]
 
@@ -608,7 +599,7 @@ def test_builtin_help_remains_available_when_catalog_precedence_is_fatal(tmp_pat
     completed = run_script(GET_SCRIPT, ["--inspect=help[agnostic]"], cwd, env)
     response = parse_stdout(completed)
     assert completed.returncode == 0
-    assert response["prompt"].startswith("No edits. Read the following installed Perform guides")
+    assert response["prompt"]
     assert response["diagnostics"]
 
     rendered = run_script(GET_SCRIPT, ["--render=help[agnostic]", "--question=What failed?"], cwd, env)

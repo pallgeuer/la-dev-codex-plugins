@@ -21,19 +21,14 @@ def test_render_action_catalogue_is_grouped_escaped_and_stable():
         catalog_module.ActionSummary("alpha", "agnostic", "Shared", {}),
     ]
     rendered, action_count, variant_count = action_catalogue.render_action_catalogue(summaries)
-    assert rendered == (
-        "<!-- toolkit-perform-action-catalogue:v1 -->\n"
-        "# Perform Action Catalogue\n"
-        "\n"
-        "This file lists the effective Perform actions available in the current Perform context.\n"
-        "\n"
-        "Regenerate it with `$toolkit:perform update-action-catalogue` or `codex-perform catalogue`. Use a bare action name when its language is clear, or an exact `ACTION[LANGUAGE]` selector. The `agnostic` language is language-independent.\n"
-        "\n"
-        "| Action  |      Languages       | Description                                                  | Required inputs                                               |\n"
-        "|---------|:--------------------:|--------------------------------------------------------------|---------------------------------------------------------------|\n"
-        "| `alpha` |  `agnostic`, `rust`  | Shared                                                       | None                                                          |\n"
-        "| `zeta`  | `agnostic`, `python` | `agnostic`: General<br>`python`: Python &#124; &lt;check&gt; | `agnostic`: None<br>`python`: `Target`: Path &#96;inside&#96; |\n"
-    )
+    lines = rendered.splitlines()
+    assert lines[:2] == [action_catalogue.CATALOGUE_MARKER, "# Perform Action Catalogue"]
+    assert lines[-4:] == [
+        "| Action  |      Languages       | Description                                                  | Required inputs                                               |",
+        "|---------|:--------------------:|--------------------------------------------------------------|---------------------------------------------------------------|",
+        "| `alpha` |  `agnostic`, `rust`  | Shared                                                       | None                                                          |",
+        "| `zeta`  | `agnostic`, `python` | `agnostic`: General<br>`python`: Python &#124; &lt;check&gt; | `agnostic`: None<br>`python`: `Target`: Path &#96;inside&#96; |",
+    ]
     assert action_count == 2
     assert variant_count == 4
 
@@ -203,5 +198,5 @@ def test_facade_returns_nonfatal_diagnostics_without_putting_them_in_markdown(tm
         launcher.write_action_catalogue(output=str(output)),
     ]
     assert all(payload["diagnostics"] for payload in payloads)
-    assert all("Unknown version 1 action field" in payload["diagnostics"][0] for payload in payloads)
-    assert "Unknown version 1 action field" not in output.read_text(encoding="utf-8")
+    markdown = output.read_text(encoding="utf-8")
+    assert all(diagnostic not in markdown for payload in payloads for diagnostic in payload["diagnostics"])

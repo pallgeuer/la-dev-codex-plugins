@@ -1,0 +1,151 @@
+name: Python package release
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to build and validate without publishing
+        required: true
+        default: main
+        type: string
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || !github.event.release.prerelease
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Check out requested release source
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.ref }}
+
+      - name: Validate release identity
+        if: github.event_name == 'release'
+        shell: bash
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          [[ "$tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          test "$(git cat-file -t "$tag")" = tag
+          test "$(git rev-list -n 1 "$tag")" = "$(git rev-parse HEAD)"
+          python3 scripts/validate_release.py baseline "$tag"
+
+      - name: Read package version
+        id: version
+        shell: bash
+        run: |
+          version="$(sed -n 's/^version = //p' setup.cfg)"
+          test -n "$version"
+          if test "${{ github.event_name }}" = release; then
+              test "v$version" = "${{ github.event.release.tag_name }}"
+          fi
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.29"
+
+      - name: Build source and wheel distributions
+        run: uvx --python 3.10 --from build==1.5.0 python -m build
+
+      - name: Check distribution metadata
+        run: uvx --python 3.10 --from twine==6.2.0 twine check dist/*
+
+      - name: Validate exact distribution contents
+        run: python3 scripts/validate_python_distribution.py dist --version "${{ steps.version.outputs.version }}"
+
+      - name: Upload validated distributions
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: python-package-distributions
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  test-modern:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.x"]
+    steps:
+      - name: Check out tested source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Download validated distributions
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Install the wheel without package-index access
+        shell: bash
+        run: |
+          python -m venv package-venv
+          package-venv/bin/python -m pip install --no-index --no-deps dist/*.whl
+
+      - name: Run installed-package smoke checks
+        run: |
+          PATH="$PWD/package-venv/bin:$PATH" package-venv/bin/python tests/python_package_distribution/smoke_installed_package.py \
+              --expected-version "${{ needs.build.outputs.version }}" \
+              --plugin-root plugins/toolkit
+
+  test-python-36:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out tested source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.ref }}
+
+      - name: Download validated distributions
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Install and test with Ubuntu 18.04 system Python
+        shell: bash
+        run: |
+          docker run --rm \
+              --env PYTHONDONTWRITEBYTECODE=1 \
+              --volume "$GITHUB_WORKSPACE:/workspace:ro" \
+              --workdir /workspace \
+              ubuntu:18.04 \
+              bash -c "apt-get update && apt-get install --yes git python3-venv && python3 -m venv /tmp/package-venv && /tmp/package-venv/bin/pip install --no-index --no-deps /workspace/dist/*.whl && PATH=/tmp/package-venv/bin:\$PATH /tmp/package-venv/bin/python tests/python_package_distribution/smoke_installed_package.py --expected-version '${{ needs.build.outputs.version }}' --plugin-root plugins/toolkit"
+
+  publish:
+    if: github.event_name == 'release' && !github.event.release.prerelease
+    needs: [build, test-modern, test-python-36]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/la-dev-codex-plugins
+    permissions:
+      id-token: write
+    steps:
+      - name: Download validated distributions
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Publish distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247 # release/v1

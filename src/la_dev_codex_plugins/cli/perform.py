@@ -1,10 +1,11 @@
-"""Source-activated standalone launcher for Perform actions."""
+"""Standalone command-line launcher for Perform actions."""
 
 import argparse
 import sys
 import tempfile
 from pathlib import Path
 
+from .. import __version__
 from . import _perform_output as output
 from . import _perform_runtime as launcher_runtime
 
@@ -45,7 +46,7 @@ def normalize_argv(argv, parser=None):
         argument = arguments[index]
         if argument == "--":
             break
-        if argument == "-h" or argument == "--help":
+        if argument in ("-h", "--help", "--version"):
             return arguments
         if argument.startswith("--") and "=" in argument:
             index += 1
@@ -94,6 +95,7 @@ def build_parser():
     parser.add_argument("--dry-run", action="store_true", help="Display the complete launch without executing Codex.")
     parser.add_argument("--output", help="Action catalogue output path; relative paths resolve from the repository root and may use parent traversal.")
     parser.add_argument("--json", action="store_true", help="Use launcher JSON for catalogue/list/show/dry-run or select noninteractive Codex JSONL for a run.")
+    parser.add_argument("--version", action="version", version="codex-perform {}".format(__version__))
     return parser
 
 
@@ -226,7 +228,7 @@ def _normalize_error(exc):
 
 
 def main(argv=None):
-    """Run the source-activated Perform launcher."""
+    """Run the standalone Perform launcher."""
     raw_arguments = list(sys.argv[1:] if argv is None else argv)
     raw_launcher_arguments, _raw_codex_args = split_codex_remainder(raw_arguments)
     json_requested = "--json" in raw_launcher_arguments

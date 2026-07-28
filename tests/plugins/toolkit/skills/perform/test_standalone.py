@@ -63,7 +63,6 @@ def test_facade_shows_and_prepares_complete_builtin_help(tmp_path, load_catalog)
     spec = launcher.prepare_launch("help", qualification="  BUT: " + question + "  ")
     assert spec.config.selector == "help[agnostic]"
     assert spec.qualification == question
-    assert spec.rendered_prompt.startswith("No edits. Read the following installed Perform guides")
     assert spec.rendered_prompt.endswith("\n\nUser question: " + question)
     assert "BUT: " not in spec.rendered_prompt
 

@@ -1,0 +1,11 @@
+include LICENSE
+include MANIFEST.in
+include PYPI.md
+include pyproject.toml
+include setup.cfg
+include setup.py
+include package_scripts/codex-perform
+recursive-include src/la_dev_codex_plugins *.py
+prune tests
+recursive-include tests/python_package_distribution *.py
+exclude README.md

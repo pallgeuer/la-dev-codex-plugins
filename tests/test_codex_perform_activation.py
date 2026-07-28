@@ -97,7 +97,7 @@ def test_activation_script_honors_python_override(tmp_path):
     ]
     completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, check=False)
     assert completed.returncode == 0
-    assert completed.stdout.strip() == "-I {} list".format(REPOSITORY_ROOT / "src" / "la_dev_codex_plugins" / "cli" / "_perform_bootstrap.py")
+    assert completed.stdout.strip() == "-I {} list".format(REPOSITORY_ROOT / "source_launcher" / "codex_perform.py")
 
 
 def test_documented_codex_home_fallback_uses_home_directory():

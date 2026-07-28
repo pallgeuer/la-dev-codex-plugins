@@ -20,5 +20,5 @@ unset _la_dev_codex_plugins_source _la_dev_codex_plugins_dir _la_dev_codex_plugi
 
 codex-perform() {
     local perform_python="${CODEX_PERFORM_PYTHON:-python3}"
-    command "${perform_python}" -I "${_LA_DEV_CODEX_PLUGINS_ROOT}/src/la_dev_codex_plugins/cli/_perform_bootstrap.py" "$@"
+    command "${perform_python}" -I "${_LA_DEV_CODEX_PLUGINS_ROOT}/source_launcher/codex_perform.py" "$@"
 }

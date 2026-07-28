@@ -33,6 +33,14 @@ Do not add non-standard Python runtime dependencies for shipped plugin scripts.
 
 Test-only dependencies are allowed only through the fixed-version `uvx` commands documented in `TESTING.md`.
 
+## Python distribution runtime requirements
+
+Runtime code shipped in the `la-dev-codex-plugins` Python distribution, including files under `src/` and `package_scripts/`, must support Python 3.6+ and use only the Python standard library. The source-only launcher under `source_launcher/` has the same requirements.
+
+Do not add mandatory or optional runtime dependencies to the base distribution. A future tool that cannot satisfy the Python 3.6+ standard-library-only contract must use a separate distribution rather than weakening the `codex-perform` installation contract.
+
+Keep the wheel and sdist manifests minimal. The wheel must not contain plugin payloads, tests, repository helpers, or source-only activation files. The sdist may additionally contain only the dedicated dependency-free tests under `tests/python_package_distribution/` and the files required to build and describe the distribution.
+
 ## Required checks after editing plugin scripts
 
 After changing any file under `plugins/*/skills/*/scripts/`, run:

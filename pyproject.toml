@@ -17,7 +17,7 @@ markers = [
 [tool.ruff]
 line-length = 200
 target-version = "py38"
-src = ["plugins", "src", "tests"]
+src = ["package_scripts", "plugins", "source_launcher", "src", "tests"]
 
 [tool.ruff.lint]
 select = [

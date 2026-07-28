@@ -1,0 +1,9 @@
+#!python
+"""Re-execute the installed Perform launcher under isolated Python."""
+
+import os
+import sys
+
+arguments = [sys.executable, "-I", "-m", "la_dev_codex_plugins.cli.perform"]
+arguments.extend(sys.argv[1:])
+os.execv(sys.executable, arguments)

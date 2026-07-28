@@ -7,7 +7,7 @@ from pathlib import Path
 
 def main():
     """Load and run the launcher from this bootstrap's source checkout."""
-    source_root = str(Path(__file__).resolve().parents[2])
+    source_root = str(Path(__file__).resolve().parents[1] / "src")
     sys.path.insert(0, source_root)
     perform = importlib.import_module("la_dev_codex_plugins.cli.perform")
     return perform.main()
