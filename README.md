@@ -24,7 +24,7 @@ The officially supported host operating systems are:
 
 The repository runs dependency-free runtime smoke checks on Ubuntu 18.04 with Python 3.6, on the oldest non-deprecated GitHub-hosted macOS Intel runner with Python 3.8, and on the current `macos-latest` Arm64 runner with the newest stable Python 3.x. The full lint, type-check, compatibility-analysis, and functional test suite runs on current Ubuntu with Python 3.8 semantics. GitHub retires older macOS runner images over time, so exact macOS 14 execution continues only while GitHub offers it as a non-deprecated hosted image; after that point, the support floor relies on static portability assessment and the portable standard-library runtime constraints rather than continuous execution on macOS 14. Shipped plugin scripts, the source launcher, and the installable Python distribution require only Python 3.6+ and the Python standard library. Loupe additionally requires Bash, Git, `jq`, and at least one supported external reviewer executable (`codex` or `claude`); it reports unavailable reviewer tools rather than attempting to install them.
 
-Only the Ubuntu and macOS hosts listed above are officially supported. Native Windows and WSL are not supported, tested, or maintained, and the runtime intentionally relies on POSIX process, filesystem, signal, and shell behavior.
+Only the Ubuntu and macOS hosts listed above are officially supported. Compatibility with other POSIX Linux distributions is intended but is not part of the official support guarantee. Native Windows and WSL are not supported, tested, or maintained, and the runtime intentionally relies on POSIX process, filesystem, signal, and shell behavior.
 
 ## Install
 

@@ -49,4 +49,4 @@ codex-perform --version
 
 ## Support
 
-The supported hosts are Ubuntu 18.04 or newer and macOS 14 or newer. Native Windows and WSL are not supported. For action configuration, CLI behavior, and troubleshooting, use the [Codex Perform documentation](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/codex_perform.md). For marketplace and development documentation, use the [repository README](https://github.com/pallgeuer/la-dev-codex-plugins#readme).
+The officially supported hosts are Ubuntu 18.04 or newer and macOS 14 or newer. Compatibility with other POSIX Linux distributions is intended but is not part of the official support guarantee. Native Windows and WSL are not supported. For action configuration, CLI behavior, and troubleshooting, use the [Codex Perform documentation](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/codex_perform.md). For marketplace and development documentation, use the [repository README](https://github.com/pallgeuer/la-dev-codex-plugins#readme).
