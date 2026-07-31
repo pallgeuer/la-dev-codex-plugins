@@ -15,10 +15,11 @@ from pathlib import Path
 
 import pytest
 
-import la_dev_codex_plugins.cli.perform as perform
-from la_dev_codex_plugins.cli import _perform_runtime as perform_runtime
+import la_dev_codex_plugins._process as process_module
+import la_dev_codex_plugins.codex_perform.cli as perform
+from la_dev_codex_plugins.codex_perform import _runtime as perform_runtime
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PLUGIN_ROOT = REPOSITORY_ROOT / "plugins" / "toolkit"
 
 
@@ -115,7 +116,7 @@ def test_supervised_process_interrupt_returns_shell_status(monkeypatch):
         assert observed_process is process
         stopped.append(graceful_signal)
 
-    monkeypatch.setattr(perform_runtime, "_stop_process_tree", stop_process_tree)
+    monkeypatch.setattr(process_module, "stop_process_tree", stop_process_tree)
     assert perform_runtime.run_supervised_process(("codex",), {}, io.BytesIO(), popen_factory=lambda *_args, **_kwargs: process) == 130
     assert stopped == [signal.SIGINT]
 
@@ -149,7 +150,7 @@ def test_supervised_process_forwards_signals_during_ignored_cleanup(monkeypatch,
 
     monkeypatch.setattr(perform_runtime.signal, "getsignal", lambda number: current_handlers[number])
     monkeypatch.setattr(perform_runtime.signal, "signal", fake_signal)
-    monkeypatch.setattr(perform_runtime, "_stop_process_tree", stop_process_tree)
+    monkeypatch.setattr(process_module, "stop_process_tree", stop_process_tree)
     assert perform_runtime.run_supervised_process(("codex",), {}, io.BytesIO(), popen_factory=lambda *_args, **_kwargs: process) == 128 + signal_number
     assert stopped == [signal_number]
     assert current_handlers == original_handlers
@@ -161,7 +162,7 @@ def test_supervised_process_termination_cleans_real_descendants(tmp_path):
     child_code = "import os, subprocess, sys, time\ngrandchild = subprocess.Popen([sys.executable, '-c', {!r}])\nwith open({!r}, 'w') as stream:\n stream.write('{{}} {{}}'.format(os.getpid(), grandchild.pid))\ntime.sleep(60)".format(
         grandchild_code, str(pid_file)
     )
-    supervisor_code = "import os, sys\nfrom la_dev_codex_plugins.cli import _perform_runtime as runtime\nraise SystemExit(runtime.run_supervised_process((sys.executable, '-c', {!r}), os.environ, sys.stderr.buffer))".format(
+    supervisor_code = "import os, sys\nfrom la_dev_codex_plugins.codex_perform import _runtime as runtime\nraise SystemExit(runtime.run_supervised_process((sys.executable, '-c', {!r}), os.environ, sys.stderr.buffer))".format(
         child_code
     )
     environment = dict(os.environ)

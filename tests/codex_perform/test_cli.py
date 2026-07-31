@@ -9,10 +9,10 @@ from pathlib import Path
 
 import pytest
 
-import la_dev_codex_plugins.cli.perform as perform
-from la_dev_codex_plugins.cli import _perform_runtime as perform_runtime
+import la_dev_codex_plugins.codex_perform.cli as perform
+from la_dev_codex_plugins.codex_perform import _runtime as perform_runtime
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PLUGIN_ROOT = REPOSITORY_ROOT / "plugins" / "toolkit"
 
 

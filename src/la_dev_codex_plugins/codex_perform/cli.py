@@ -6,8 +6,8 @@ import tempfile
 from pathlib import Path
 
 from .. import __version__
-from . import _perform_output as output
-from . import _perform_runtime as launcher_runtime
+from . import _output as output
+from . import _runtime as launcher_runtime
 
 COMMANDS = frozenset(("catalogue", "list", "run", "show"))
 RUN_ONLY_DESTINATIONS = (

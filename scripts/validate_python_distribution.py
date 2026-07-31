@@ -12,10 +12,11 @@ DISTRIBUTION_NAME = "la-dev-codex-plugins"
 NORMALIZED_NAME = "la_dev_codex_plugins"
 PACKAGE_FILES = {
     "la_dev_codex_plugins/__init__.py",
-    "la_dev_codex_plugins/cli/__init__.py",
-    "la_dev_codex_plugins/cli/_perform_output.py",
-    "la_dev_codex_plugins/cli/_perform_runtime.py",
-    "la_dev_codex_plugins/cli/perform.py",
+    "la_dev_codex_plugins/_process.py",
+    "la_dev_codex_plugins/codex_perform/__init__.py",
+    "la_dev_codex_plugins/codex_perform/_output.py",
+    "la_dev_codex_plugins/codex_perform/_runtime.py",
+    "la_dev_codex_plugins/codex_perform/cli.py",
 }
 SDIST_FILES = {
     "LICENSE",
@@ -27,15 +28,16 @@ SDIST_FILES = {
     "setup.cfg",
     "setup.py",
     "src/la_dev_codex_plugins/__init__.py",
-    "src/la_dev_codex_plugins/cli/__init__.py",
-    "src/la_dev_codex_plugins/cli/_perform_output.py",
-    "src/la_dev_codex_plugins/cli/_perform_runtime.py",
-    "src/la_dev_codex_plugins/cli/perform.py",
+    "src/la_dev_codex_plugins/_process.py",
+    "src/la_dev_codex_plugins/codex_perform/__init__.py",
+    "src/la_dev_codex_plugins/codex_perform/_output.py",
+    "src/la_dev_codex_plugins/codex_perform/_runtime.py",
+    "src/la_dev_codex_plugins/codex_perform/cli.py",
     "src/la_dev_codex_plugins.egg-info/PKG-INFO",
     "src/la_dev_codex_plugins.egg-info/SOURCES.txt",
     "src/la_dev_codex_plugins.egg-info/dependency_links.txt",
     "src/la_dev_codex_plugins.egg-info/top_level.txt",
-    "tests/python_package_distribution/smoke_installed_package.py",
+    "tests/python_distribution/smoke_installed_package.py",
 }
 
 
@@ -86,7 +88,7 @@ def _validate_wheel(path, version):
         _require("Tag: py3-none-any\n" in wheel_text, "Wheel does not contain the py3-none-any tag")
         bootstrap = archive.read("{}/scripts/codex-perform".format(data_root))
         _require(bootstrap.startswith(b"#!python\n"), "Installed bootstrap does not use the wheel #!python marker")
-        _require(b'"-I", "-m", "la_dev_codex_plugins.cli.perform"' in bootstrap, "Installed bootstrap does not re-execute the isolated Perform module")
+        _require(b'"-I", "-m", "la_dev_codex_plugins.codex_perform.cli"' in bootstrap, "Installed bootstrap does not re-execute the isolated Perform module")
     return expected
 
 

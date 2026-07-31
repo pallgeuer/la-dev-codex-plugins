@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pytest
 
-SELECTOR_PATH = Path(__file__).resolve().parents[1] / "scripts" / "select_oldest_macos_runner.py"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+SELECTOR_PATH = REPOSITORY_ROOT / "scripts" / "select_oldest_macos_runner.py"
 
 
 def load_selector():

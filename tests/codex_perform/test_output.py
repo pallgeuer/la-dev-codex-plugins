@@ -8,10 +8,10 @@ import sys
 import types
 from pathlib import Path
 
-from la_dev_codex_plugins.cli import _perform_output as perform_output
-from la_dev_codex_plugins.cli import _perform_runtime as perform_runtime
+from la_dev_codex_plugins.codex_perform import _output as perform_output
+from la_dev_codex_plugins.codex_perform import _runtime as perform_runtime
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PLUGIN_ROOT = REPOSITORY_ROOT / "plugins" / "toolkit"
 
 
@@ -230,7 +230,7 @@ def test_standalone_cli_preserves_unicode_under_ascii_locale(tmp_path):
     base_command = [
         sys.executable,
         "-m",
-        "la_dev_codex_plugins.cli.perform",
+        "la_dev_codex_plugins.codex_perform.cli",
         "--plugin-root",
         str(PLUGIN_ROOT),
         "--cwd",

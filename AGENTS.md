@@ -10,8 +10,15 @@ This repository is a Codex plugin marketplace.
 - Skill roots: `plugins/<plugin-name>/skills/<skill-name>/`
 - Skill scripts: `plugins/<plugin-name>/skills/<skill-name>/scripts/`
 - Skill tests: `tests/plugins/<plugin-name>/skills/<skill-name>/`
+- Codex Perform tests: `tests/codex_perform/`
+- Shared behavioral contracts: `tests/contracts/`
+- Supported-platform smoke tests: `tests/platform/`
+- Python distribution tests: `tests/python_distribution/`
+- Repository contracts: `tests/repo/`
+- Repository script tests: `tests/scripts/`
 
 Tests must not be placed inside `plugins/<plugin-name>/` unless a test fixture is intentionally part of the runtime plugin payload.
+Do not write or generate test assertions that lock in exact wording or wording components of `actions.json` entries.
 
 ## Release versioning
 
@@ -39,7 +46,7 @@ Runtime code shipped in the `la-dev-codex-plugins` Python distribution, includin
 
 Do not add mandatory or optional runtime dependencies to the base distribution. A future tool that cannot satisfy the Python 3.6+ standard-library-only contract must use a separate distribution rather than weakening the `codex-perform` installation contract.
 
-Keep the wheel and sdist manifests minimal. The wheel must not contain plugin payloads, tests, repository helpers, or source-only activation files. The sdist may additionally contain only the dedicated dependency-free tests under `tests/python_package_distribution/` and the files required to build and describe the distribution.
+Keep the wheel and sdist manifests minimal. The wheel must not contain plugin payloads, tests, repository helpers, or source-only activation files. The sdist may additionally contain only the dedicated dependency-free tests under `tests/python_distribution/` and the files required to build and describe the distribution.
 
 ## Required checks after editing plugin scripts
 

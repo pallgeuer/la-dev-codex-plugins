@@ -34,7 +34,7 @@ jobs:
             --volume "${GITHUB_WORKSPACE}:/workspace:ro" \
             --workdir /workspace \
             ubuntu:18.04 \
-            bash -c "apt-get update && apt-get install --yes git python3 && python3 tests/supported_platform_smoke.py"
+            bash -c "apt-get update && apt-get install --yes git python3 && python3 tests/platform/supported_platform_smoke.py"
 
   select_oldest_macos:
     runs-on: ubuntu-latest
@@ -68,7 +68,7 @@ jobs:
           python-version: "3.8"
 
       - name: Run supported-platform smoke checks
-        run: python3 tests/supported_platform_smoke.py
+        run: python3 tests/platform/supported_platform_smoke.py
 
   macos_latest:
     runs-on: macos-latest
@@ -82,4 +82,4 @@ jobs:
           python-version: "3.x"
 
       - name: Run supported-platform smoke checks
-        run: python3 tests/supported_platform_smoke.py
+        run: python3 tests/platform/supported_platform_smoke.py

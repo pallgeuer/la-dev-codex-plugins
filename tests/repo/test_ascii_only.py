@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path, PurePosixPath
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 ALLOWED_NON_ASCII = {
     PurePosixPath("plugins/la-review/skills/loupe/SKILL.md"): {"\N{MIDDLE DOT}"},
 }

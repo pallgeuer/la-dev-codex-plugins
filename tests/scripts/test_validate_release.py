@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 VALIDATOR = REPOSITORY_ROOT / "scripts" / "validate_release.py"
 GIT_LOCAL_ENVIRONMENT_VARIABLES = (
     "GIT_ALTERNATE_OBJECT_DIRECTORIES",

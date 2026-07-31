@@ -5,7 +5,7 @@ import sys
 import sysconfig
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 PLUGINS_ROOT = REPO_ROOT / "plugins"
 SRC_ROOT = REPO_ROOT / "src"
 STANDALONE_RUNTIME_FILES = (

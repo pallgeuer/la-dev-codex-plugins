@@ -3,9 +3,9 @@
 import configparser
 import importlib.util
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SETUP_CONFIG = REPOSITORY_ROOT / "setup.cfg"
 INSTALLED_BOOTSTRAP = REPOSITORY_ROOT / "package_scripts" / "codex-perform"
 SOURCE_BOOTSTRAP = REPOSITORY_ROOT / "source_launcher" / "codex_perform.py"
@@ -35,21 +35,24 @@ def test_setup_declares_dependency_free_python36_package_and_script():
 def test_installed_bootstrap_is_executable_and_reexecutes_isolated_module():
     contents = INSTALLED_BOOTSTRAP.read_text(encoding="ascii")
     assert contents.startswith("#!python\n")
-    assert '"-I", "-m", "la_dev_codex_plugins.cli.perform"' in contents
+    assert '"-I", "-m", "la_dev_codex_plugins.codex_perform.cli"' in contents
     assert os.access(str(INSTALLED_BOOTSTRAP), os.X_OK)
 
 
 def test_source_bootstrap_is_excluded_from_installable_package():
     assert SOURCE_BOOTSTRAP.is_file()
-    assert not (REPOSITORY_ROOT / "src" / "la_dev_codex_plugins" / "cli" / "_perform_bootstrap.py").exists()
     validator = load_validator()
-    assert "la_dev_codex_plugins/cli/_perform_bootstrap.py" not in validator.PACKAGE_FILES
+    assert not any(PurePosixPath(path).parts[:2] == ("la_dev_codex_plugins", "cli") for path in validator.PACKAGE_FILES)
+    assert "la_dev_codex_plugins/_process.py" in validator.PACKAGE_FILES
+    assert "la_dev_codex_plugins/codex_perform/cli.py" in validator.PACKAGE_FILES
     assert "source_launcher/codex_perform.py" not in validator.SDIST_FILES
 
 
 def test_sdist_manifest_includes_only_dedicated_distribution_tests():
     manifest = (REPOSITORY_ROOT / "MANIFEST.in").read_text(encoding="ascii")
     assert "prune tests\n" in manifest
-    assert "recursive-include tests/python_package_distribution *.py\n" in manifest
+    assert "include tests/python_distribution/smoke_installed_package.py\n" in manifest
+    assert "recursive-include tests/python_distribution *.py\n" not in manifest
+    assert "tests/python_distribution/test_contract.py" not in load_validator().SDIST_FILES
     assert not any(line.startswith(("include plugins", "recursive-include plugins", "graft plugins")) for line in manifest.splitlines())
     assert not any(line.startswith(("include source_launcher", "recursive-include source_launcher", "graft source_launcher")) for line in manifest.splitlines())

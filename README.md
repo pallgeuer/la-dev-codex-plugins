@@ -264,106 +264,36 @@ List the configured actions without executing one:
 $toolkit:perform
 ```
 
-Run a known action by its bare name:
+Run a known action:
 
 ```text
 $toolkit:perform find-todos
 $toolkit:perform find-todos in tools/
 ```
 
-Select an exact language variant (`agnostic` means language-independent; another action might provide variants such as `python`):
+The same Toolkit actions are available through the dependency-free `codex-perform` launcher:
 
-```text
-$toolkit:perform find-todos[agnostic]
+```bash
+codex-perform list
+codex-perform find-todos
 ```
 
-Select an action with a clear natural-language request:
-
-```text
-$toolkit:perform list the todos in tools/
-```
-
-Read or query the built-in Perform help with:
-
-```text
-$toolkit:perform help
-$toolkit:perform help How can I define custom repo-specific actions?
-```
-
-Generate or update a stable Markdown quick reference for the effective actions:
-
-```text
-$toolkit:perform update-action-catalogue
-$toolkit:perform update-action-catalogue docs/action_catalogue.md
-```
-
-The default output is `<repository-root>/.codex/toolkit_perform_actions/action_catalogue.md`. Explicit relative outputs may use parent traversal and are not confined to the repository; parent-directory symlinks are followed, while a symlink in the final target component is refused. The standalone launcher provides the same deterministic generator directly through `codex-perform catalogue [--output PATH]`.
-
-The dependency-free `codex-perform` launcher is available either as a Python package installed in a virtual environment or directly from a repository checkout. Both paths support Python 3.6+ and isolate the launcher import from the caller's current directory, `PYTHONPATH`, and user site-packages. The Python package contains only launcher tooling; it does not install Codex, the marketplace, or any plugin runtime and assets.
-
-#### Install the launcher in a virtual environment
-
-Create and activate a virtual environment, then install the repository distribution from PyPI:
+Install the launcher in a Python 3.6+ virtual environment:
 
 ```bash
 python3 -m venv /PATH/TO/VENV
 source /PATH/TO/VENV/bin/activate
 python -m pip install la-dev-codex-plugins
-codex-perform --version
 ```
 
-The installed command is available whenever that environment is active and always uses its Python interpreter. On old Python installations, add `--only-binary=:all:` to the `pip install` command to require the supported universal wheel rather than attempting a source build.
-
-#### Activate the source-only launcher
-
-No Python package installation is required for the source path. Ubuntu 18.04 includes a suitable system Python; on macOS, install Python first, for example with `brew install python`. In each new Bash session, source the repository activation script:
+Alternatively, activate it directly from a source checkout, e.g. to run install-free with any system Python 3.6+ interpreter:
 
 ```bash
-# FIND IT:  find "${CODEX_HOME:-$HOME/.codex}" -path "*/la-dev-codex-plugins/activate.sh"
-# OFTEN IS: source ~/.codex/.tmp/marketplaces/la-dev-codex-plugins/activate.sh
 source /PATH/TO/la-dev-codex-plugins/activate.sh
 ```
 
-This defines `codex-perform` as a shell function. If a shell already contains that function, it takes precedence over an executable from a subsequently activated virtual environment; start a fresh shell or run `unset -f codex-perform` before using the venv-installed command.
-
-With either installation path, runs are interactive by default; ordinary noninteractive runs (`--non-interactive` or its alias `--ni`) show the action and prompt on stderr, hide Codex progress, and leave only the final response on stdout. Add `--verbose` to restore live progress:
-
-```bash
-codex-perform
-codex-perform --help
-codex-perform --version
-codex-perform catalogue
-codex-perform show find-todos
-codex-perform show help
-codex-perform help
-codex-perform help --question 'How do repository action overrides work?'
-codex-perform find-todos
-codex-perform find-todos --qualification 'Limit the search to tools/'
-codex-perform find-todos --ni
-codex-perform find-todos --non-interactive --verbose
-codex-perform find-todos --json
-codex-perform exec-md-goal --var 'MarkdownPlanFile=docs/plans/plan.md'
-```
-
-The source activation internally calls `python3` in isolated mode, while the installed command re-executes its owning virtual-environment interpreter in isolated mode. Interactive, verbose noninteractive, and JSONL launches replace that Python process with Codex; final-response-only launches supervise `codex exec` so failed-run diagnostics can be replayed.
-
-For source activation only, use `CODEX_PERFORM_PYTHON=/PATH/TO/python` to select another Python 3.6+ standard-library interpreter. The installed command deliberately ignores that variable and remains bound to its virtual environment. During marketplace development, `--plugin-root /PATH/TO/la-dev-codex-plugins/plugins/toolkit` explicitly uses the checkout instead of installed-plugin discovery. See the [standalone launcher and runtime API documentation](plugins/toolkit/skills/perform/references/standalone_cli.md) for installation, selection, overrides, output modes, and embedding.
-
-The Perform skill discovers direct `*.json` files from these `toolkit_perform_actions` directories, in increasing precedence:
-
-- The action directory bundled with the installed skill: `/PATH/TO/skills/perform/assets/toolkit_perform_actions/`
-- The system Codex configuration: On Unix this is `/etc/codex/toolkit_perform_actions/`; no corresponding `config.toml` is required
-- The user Codex configuration: `$CODEX_HOME/toolkit_perform_actions/`, defaulting to `~/.codex/toolkit_perform_actions/` when `CODEX_HOME` is unset or empty; no corresponding `config.toml` is required
-- The repository-local Codex configuration: `<repository-root>/.codex/toolkit_perform_actions/`; a corresponding `<repository-root>/.codex/config.toml` is required
-
-For help and documentation on the Perform skill, see:
-
-- [Perform action files and catalogues](plugins/toolkit/skills/perform/references/action_files.md) for action creation, discovery, fields, precedence, variants, inheritance, variables, overrides, ignores, catalogue generation, and configuration troubleshooting.
-- [Codex Perform skill guide](plugins/toolkit/skills/perform/references/codex_skill.md) for in-chat selection and execution.
-- [Standalone Perform CLI guide](plugins/toolkit/skills/perform/references/standalone_cli.md) for activation, process launching, output modes, and the runtime API.
-
-The installed help exposes the information from all three guides through `$toolkit:perform help` and the executable `codex-perform help` action. Supply a focused standalone question with `--question`, a synonym for `--qualification`; use `codex-perform show help` to inspect its immutable generated configuration, and `codex-perform --help` for launcher syntax and options.
+See [Codex Perform](docs/codex_perform.md) for action discovery and overrides, inheritance, catalogue safety, installation and activation, all CLI forms, output modes, variables, qualifications, and launcher/plugin compatibility.
 
 ## Development
 
-See `TESTING.md`. The shipped plugin scripts and package source code must support Python 3.6+ and must use only the Python standard library.
+See [Testing](TESTING.md), [Releasing](RELEASE.md), and [Codex Perform](docs/codex_perform.md). The shipped plugin scripts and package source code must support Python 3.6+ and must use only the Python standard library.

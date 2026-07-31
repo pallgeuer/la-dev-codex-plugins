@@ -11,7 +11,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PERFORM_SCRIPTS = REPOSITORY_ROOT / "plugins" / "toolkit" / "skills" / "perform" / "scripts"
 TOOLKIT_ROOT = REPOSITORY_ROOT / "plugins" / "toolkit"
 ACTIVATE = REPOSITORY_ROOT / "activate.sh"
@@ -100,14 +100,15 @@ def smoke_bounded_process(environment):
     """Exercise POSIX process-group timeout and pipe cleanup behavior."""
     sys.path.insert(0, str(REPOSITORY_ROOT / "src"))
     try:
-        perform_runtime = importlib.import_module("la_dev_codex_plugins.cli._perform_runtime")
+        process_module = importlib.import_module("la_dev_codex_plugins._process")
     finally:
         sys.path.pop(0)
-    result = perform_runtime._run_bounded_command(
+    result = process_module.run_bounded_process(
         [sys.executable, "-c", "import time; time.sleep(5)"],
         str(REPOSITORY_ROOT),
         environment,
         timeout=0.05,
+        output_limit=4096,
     )
     assert result.timed_out is True
     assert result.capture_incomplete is False

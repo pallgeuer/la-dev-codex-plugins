@@ -10,9 +10,9 @@ from pathlib import Path
 
 import pytest
 
-from la_dev_codex_plugins.cli import _perform_runtime as perform_runtime
+import la_dev_codex_plugins._process as process_module
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PERFORM_SCRIPTS = REPOSITORY_ROOT / "plugins" / "toolkit" / "skills" / "perform" / "scripts"
 sys.path.insert(0, str(PERFORM_SCRIPTS))
 discovery_module = importlib.import_module("toolkit_perform_runtime.discovery")
@@ -57,25 +57,23 @@ class BrokenPipe:
         """Accept cleanup."""
 
 
-class SourceRuntimeAdapter:
-    """Adapt source launcher plugin discovery to the shared contract."""
+class InstalledPackageAdapter:
+    """Adapt installed-package process execution to the shared contract."""
 
-    module = perform_runtime
     output_limit = 4096
 
     def run(self, cwd, popen_factory, timeout=0.1):
-        """Run one bounded source-launcher command."""
-        return perform_runtime._run_bounded_command(["codex", "plugin", "list"], str(cwd), {}, popen_factory=popen_factory, timeout=timeout, output_limit=self.output_limit)
+        """Run one bounded installed-package command."""
+        return process_module.run_bounded_process(["codex", "plugin", "list"], str(cwd), {}, popen_factory=popen_factory, timeout=timeout, output_limit=self.output_limit)
 
     def run_real(self, cwd, command, timeout):
-        """Run one real bounded source-launcher command."""
-        return perform_runtime._run_bounded_command(command, str(cwd), os.environ, timeout=timeout, output_limit=self.output_limit)
+        """Run one real bounded installed-package command."""
+        return process_module.run_bounded_process(command, str(cwd), os.environ, timeout=timeout, output_limit=self.output_limit)
 
 
 class PluginRuntimeAdapter:
     """Adapt toolkit Git discovery to the shared contract."""
 
-    module = discovery_module
     output_limit = discovery_module.GIT_OUTPUT_LIMIT
 
     def run(self, cwd, popen_factory, timeout=0.1):
@@ -91,7 +89,7 @@ class PluginRuntimeAdapter:
         return discovery_module.run_bounded_git_root(str(cwd), popen_factory=popen, timeout=timeout, env=os.environ)
 
 
-@pytest.fixture(params=(SourceRuntimeAdapter, PluginRuntimeAdapter), ids=("source-launcher", "toolkit-git"))
+@pytest.fixture(params=(InstalledPackageAdapter, PluginRuntimeAdapter), ids=("installed-package", "toolkit-git"))
 def bounded_process(request):
     """Return one bounded-process implementation adapter."""
     return request.param()

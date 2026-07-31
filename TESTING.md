@@ -63,34 +63,43 @@ Run all tests with Python 3.8:
 uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run pytest --all-files --hook-stage manual
 ```
 
-Run only Loupe tests:
+Run Codex Perform tests:
 
 ```bash
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/plugins/la-review/skills/loupe
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/codex_perform/
 ```
 
-Run only Perform tests:
+Run shared behavioral contracts:
 
 ```bash
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/plugins/toolkit/skills/perform
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/contracts/
 ```
 
-Run the standalone Perform launcher and Python-distribution tests:
+Run all plugin tests, or one existing plugin test family:
 
 ```bash
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/test_codex_perform_*.py tests/test_python_distribution.py
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/plugins/
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/plugins/la-review/skills/loupe/
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/plugins/toolkit/skills/perform/
 ```
 
-Run the release-version validator and declaration tests:
+Run the Python-distribution contract:
 
 ```bash
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/test_validate_release.py tests/test_versions.py
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/python_distribution/test_contract.py
+```
+
+Run repository contracts and repository-script tests:
+
+```bash
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/repo/
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/scripts/
 ```
 
 Run the dependency-free supported-platform smoke checks with the active Python interpreter:
 
 ```bash
-python3 tests/supported_platform_smoke.py
+python3 tests/platform/supported_platform_smoke.py
 ```
 
 This smoke program covers shipped action discovery and inspection, atomic catalogue writes, the source-activated launcher, bounded process termination, and Loupe's Bash subprocess path. It is deliberately compatible with Python 3.6 and uses only the standard library so that CI can run it with Ubuntu 18.04's native interpreter.
@@ -112,7 +121,7 @@ After building, install the wheel into a disposable virtual environment and run 
 python3 -m venv /tmp/la-dev-codex-plugins-package-test
 /tmp/la-dev-codex-plugins-package-test/bin/python -m pip install --no-index --no-deps dist/*.whl
 PATH=\"/tmp/la-dev-codex-plugins-package-test/bin:$PATH\" \
-    /tmp/la-dev-codex-plugins-package-test/bin/python tests/python_package_distribution/smoke_installed_package.py \
+    /tmp/la-dev-codex-plugins-package-test/bin/python tests/python_distribution/smoke_installed_package.py \
     --expected-version \"$(sed -n 's/^version = //p' setup.cfg)\" \
     --plugin-root plugins/toolkit
 ```
@@ -143,7 +152,7 @@ Run it only for Loupe scripts:
 uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins/la-review/skills/loupe/scripts
 ```
 
-Use `-t=3.6-` rather than trying to run the pytest suite under Python 3.6. Vermin analyzes the complete runtime source, source launcher, and installed bootstrap for minimum Python-version requirements, while `tests/supported_platform_smoke.py` and `tests/python_package_distribution/smoke_installed_package.py` supply focused runtime execution under Python 3.6 without requiring uv or third-party test packages.
+Use `-t=3.6-` rather than trying to run the pytest suite under Python 3.6. Vermin analyzes the complete runtime source, source launcher, and installed bootstrap for minimum Python-version requirements, while `tests/platform/supported_platform_smoke.py` and `tests/python_distribution/smoke_installed_package.py` supply focused runtime execution under Python 3.6 without requiring uv or third-party test packages.
 
 ## Recommended pre-commit check
 

@@ -261,7 +261,7 @@ uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run --all-files --hook-sta
 The manual-stage suite validates JSON, TOML, YAML, linting, formatting, typing, tests, and Python 3.6 compatibility. Run the focused release-validator and version-declaration tests as an explicit release check:
 
 ```bash
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/test_validate_release.py tests/test_versions.py
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/scripts/test_validate_release.py tests/repo/test_versions.py
 ```
 
 The Python distribution is built only during release preflight and publication. Its workflow builds the wheel from the sdist, validates exact archive contents and metadata, and installs the wheel without package-index access on Python 3.6, Python 3.8, and the newest stable Python.
@@ -269,7 +269,7 @@ The Python distribution is built only during release preflight and publication. 
 Run the dependency-free supported-platform smoke checks with the active Python interpreter. CI repeats these checks on Ubuntu 18.04 with Python 3.6, the oldest non-deprecated hosted macOS Intel runner with Python 3.8, and the current `macos-latest` Arm64 runner with the newest stable Python 3.x:
 
 ```bash
-python3 tests/supported_platform_smoke.py
+python3 tests/platform/supported_platform_smoke.py
 ```
 
 Verify that the official runner metadata still selects one safe oldest macOS Intel label:

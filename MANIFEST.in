@@ -7,5 +7,5 @@ include setup.py
 include package_scripts/codex-perform
 recursive-include src/la_dev_codex_plugins *.py
 prune tests
-recursive-include tests/python_package_distribution *.py
+include tests/python_distribution/smoke_installed_package.py
 exclude README.md

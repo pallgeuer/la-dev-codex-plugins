@@ -102,7 +102,7 @@ jobs:
 
       - name: Run installed-package smoke checks
         run: |
-          PATH="$PWD/package-venv/bin:$PATH" package-venv/bin/python tests/python_package_distribution/smoke_installed_package.py \
+          PATH="$PWD/package-venv/bin:$PATH" package-venv/bin/python tests/python_distribution/smoke_installed_package.py \
               --expected-version "${{ needs.build.outputs.version }}" \
               --plugin-root plugins/toolkit
 
@@ -129,7 +129,7 @@ jobs:
               --volume "$GITHUB_WORKSPACE:/workspace:ro" \
               --workdir /workspace \
               ubuntu:18.04 \
-              bash -c "apt-get update && apt-get install --yes git python3-venv && python3 -m venv /tmp/package-venv && /tmp/package-venv/bin/pip install --no-index --no-deps /workspace/dist/*.whl && PATH=/tmp/package-venv/bin:\$PATH /tmp/package-venv/bin/python tests/python_package_distribution/smoke_installed_package.py --expected-version '${{ needs.build.outputs.version }}' --plugin-root plugins/toolkit"
+              bash -c "apt-get update && apt-get install --yes git python3-venv && python3 -m venv /tmp/package-venv && /tmp/package-venv/bin/pip install --no-index --no-deps /workspace/dist/*.whl && PATH=/tmp/package-venv/bin:\$PATH /tmp/package-venv/bin/python tests/python_distribution/smoke_installed_package.py --expected-version '${{ needs.build.outputs.version }}' --plugin-root plugins/toolkit"
 
   publish:
     if: github.event_name == 'release' && !github.event.release.prerelease
