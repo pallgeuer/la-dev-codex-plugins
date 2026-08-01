@@ -8,6 +8,7 @@ import argparse
 import json
 import math
 import os
+import pathlib
 import shlex
 import signal
 import subprocess
@@ -15,7 +16,6 @@ import sys
 import tempfile
 import threading
 import time
-from pathlib import Path
 from typing import Any, BinaryIO, Dict, List, Mapping, Optional, Sequence
 
 DEFAULT_TIMEOUT_SECONDS = 30 * 60
@@ -532,7 +532,7 @@ def emit_json_output(payload: Dict[str, Any], output_path: Optional[str]) -> Non
     output = json.dumps(payload, indent=2, allow_nan=False) + "\n"
     sys.stdout.write(output)
     if output_path is not None:
-        with Path(output_path).open("w", encoding="utf-8") as output_file:
+        with pathlib.Path(output_path).open("w", encoding="utf-8") as output_file:
             output_file.write(output)
 
 

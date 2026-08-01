@@ -3,12 +3,12 @@
 import importlib
 import json
 import os
+import pathlib
 import re
 import shutil
 import signal
 import subprocess
 import sys
-from pathlib import Path
 
 from .. import _process as process_module
 
@@ -113,17 +113,17 @@ def _expand_environment_path(path, environment, description):
         home = environment.get("HOME")
         if not home:
             raise CliError("Could not resolve {} {!r} because HOME is unset or empty.".format(description, path), exit_code=4, code="directory_unavailable")
-        return Path(home) if path == "~" else Path(home) / path[2:]
+        return pathlib.Path(home) if path == "~" else pathlib.Path(home) / path[2:]
     if path.startswith("~"):
         raise CliError("Could not resolve {} {!r}; named-user tilde expansion is unsupported.".format(description, path), exit_code=4, code="directory_unavailable")
-    return Path(path)
+    return pathlib.Path(path)
 
 
 def resolve_directory(path):
     """Resolve and validate one existing directory from the process directory."""
-    candidate = Path(path).expanduser()
+    candidate = pathlib.Path(path).expanduser()
     if not candidate.is_absolute():
-        candidate = Path.cwd() / candidate
+        candidate = pathlib.Path.cwd() / candidate
     try:
         resolved = candidate.resolve()
     except (OSError, RuntimeError) as exc:
@@ -144,7 +144,7 @@ def normalize_codex_environment(cwd, env=None):
         return environment
     codex_home = _expand_environment_path(configured_home, environment, "CODEX_HOME")
     if not codex_home.is_absolute():
-        codex_home = Path(cwd) / codex_home
+        codex_home = pathlib.Path(cwd) / codex_home
     try:
         codex_home = codex_home.resolve()
     except (OSError, RuntimeError) as exc:
@@ -161,15 +161,15 @@ def resolve_codex_executable(codex_executable, original_cwd, env=None):
     expanded = _expand_environment_path(codex_executable, environment, "Codex executable")
     has_directory = any(separator is not None and separator in codex_executable for separator in (os.sep, os.altsep))
     if has_directory or expanded.is_absolute():
-        candidate = expanded if expanded.is_absolute() else Path(original_cwd) / expanded
+        candidate = expanded if expanded.is_absolute() else pathlib.Path(original_cwd) / expanded
         discovered = shutil.which(str(candidate))
     else:
         discovered = shutil.which(str(expanded), path=os.pathsep.join(os.get_exec_path(environment)))
     if discovered is None:
         raise CliError("Could not find an executable Codex program for {!r}.".format(codex_executable), exit_code=4, code="codex_executable_unavailable")
-    absolute = Path(discovered)
+    absolute = pathlib.Path(discovered)
     if not absolute.is_absolute():
-        absolute = Path(original_cwd) / absolute
+        absolute = pathlib.Path(original_cwd) / absolute
     return os.path.abspath(str(absolute))  # noqa: PTH100 - Preserve the final executable symlink.
 
 
@@ -194,7 +194,7 @@ def decode_codex_json(stdout):
 
 def validate_plugin_root(plugin_root, expected_version=None):
     """Validate one toolkit plugin root and return its Perform scripts path."""
-    root = Path(plugin_root)
+    root = pathlib.Path(plugin_root)
     manifest_path = root / ".codex-plugin" / "plugin.json"
     try:
         with manifest_path.open("r", encoding="utf-8") as stream:
@@ -253,14 +253,14 @@ def discover_plugin_root(codex_executable, cwd, env=None, popen_factory=None, ti
         raise CliError("{} has invalid installed version {!r}; expected a SemVer value.".format(PLUGIN_ID, version), exit_code=4, code="plugin_discovery_failed")
     configured_home = environment.get("CODEX_HOME")
     if configured_home:
-        codex_home = Path(configured_home)
+        codex_home = pathlib.Path(configured_home)
     else:
         home = environment.get("HOME")
         if not home:
             raise CliError("Could not resolve the default Codex home because HOME is unset or empty.", exit_code=4, code="plugin_discovery_failed")
-        codex_home = Path(home)
+        codex_home = pathlib.Path(home)
         if not codex_home.is_absolute():
-            codex_home = Path(cwd) / codex_home
+            codex_home = pathlib.Path(cwd) / codex_home
         codex_home /= ".codex"
     cache_root = codex_home / "plugins" / "cache" / MARKETPLACE_NAME / PLUGIN_NAME
     try:
@@ -288,13 +288,13 @@ def _validate_runtime_api(runtime):
 
 def import_runtime(scripts_path):
     """Import the exact versioned launcher API rooted at one scripts directory."""
-    expected_init = (Path(scripts_path) / "toolkit_perform_runtime" / "__init__.py").resolve()
+    expected_init = (pathlib.Path(scripts_path) / "toolkit_perform_runtime" / "__init__.py").resolve()
     existing = sys.modules.get("toolkit_perform_runtime")
     if existing is not None:
         existing_file = getattr(existing, "__file__", None)
         if existing_file is None:
             raise CliError("A toolkit_perform_runtime without a filesystem location is already loaded.", exit_code=4, code="runtime_conflict")
-        existing_path = Path(existing_file).resolve()
+        existing_path = pathlib.Path(existing_file).resolve()
         if existing_path != expected_init:
             raise CliError("A different toolkit_perform_runtime is already loaded from {}.".format(existing_path), exit_code=4, code="runtime_conflict")
         _validate_runtime_api(existing)

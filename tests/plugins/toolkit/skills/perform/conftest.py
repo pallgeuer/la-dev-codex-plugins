@@ -2,12 +2,12 @@
 
 import importlib
 import json
+import pathlib
 import sys
-from pathlib import Path
 
 import pytest
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[5]
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[5]
 SKILL_ROOT = REPOSITORY_ROOT / "plugins" / "toolkit" / "skills" / "perform"
 SCRIPTS_ROOT = SKILL_ROOT / "scripts"
 BUNDLED_ACTIONS = SKILL_ROOT / "assets" / "toolkit_perform_actions"

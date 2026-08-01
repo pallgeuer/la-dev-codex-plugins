@@ -22,7 +22,7 @@ The officially supported host operating systems are:
 - Ubuntu 18.04 or newer, with the shipped runtime code supporting the system Python 3.6+ included with Ubuntu 18.04+
 - macOS 14 or newer, with Python 3.6 or newer installed separately; current macOS releases do not include a system `python3`
 
-The repository runs dependency-free runtime smoke checks on Ubuntu 18.04 with Python 3.6, on the oldest non-deprecated GitHub-hosted macOS Intel runner with Python 3.8, and on the current `macos-latest` Arm64 runner with the newest stable Python 3.x. The full lint, type-check, compatibility-analysis, and functional test suite runs on current Ubuntu with Python 3.8 semantics. GitHub retires older macOS runner images over time, so exact macOS 14 execution continues only while GitHub offers it as a non-deprecated hosted image; after that point, the support floor relies on static portability assessment and the portable standard-library runtime constraints rather than continuous execution on macOS 14. Shipped plugin scripts, the source launcher, and the installable Python distribution require only Python 3.6+ and the Python standard library. Loupe additionally requires Bash, Git, `jq`, and at least one supported external reviewer executable (`codex` or `claude`); it reports unavailable reviewer tools rather than attempting to install them.
+The repository runs dependency-free runtime smoke checks on Ubuntu 18.04 with Python 3.6, on the oldest non-deprecated GitHub-hosted macOS Intel runner with Python 3.8, and on the current `macos-latest` Arm64 runner with the newest stable Python 3.x. The full lint, type-check, compatibility-analysis, and functional test suite runs on current Ubuntu with Python 3.8 semantics. GitHub retires older macOS runner images over time, so exact macOS 14 execution continues only while GitHub offers it as a non-deprecated hosted image; after that point, the support floor relies on static portability assessment and the portable standard-library runtime constraints rather than continuous execution on macOS 14. Shipped plugin scripts, the source launcher, and the base installation require only Python 3.6+ and the Python standard library. The explicitly loaded pytest-isolation plugin additionally requires caller-supplied pytest 7.0.1 or newer. Loupe additionally requires Bash, Git, `jq`, and at least one supported external reviewer executable (`codex` or `claude`); it reports unavailable reviewer tools rather than attempting to install them.
 
 Only the Ubuntu and macOS hosts listed above are officially supported. Compatibility with other POSIX Linux distributions is intended but is not part of the official support guarantee. Native Windows and WSL are not supported, tested, or maintained, and the runtime intentionally relies on POSIX process, filesystem, signal, and shell behavior.
 
@@ -294,6 +294,24 @@ source /PATH/TO/la-dev-codex-plugins/activate.sh
 
 See [Codex Perform](docs/codex_perform.md) for action discovery and overrides, inheritance, catalogue safety, installation and activation, all CLI forms, output modes, variables, qualifications, and launcher/plugin compatibility.
 
+The bundled `audit-test-performance[agnostic]` action measures a repository's test suite and creates or updates one evidence-based audit document without changing implementation or tests. See [Test-performance audit action](docs/actions/audit_test_performance.md).
+
+## Reusable development tools
+
+The Python distribution also installs reusable development tools that are independent of the marketplace plugins:
+
+- [`la-dev-markdown-tables`](docs/markdown_tables.md) canonically checks or formats supported Markdown pipe tables and publishes matching pre-commit hooks.
+- [`la_dev_codex_plugins.pytest_isolation`](docs/pytest_isolation.md) provides explicit `isolated_cwd` and `guarded_cwd` pytest fixtures and markers.
+- [`la-dev-release-checksums`](docs/release_checksums.md) generates deterministic, failure-safe SHA-256 manifests for release artifacts.
+
+The base installation remains standard-library-only and has no mandatory dependencies:
+
+```bash
+python -m pip install la-dev-codex-plugins
+```
+
+Install `la-dev-codex-plugins[pytest]` to obtain the optional pytest dependency, or `[dev]` for the same development integration. The package deliberately has no `pytest11` entry point: downstream suites must explicitly load `la_dev_codex_plugins.pytest_isolation.plugin` as documented. Installing these Python tools does not install the Codex marketplace or its plugins.
+
 ## Development
 
-See [Testing](TESTING.md), [Releasing](RELEASE.md), and [Codex Perform](docs/codex_perform.md). The shipped plugin scripts and package source code must support Python 3.6+ and must use only the Python standard library.
+See [Testing](TESTING.md), [Releasing](RELEASE.md), and [Codex Perform](docs/codex_perform.md). Shipped plugin scripts and package source support Python 3.6+. The base runtime uses only the Python standard library; only the explicitly loaded pytest-isolation plugin may import its declared optional pytest dependency.

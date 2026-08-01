@@ -2,7 +2,7 @@
 
 import importlib
 import json
-from pathlib import Path
+import pathlib
 
 import pytest
 
@@ -55,7 +55,7 @@ def test_facade_shows_and_prepares_complete_builtin_help(tmp_path, load_catalog)
     assert payload["action"]["reasoning_effort"] == "medium"
     assert payload["action"]["no_edits"] is True
     assert payload["action"]["requires_interactive"] is False
-    guide_paths = [Path(json.loads(line[2:])) for line in payload["action"]["prompt"].splitlines() if line.startswith("- ")]
+    guide_paths = [pathlib.Path(json.loads(line[2:])) for line in payload["action"]["prompt"].splitlines() if line.startswith("- ")]
     assert [path.name for path in guide_paths] == ["action_files.md", "codex_skill.md", "standalone_cli.md"]
     assert all(path.is_absolute() and path.is_file() for path in guide_paths)
 

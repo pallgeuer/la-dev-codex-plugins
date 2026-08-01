@@ -2,13 +2,13 @@
 
 import importlib.util
 import json
+import pathlib
 import subprocess
-from pathlib import Path
 from types import ModuleType
 
 import pytest
 
-DIFF_HELPER_PATH = Path(__file__).resolve().parents[5] / "plugins" / "la-review" / "skills" / "loupe" / "scripts" / "collect_review_diff.py"
+DIFF_HELPER_PATH = pathlib.Path(__file__).resolve().parents[5] / "plugins" / "la-review" / "skills" / "loupe" / "scripts" / "collect_review_diff.py"
 
 
 def load_loupe_diff_helper() -> ModuleType:
@@ -21,12 +21,12 @@ def load_loupe_diff_helper() -> ModuleType:
     return module
 
 
-def run_git(cwd: Path, *args: str) -> None:
+def run_git(cwd: pathlib.Path, *args: str) -> None:
     """Run Git in a temporary repository."""
     subprocess.run(["git", *list(args)], cwd=str(cwd), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
-def initialize_repo(repo: Path) -> None:
+def initialize_repo(repo: pathlib.Path) -> None:
     """Create a temporary Git repository with one committed file."""
     run_git(repo, "init", "-q")
     run_git(repo, "config", "user.email", "loupe@example.com")
@@ -36,7 +36,7 @@ def initialize_repo(repo: Path) -> None:
     run_git(repo, "commit", "-q", "-m", "initial")
 
 
-def test_collects_default_diff_artifact_for_staged_unstaged_and_untracked_text(capsys: pytest.CaptureFixture[str], isolated_cwd: Path) -> None:
+def test_collects_default_diff_artifact_for_staged_unstaged_and_untracked_text(capsys: pytest.CaptureFixture[str], isolated_cwd: pathlib.Path) -> None:
     """Collect the default Loupe diff into an artifact with all uncommitted text changes."""
     helper = load_loupe_diff_helper()
     initialize_repo(isolated_cwd)
@@ -64,7 +64,7 @@ def test_collects_default_diff_artifact_for_staged_unstaged_and_untracked_text(c
     assert "+untracked" in diff_text
 
 
-def test_collects_binary_untracked_files_as_markers_without_payload(capsys: pytest.CaptureFixture[str], isolated_cwd: Path) -> None:
+def test_collects_binary_untracked_files_as_markers_without_payload(capsys: pytest.CaptureFixture[str], isolated_cwd: pathlib.Path) -> None:
     """Represent untracked binary files without embedding binary payload bytes."""
     helper = load_loupe_diff_helper()
     initialize_repo(isolated_cwd)
@@ -82,7 +82,7 @@ def test_collects_binary_untracked_files_as_markers_without_payload(capsys: pyte
     assert "Binary files /dev/null and b/binary.dat differ" in diff_text
 
 
-def test_diff_helper_rejects_custom_scopes(isolated_cwd: Path) -> None:
+def test_diff_helper_rejects_custom_scopes(isolated_cwd: pathlib.Path) -> None:
     """Reject custom scopes so agents must choose an explicit custom diff command."""
     helper = load_loupe_diff_helper()
 

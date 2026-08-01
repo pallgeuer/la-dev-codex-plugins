@@ -3,7 +3,7 @@
 import importlib
 import io
 import os
-from pathlib import Path
+import pathlib
 
 import pytest
 
@@ -26,11 +26,11 @@ class HermeticFilesystem(discovery_module.FilesystemView):
     """Hide ambient VCS markers above one temporary-test boundary."""
 
     def __init__(self, boundary):
-        self.boundary = Path(boundary).resolve()
+        self.boundary = pathlib.Path(boundary).resolve()
 
     def exists(self, path):
         """Ignore supported markers outside the temporary fixture tree."""
-        candidate = Path(path)
+        candidate = pathlib.Path(path)
         if candidate.name in (".git", ".hg", ".sl"):
             try:
                 candidate.resolve().relative_to(self.boundary)
@@ -42,7 +42,7 @@ class HermeticFilesystem(discovery_module.FilesystemView):
 def discover(bundled, cwd, env=None, git_runner=no_repository, filesystem=None):
     """Run discovery with deterministic test defaults."""
     if filesystem is None:
-        filesystem = HermeticFilesystem(Path(bundled).parent)
+        filesystem = HermeticFilesystem(pathlib.Path(bundled).parent)
     return discovery_module.discover_action_directories(str(bundled), cwd=str(cwd), env={} if env is None else env, git_runner=git_runner, filesystem=filesystem)
 
 
@@ -113,7 +113,7 @@ def test_relative_codex_home_resolves_against_requested_cwd(tmp_path):
     (cwd / "nested").mkdir()
     result = discover(bundled, cwd, env={"CODEX_HOME": "nested/../relative"})
     assert result.sources[-1].normalized_path == str((cwd / "relative" / "toolkit_perform_actions").resolve())
-    assert ".." not in Path(result.sources[-1].display_path).parts
+    assert ".." not in pathlib.Path(result.sources[-1].display_path).parts
 
 
 @pytest.mark.parametrize("kind", ["missing", "file"])

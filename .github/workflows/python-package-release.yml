@@ -76,7 +76,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.x"]
+        include:
+          - python-version: "3.8"
+            pytest-version: "8.3.5"
+          - python-version: "3.x"
+            pytest-version: "9.1.1"
     steps:
       - name: Check out tested source
         uses: actions/checkout@v6
@@ -101,10 +105,13 @@ jobs:
           package-venv/bin/python -m pip install --no-index --no-deps dist/*.whl
 
       - name: Run installed-package smoke checks
-        run: |
-          PATH="$PWD/package-venv/bin:$PATH" package-venv/bin/python tests/python_distribution/smoke_installed_package.py \
-              --expected-version "${{ needs.build.outputs.version }}" \
-              --plugin-root plugins/toolkit
+        run: PATH="$PWD/package-venv/bin:$PATH" package-venv/bin/python tests/python_distribution/smoke_installed_package.py --expected-version "${{ needs.build.outputs.version }}" --plugin-root plugins/toolkit
+
+      - name: Install fixed pytest version
+        run: package-venv/bin/python -m pip install "pytest==${{ matrix.pytest-version }}"
+
+      - name: Run installed pytest-isolation smoke checks
+        run: package-venv/bin/python tests/python_distribution/smoke_pytest_isolation.py --expected-pytest-version "${{ matrix.pytest-version }}"
 
   test-python-36:
     needs: build
@@ -130,6 +137,16 @@ jobs:
               --workdir /workspace \
               ubuntu:18.04 \
               bash -c "apt-get update && apt-get install --yes git python3-venv && python3 -m venv /tmp/package-venv && /tmp/package-venv/bin/pip install --no-index --no-deps /workspace/dist/*.whl && PATH=/tmp/package-venv/bin:\$PATH /tmp/package-venv/bin/python tests/python_distribution/smoke_installed_package.py --expected-version '${{ needs.build.outputs.version }}' --plugin-root plugins/toolkit"
+
+      - name: Run installed pytest-isolation smoke with minimum pytest
+        shell: bash
+        run: |
+          docker run --rm \
+              --env PYTHONDONTWRITEBYTECODE=1 \
+              --volume "$GITHUB_WORKSPACE:/workspace:ro" \
+              --workdir /workspace \
+              ubuntu:18.04 \
+              bash -c "apt-get update && apt-get install --yes python3-venv && python3 -m venv /tmp/package-venv && /tmp/package-venv/bin/pip install --no-index --no-deps /workspace/dist/*.whl && /tmp/package-venv/bin/pip install pytest==7.0.1 && /tmp/package-venv/bin/python tests/python_distribution/smoke_pytest_isolation.py --expected-pytest-version 7.0.1"
 
   publish:
     if: github.event_name == 'release' && !github.event.release.prerelease

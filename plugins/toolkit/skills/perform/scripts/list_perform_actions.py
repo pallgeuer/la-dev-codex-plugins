@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """List effective Perform actions as compact JSON."""
 
+import pathlib
 import sys
-from pathlib import Path
 
 import toolkit_perform_runtime.cli as runtime_cli
 from toolkit_perform_runtime.diagnostics import PerformRequestError
@@ -13,7 +13,7 @@ def _parser():
     parser = runtime_cli.JsonArgumentParser(description="List effective Perform action variants as compact JSON.")
     parser.add_argument("--name", action="store_once", help="Narrow to one exact bare action name.")
     parser.add_argument("--fallback", action="store_once", nargs=0, const=True, default=False, help="List the full catalog when --name has no effective variants.")
-    parser.add_argument("--cwd", action="store_once", default=str(Path.cwd()), help="Working directory used for conventional local discovery.")
+    parser.add_argument("--cwd", action="store_once", default=str(pathlib.Path.cwd()), help="Working directory used for conventional local discovery.")
     return parser
 
 

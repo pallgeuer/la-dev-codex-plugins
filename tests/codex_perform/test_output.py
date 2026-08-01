@@ -3,15 +3,15 @@
 import io
 import json
 import os
+import pathlib
 import subprocess
 import sys
 import types
-from pathlib import Path
 
 from la_dev_codex_plugins.codex_perform import _output as perform_output
 from la_dev_codex_plugins.codex_perform import _runtime as perform_runtime
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 PLUGIN_ROOT = REPOSITORY_ROOT / "plugins" / "toolkit"
 
 

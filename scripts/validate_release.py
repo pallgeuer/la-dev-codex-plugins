@@ -5,10 +5,10 @@ import argparse
 import configparser
 import json
 import os
+import pathlib
 import re
 import subprocess
 import sys
-from pathlib import Path
 
 STABLE_VERSION_RE = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
 STABLE_TAG_RE = re.compile(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
@@ -174,7 +174,7 @@ def _changed_plugin_names(repository_root, tag):
 
 
 def validate_baseline(repository_root, tag):
-    repository_root = Path(repository_root).resolve()
+    repository_root = pathlib.Path(repository_root).resolve()
     match = STABLE_TAG_RE.fullmatch(tag)
     if match is None:
         raise ReleaseValidationError("LAST_TAG must have stable form vX.Y.Z, got {!r}".format(tag))
@@ -307,7 +307,7 @@ def _plugin_change(value):
 
 def _argument_parser():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo-root", default=str(Path(__file__).resolve().parents[1]), help=argparse.SUPPRESS)
+    parser.add_argument("--repo-root", default=str(pathlib.Path(__file__).resolve().parents[1]), help=argparse.SUPPRESS)
     subparsers = parser.add_subparsers(dest="command")
     baseline_parser = subparsers.add_parser("baseline", help="Validate the committed development baseline")
     baseline_parser.add_argument("last_tag")
@@ -323,7 +323,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.command is None:
         parser.error("a subcommand is required")
-    repository_root = Path(args.repo_root)
+    repository_root = pathlib.Path(args.repo_root)
     try:
         if args.command == "baseline":
             baseline = validate_baseline(repository_root, args.last_tag)

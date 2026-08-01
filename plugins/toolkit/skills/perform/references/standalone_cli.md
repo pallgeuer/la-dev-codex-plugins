@@ -156,16 +156,16 @@ Runs are interactive unless `--non-interactive` (short alias `--ni`) or `--json`
 
 The three output flags have these complete combinations:
 
-| `--non-interactive` | `--json` | `--verbose` | Result |
-| --- | --- | --- | --- |
-| No | No | No | Valid: interactive Codex. |
-| No | No | Yes | Invalid: `--verbose` requires explicit `--non-interactive`. |
-| No | Yes | No | Valid: JSONL `codex exec`; `--json` implicitly selects noninteractive execution. |
-| No | Yes | Yes | Invalid: `--verbose` requires explicit `--non-interactive` and cannot be combined with `--json`. |
-| Yes | No | No | Valid: final-response-only `codex exec`; prelaunch context is shown and Codex progress is hidden. |
-| Yes | No | Yes | Valid: verbose `codex exec`; prelaunch context and live Codex progress are shown. |
-| Yes | Yes | No | Valid: JSONL `codex exec`; explicit `--non-interactive` is redundant but accepted. |
-| Yes | Yes | Yes | Invalid: `--verbose` cannot be combined with `--json`. |
+| `--non-interactive` | `--json` | `--verbose` | Result                                                                                            |
+|---------------------|----------|-------------|---------------------------------------------------------------------------------------------------|
+| No                  | No       | No          | Valid: interactive Codex.                                                                         |
+| No                  | No       | Yes         | Invalid: `--verbose` requires explicit `--non-interactive`.                                       |
+| No                  | Yes      | No          | Valid: JSONL `codex exec`; `--json` implicitly selects noninteractive execution.                  |
+| No                  | Yes      | Yes         | Invalid: `--verbose` requires explicit `--non-interactive` and cannot be combined with `--json`.  |
+| Yes                 | No       | No          | Valid: final-response-only `codex exec`; prelaunch context is shown and Codex progress is hidden. |
+| Yes                 | No       | Yes         | Valid: verbose `codex exec`; prelaunch context and live Codex progress are shown.                 |
+| Yes                 | Yes      | No          | Valid: JSONL `codex exec`; explicit `--non-interactive` is redundant but accepted.                |
+| Yes                 | Yes      | Yes         | Invalid: `--verbose` cannot be combined with `--json`.                                            |
 
 Arguments after an exact `--` are copied into the selected Codex frontend:
 

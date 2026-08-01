@@ -3,22 +3,42 @@
 
 import argparse
 import email.parser
+import pathlib
 import sys
 import tarfile
 import zipfile
-from pathlib import Path, PurePosixPath
 
 DISTRIBUTION_NAME = "la-dev-codex-plugins"
 NORMALIZED_NAME = "la_dev_codex_plugins"
 PACKAGE_FILES = {
     "la_dev_codex_plugins/__init__.py",
+    "la_dev_codex_plugins/_filesystem.py",
     "la_dev_codex_plugins/_process.py",
     "la_dev_codex_plugins/codex_perform/__init__.py",
     "la_dev_codex_plugins/codex_perform/_output.py",
     "la_dev_codex_plugins/codex_perform/_runtime.py",
     "la_dev_codex_plugins/codex_perform/cli.py",
+    "la_dev_codex_plugins/markdown_tables/__init__.py",
+    "la_dev_codex_plugins/markdown_tables/cli.py",
+    "la_dev_codex_plugins/markdown_tables/files.py",
+    "la_dev_codex_plugins/markdown_tables/formatter.py",
+    "la_dev_codex_plugins/markdown_tables/models.py",
+    "la_dev_codex_plugins/markdown_tables/parser.py",
+    "la_dev_codex_plugins/pytest_isolation/__init__.py",
+    "la_dev_codex_plugins/pytest_isolation/plugin.py",
+    "la_dev_codex_plugins/release_checksums/__init__.py",
+    "la_dev_codex_plugins/release_checksums/cli.py",
+    "la_dev_codex_plugins/release_checksums/core.py",
 }
-SDIST_FILES = {
+CONSOLE_SCRIPTS = {
+    "la-dev-markdown-tables": "la_dev_codex_plugins.markdown_tables.cli:main",
+    "la-dev-release-checksums": "la_dev_codex_plugins.release_checksums.cli:main",
+}
+OPTIONAL_REQUIREMENTS = {
+    'pytest>=7.0.1; extra == "dev"',
+    'pytest>=7.0.1; extra == "pytest"',
+}
+SDIST_NON_PACKAGE_FILES = {
     "LICENSE",
     "MANIFEST.in",
     "PKG-INFO",
@@ -27,18 +47,16 @@ SDIST_FILES = {
     "pyproject.toml",
     "setup.cfg",
     "setup.py",
-    "src/la_dev_codex_plugins/__init__.py",
-    "src/la_dev_codex_plugins/_process.py",
-    "src/la_dev_codex_plugins/codex_perform/__init__.py",
-    "src/la_dev_codex_plugins/codex_perform/_output.py",
-    "src/la_dev_codex_plugins/codex_perform/_runtime.py",
-    "src/la_dev_codex_plugins/codex_perform/cli.py",
     "src/la_dev_codex_plugins.egg-info/PKG-INFO",
     "src/la_dev_codex_plugins.egg-info/SOURCES.txt",
     "src/la_dev_codex_plugins.egg-info/dependency_links.txt",
+    "src/la_dev_codex_plugins.egg-info/entry_points.txt",
+    "src/la_dev_codex_plugins.egg-info/requires.txt",
     "src/la_dev_codex_plugins.egg-info/top_level.txt",
     "tests/python_distribution/smoke_installed_package.py",
+    "tests/python_distribution/smoke_pytest_isolation.py",
 }
+SDIST_FILES = SDIST_NON_PACKAGE_FILES | {"src/{}".format(path) for path in PACKAGE_FILES}
 
 
 class DistributionValidationError(Exception):
@@ -57,8 +75,28 @@ def _metadata(data, label):
     _require(metadata.get("Name") == DISTRIBUTION_NAME, "{} has unexpected Name {!r}".format(label, metadata.get("Name")))
     _require(metadata.get("Requires-Python") == ">=3.6", "{} has unexpected Requires-Python {!r}".format(label, metadata.get("Requires-Python")))
     _require(metadata.get("License") == "MIT", "{} has unexpected License {!r}".format(label, metadata.get("License")))
-    _require(not metadata.get_all("Requires-Dist"), "{} must not declare runtime dependencies".format(label))
+    _require(set(metadata.get_all("Provides-Extra", [])) == {"dev", "pytest"}, "{} has unexpected optional extras {!r}".format(label, metadata.get_all("Provides-Extra")))
+    _require(set(metadata.get_all("Requires-Dist", [])) == OPTIONAL_REQUIREMENTS, "{} has unexpected dependency declarations {!r}".format(label, metadata.get_all("Requires-Dist")))
     return metadata
+
+
+def _entry_points(data, label):
+    """Parse and validate installed console entry points."""
+    entries = {}
+    section = None
+    for raw_line in data.decode("utf-8").splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            section = line[1:-1]
+            _require(section == "console_scripts", "{} has unexpected entry-point group {!r}".format(label, section))
+            continue
+        _require(section == "console_scripts" and "=" in line, "{} has malformed entry point {!r}".format(label, raw_line))
+        name, target = (part.strip() for part in line.split("=", 1))
+        _require(name not in entries, "{} repeats console script {!r}".format(label, name))
+        entries[name] = target
+    _require(entries == CONSOLE_SCRIPTS, "{} has unexpected console scripts {!r}".format(label, entries))
 
 
 def _validate_wheel(path, version):
@@ -73,6 +111,7 @@ def _validate_wheel(path, version):
             "{}/METADATA".format(dist_info),
             "{}/RECORD".format(dist_info),
             "{}/WHEEL".format(dist_info),
+            "{}/entry_points.txt".format(dist_info),
             "{}/licenses/LICENSE".format(dist_info),
             "{}/top_level.txt".format(dist_info),
             "{}/scripts/codex-perform".format(data_root),
@@ -86,6 +125,7 @@ def _validate_wheel(path, version):
         wheel_text = archive.read("{}/WHEEL".format(dist_info)).decode("utf-8")
         _require("Root-Is-Purelib: true\n" in wheel_text, "Wheel is not marked as purelib")
         _require("Tag: py3-none-any\n" in wheel_text, "Wheel does not contain the py3-none-any tag")
+        _entry_points(archive.read("{}/entry_points.txt".format(dist_info)), "wheel entry points")
         bootstrap = archive.read("{}/scripts/codex-perform".format(data_root))
         _require(bootstrap.startswith(b"#!python\n"), "Installed bootstrap does not use the wheel #!python marker")
         _require(b'"-I", "-m", "la_dev_codex_plugins.codex_perform.cli"' in bootstrap, "Installed bootstrap does not re-execute the isolated Perform module")
@@ -102,10 +142,10 @@ def _validate_sdist(path, version):
         _require(all(member.isdir() or member.isfile() for member in members), "Sdist must contain only directories and regular files")
         file_names = set()
         for member in members:
-            member_path = PurePosixPath(member.name)
+            member_path = pathlib.PurePosixPath(member.name)
             _require(member_path.parts and member_path.parts[0] == expected_root, "Sdist member escapes the expected root: {}".format(member.name))
             if member.isfile():
-                file_names.add(str(PurePosixPath(*member_path.parts[1:])))
+                file_names.add(str(pathlib.PurePosixPath(*member_path.parts[1:])))
         _require(file_names == SDIST_FILES, "Sdist contents differ from the required manifest: missing={}, unexpected={}".format(sorted(SDIST_FILES - file_names), sorted(file_names - SDIST_FILES)))
         package_info = archive.extractfile("{}/PKG-INFO".format(expected_root))
         if package_info is None:
@@ -117,7 +157,7 @@ def _validate_sdist(path, version):
 
 def validate_distribution_directory(dist_directory, version):
     """Validate exactly one wheel and one sdist in a directory."""
-    root = Path(dist_directory)
+    root = pathlib.Path(dist_directory)
     _require(root.is_dir(), "Distribution directory does not exist: {}".format(root))
     archives = sorted(path for path in root.iterdir() if path.is_file())
     wheels = [path for path in archives if path.suffix == ".whl"]

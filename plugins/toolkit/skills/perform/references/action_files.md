@@ -155,20 +155,20 @@ Root-level errors discard one file but do not make otherwise knowable precedence
 
 A complete variant contains every field below. An `agnostic` definition must always be complete. A language-specific definition may omit inherited fields as described in [Action variants and inheritance](#action-variants-and-inheritance).
 
-| Field | Meaning and valid value |
-| --- | --- |
-| `gloss` | A concise, nonempty single-line description without control or line-separator characters, used when listing and selecting the action. |
-| `model` | `"default"` or a model identifier matching `^[A-Za-z0-9][A-Za-z0-9._:+/-]*$`. A nondefault value is consumed by the standalone launcher. |
-| `reasoning_effort` | The requested effort outside Plan mode. Use a lowercase identifier matching `^[a-z][a-z0-9_-]*$`. |
-| `goal_mode` | Boolean. When true, launchers create or request a goal whose objective is the final rendered prompt. |
-| `plan_mode` | Boolean. When true, the action requires an existing interactive Plan-mode chat and cannot be launched by the standalone CLI. |
-| `plan_reasoning_effort` | The requested Plan-mode effort, using the same format as `reasoning_effort`. |
-| `no_edits` | Boolean. When true, rendering prefixes the prompt with the exact text `No edits. `. |
-| `prompt_vars` | An object mapping bare variable names such as `Area` to concise, nonempty single-line descriptions. Use `{}` when no variables are needed. Use variables in the prompt via `%...%` syntax, like `%Area%`. |
-| `prompt` | The nonempty prompt template. Newlines are preserved; NUL and Unicode surrogate characters are rejected. |
-| `requires_interactive` | Boolean. When true, the standalone launcher rejects `--non-interactive` and `--json`; when false, either explicit noninteractive mode is permitted. The standalone launcher otherwise defaults to interactive Codex. |
-| `custom_codex_args` | Reviewed flag-only global Codex options inserted by the standalone launcher. Use `[]` when none are needed. |
-| `notes` | User-facing text displayed before interactive, verbose, and JSONL execution, or when a final-response-only launch fails; it is never included in the prompt. Use `""` when no note is needed. |
+| Field                   | Meaning and valid value                                                                                                                                                                                              |
+|-------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `gloss`                 | A concise, nonempty single-line description without control or line-separator characters, used when listing and selecting the action.                                                                                |
+| `model`                 | `"default"` or a model identifier matching `^[A-Za-z0-9][A-Za-z0-9._:+/-]*$`. A nondefault value is consumed by the standalone launcher.                                                                             |
+| `reasoning_effort`      | The requested effort outside Plan mode. Use a lowercase identifier matching `^[a-z][a-z0-9_-]*$`.                                                                                                                    |
+| `goal_mode`             | Boolean. When true, launchers create or request a goal whose objective is the final rendered prompt.                                                                                                                 |
+| `plan_mode`             | Boolean. When true, the action requires an existing interactive Plan-mode chat and cannot be launched by the standalone CLI.                                                                                         |
+| `plan_reasoning_effort` | The requested Plan-mode effort, using the same format as `reasoning_effort`.                                                                                                                                         |
+| `no_edits`              | Boolean. When true, rendering prefixes the prompt with the exact text `No edits. `.                                                                                                                                  |
+| `prompt_vars`           | An object mapping bare variable names such as `Area` to concise, nonempty single-line descriptions. Use `{}` when no variables are needed. Use variables in the prompt via `%...%` syntax, like `%Area%`.            |
+| `prompt`                | The nonempty prompt template. Newlines are preserved; NUL and Unicode surrogate characters are rejected.                                                                                                             |
+| `requires_interactive`  | Boolean. When true, the standalone launcher rejects `--non-interactive` and `--json`; when false, either explicit noninteractive mode is permitted. The standalone launcher otherwise defaults to interactive Codex. |
+| `custom_codex_args`     | Reviewed flag-only global Codex options inserted by the standalone launcher. Use `[]` when none are needed.                                                                                                          |
+| `notes`                 | User-facing text displayed before interactive, verbose, and JSONL execution, or when a final-response-only launch fails; it is never included in the prompt. Use `""` when no note is needed.                        |
 
 Some guidance on and rules related to the fields:
 

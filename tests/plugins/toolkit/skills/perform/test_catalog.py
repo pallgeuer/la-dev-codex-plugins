@@ -2,9 +2,12 @@
 
 import importlib
 import json
+import pathlib
 
 import pytest
 
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[5]
+BUNDLED_ACTIONS = REPOSITORY_ROOT / "plugins" / "toolkit" / "skills" / "perform" / "assets" / "toolkit_perform_actions"
 catalog_module = importlib.import_module("toolkit_perform_runtime.catalog")
 discovery_module = importlib.import_module("toolkit_perform_runtime.discovery")
 validation_module = importlib.import_module("toolkit_perform_runtime.validation")
@@ -18,6 +21,11 @@ def selectors(catalog, name=None):
 def diagnostic_codes(catalog):
     """Return stable diagnostic codes from one catalog."""
     return [diagnostic.code for diagnostic in catalog.diagnostics]
+
+
+def test_bundled_action_catalog_is_valid(load_catalog):
+    catalog = load_catalog(BUNDLED_ACTIONS)
+    assert catalog.diagnostics == []
 
 
 def test_field_validator_registry_exactly_covers_the_action_schema():

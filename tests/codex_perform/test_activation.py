@@ -1,12 +1,12 @@
 """Tests for source-only Perform activation."""
 
 import json
+import pathlib
 import subprocess
-from pathlib import Path
 
 import pytest
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 PLUGIN_ROOT = REPOSITORY_ROOT / "plugins" / "toolkit"
 
 
@@ -60,7 +60,7 @@ def test_activation_script_resolves_absolute_relative_and_chained_symlinks(tmp_p
     source = target
     if chain:
         source = tmp_path / "activate-link.sh"
-        source.symlink_to(Path("links with spaces") / "target.sh")
+        source.symlink_to(pathlib.Path("links with spaces") / "target.sh")
     command = [
         "bash",
         "--noprofile",
@@ -72,7 +72,7 @@ def test_activation_script_resolves_absolute_relative_and_chained_symlinks(tmp_p
     ]
     completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, check=False)
     assert completed.returncode == 0, completed.stderr
-    assert Path(completed.stdout.strip()) == REPOSITORY_ROOT
+    assert pathlib.Path(completed.stdout.strip()) == REPOSITORY_ROOT
 
 
 def test_activation_script_rejects_direct_execution():

@@ -81,12 +81,12 @@ Dynamic values are passed as direct, single arguments rather than shell syntax o
 
 The action flags select one required behavior:
 
-| `plan_mode` | `goal_mode` | Required chat behavior |
-| --- | --- | --- |
-| false | false | Default mode must already be active; execute directly. |
-| true | false | Plan mode must already be active; execute directly in Plan mode. |
-| false | true | Default mode must be active; create a goal whose objective is the final prompt. |
-| true | true | Invalid action configuration. |
+| `plan_mode` | `goal_mode` | Required chat behavior                                                          |
+|-------------|-------------|---------------------------------------------------------------------------------|
+| false       | false       | Default mode must already be active; execute directly.                          |
+| true        | false       | Plan mode must already be active; execute directly in Plan mode.                |
+| false       | true        | Default mode must be active; create a goal whose objective is the final prompt. |
+| true        | true        | Invalid action configuration.                                                   |
 
 Perform does not change between Default and Plan mode. On a mismatch, switch modes and invoke the action again. Codex documents Plan mode and goals in its [current command reference](https://developers.openai.com/codex/cli/reference).
 

@@ -3,16 +3,16 @@
 import importlib
 import io
 import os
+import pathlib
 import subprocess
 import sys
 import time
-from pathlib import Path
 
 import pytest
 
 import la_dev_codex_plugins._process as process_module
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 PERFORM_SCRIPTS = REPOSITORY_ROOT / "plugins" / "toolkit" / "skills" / "perform" / "scripts"
 sys.path.insert(0, str(PERFORM_SCRIPTS))
 discovery_module = importlib.import_module("toolkit_perform_runtime.discovery")

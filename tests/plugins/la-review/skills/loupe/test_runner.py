@@ -2,13 +2,13 @@
 
 import importlib.util
 import json
-from pathlib import Path
+import pathlib
 from types import ModuleType
 from typing import Any, Callable, List, Sequence
 
 import pytest
 
-RUNNER_PATH = Path(__file__).resolve().parents[5] / "plugins" / "la-review" / "skills" / "loupe" / "scripts" / "run_reviewers.py"
+RUNNER_PATH = pathlib.Path(__file__).resolve().parents[5] / "plugins" / "la-review" / "skills" / "loupe" / "scripts" / "run_reviewers.py"
 
 
 def load_loupe_runner() -> ModuleType:
@@ -337,7 +337,7 @@ def test_dry_run_skips_codex_reviewers_when_codex_is_missing(capsys: pytest.Capt
     assert reviewer_names == ["Claude Code Review"]
 
 
-def test_dry_run_output_file_matches_stdout(capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_dry_run_output_file_matches_stdout(capsys: pytest.CaptureFixture[str], tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Write the exact emitted dry-run JSON to the requested output file."""
     runner = load_loupe_runner()
     monkeypatch.setattr(runner, "executable_is_available", executable_availability("claude", "codex", "jq"))
@@ -549,7 +549,7 @@ def test_json_output_rejects_nonfinite_numbers(capsys: pytest.CaptureFixture[str
     assert capsys.readouterr().out == ""
 
 
-def test_review_output_file_matches_stdout(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+def test_review_output_file_matches_stdout(capsys: pytest.CaptureFixture[str], tmp_path: pathlib.Path) -> None:
     """Write the exact emitted reviewer JSON to the requested output file."""
     runner = load_loupe_runner()
     output_path = tmp_path / "reviewers.json"

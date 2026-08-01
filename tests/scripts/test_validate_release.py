@@ -2,14 +2,14 @@
 
 import json
 import os
+import pathlib
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 VALIDATOR = REPOSITORY_ROOT / "scripts" / "validate_release.py"
 GIT_LOCAL_ENVIRONMENT_VARIABLES = (
     "GIT_ALTERNATE_OBJECT_DIRECTORIES",

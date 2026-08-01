@@ -89,6 +89,27 @@ Run the Python-distribution contract:
 uvx --python 3.8 --from pytest==8.3.5 pytest tests/python_distribution/test_contract.py
 ```
 
+Run the focused reusable-tool suites:
+
+```bash
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/markdown_tables/
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/release_checksums/
+```
+
+The release-checksum suite covers exact UTF-8/LF bytes, POSIX permissions, symlink and hard-link identity, stale-output invalidation, atomic replacement, file `fsync`, and failure cleanup. Run individual files when localizing library or CLI failures:
+
+```bash
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/release_checksums/test_core.py
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/release_checksums/test_cli.py
+```
+
+Run the exhaustive pytest-isolation behavior suite with the repository baseline and current pytest:
+
+```bash
+uvx --python 3.8 --from pytest==8.3.5 pytest tests/pytest_isolation/
+uvx --python 3.10 --from pytest==9.1.1 pytest tests/pytest_isolation/
+```
+
 Run repository contracts and repository-script tests:
 
 ```bash
@@ -102,7 +123,7 @@ Run the dependency-free supported-platform smoke checks with the active Python i
 python3 tests/platform/supported_platform_smoke.py
 ```
 
-This smoke program covers shipped action discovery and inspection, atomic catalogue writes, the source-activated launcher, bounded process termination, and Loupe's Bash subprocess path. It is deliberately compatible with Python 3.6 and uses only the standard library so that CI can run it with Ubuntu 18.04's native interpreter.
+This smoke program covers shipped action discovery and inspection, atomic catalogue writes, the source-activated launcher, bounded process termination, Loupe's Bash subprocess path, and dependency-free UTF-8/LF release-checksum placement with symlink and hard-link identity checks. It is deliberately compatible with Python 3.6 and uses only the standard library so that CI can run it with Ubuntu 18.04's native interpreter. Keep this no-dependency proof separate from every pytest smoke.
 
 Build and validate the exact Python source and wheel distributions:
 
@@ -110,20 +131,30 @@ Build and validate the exact Python source and wheel distributions:
 rm -rf build dist src/la_dev_codex_plugins.egg-info
 uvx --python 3.10 --from build==1.5.0 python -m build
 uvx --python 3.10 --from twine==6.2.0 twine check dist/*
-python3 scripts/validate_python_distribution.py dist --version \"$(sed -n 's/^version = //p' setup.cfg)\"
+python3 scripts/validate_python_distribution.py dist --version "$(sed -n 's/^version = //p' setup.cfg)"
 ```
 
-These commands create ignored build artifacts in the checkout. The validator requires one minimal sdist and one `py3-none-any` wheel, rejects runtime dependencies and unexpected files, and verifies that the installed bootstrap re-executes isolated Python. The `Python package release` workflow performs this build only for manual release preflights and published GitHub Releases.
+These commands create ignored build artifacts in the checkout. The validator requires one minimal sdist and one `py3-none-any` wheel, rejects unconditional runtime dependencies and unexpected files, verifies the exact optional extras and console entry points, and verifies that the installed bootstrap re-executes isolated Python. The `Python package release` workflow performs this build only for manual release preflights and published GitHub Releases.
 
 After building, install the wheel into a disposable virtual environment and run the distribution smoke checks:
 
 ```bash
 python3 -m venv /tmp/la-dev-codex-plugins-package-test
 /tmp/la-dev-codex-plugins-package-test/bin/python -m pip install --no-index --no-deps dist/*.whl
-PATH=\"/tmp/la-dev-codex-plugins-package-test/bin:$PATH\" \
-    /tmp/la-dev-codex-plugins-package-test/bin/python tests/python_distribution/smoke_installed_package.py \
-    --expected-version \"$(sed -n 's/^version = //p' setup.cfg)\" \
-    --plugin-root plugins/toolkit
+PATH="/tmp/la-dev-codex-plugins-package-test/bin:$PATH" /tmp/la-dev-codex-plugins-package-test/bin/python tests/python_distribution/smoke_installed_package.py --expected-version "$(sed -n 's/^version = //p' setup.cfg)" --plugin-root plugins/toolkit
+```
+
+Only after the base `--no-index --no-deps` smoke passes, add a fixed pytest and exercise the explicitly loaded installed plugin:
+
+```bash
+/tmp/la-dev-codex-plugins-package-test/bin/python -m pip install pytest==8.3.5
+/tmp/la-dev-codex-plugins-package-test/bin/python tests/python_distribution/smoke_pytest_isolation.py --expected-pytest-version 8.3.5
+```
+
+CI repeats the installed-plugin smoke with pytest 7.0.1 in the Ubuntu 18.04/Python 3.6 environment, pytest 8.3.5 on the oldest supported macOS Intel runner, and pytest 9.1.1 on the current macOS Arm64 runner. The smoke checks exact guarded permissions and leak detection without assuming those permissions prevent root writes. The macOS jobs use separate virtual environments so the dependency-free platform smoke always runs before pytest is installed. To reproduce the minimum combination in the Ubuntu 18.04 container:
+
+```bash
+docker run --rm --env PYTHONDONTWRITEBYTECODE=1 --volume "$PWD:/workspace:ro" --workdir /workspace ubuntu:18.04 bash -c "apt-get update && apt-get install --yes python3-venv && python3 -m venv /tmp/pytest-venv && /tmp/pytest-venv/bin/pip install pytest==7.0.1 && PYTHONPATH=/workspace/src /tmp/pytest-venv/bin/python tests/python_distribution/smoke_pytest_isolation.py --expected-pytest-version 7.0.1"
 ```
 
 The macOS selector reads the official `actions/runner-images` availability table and fails closed if it cannot identify one ordinary non-deprecated GA Intel label:
@@ -152,7 +183,7 @@ Run it only for Loupe scripts:
 uvx --python 3.8 --from vermin==1.8.0 vermin -t=3.6- --violations plugins/la-review/skills/loupe/scripts
 ```
 
-Use `-t=3.6-` rather than trying to run the pytest suite under Python 3.6. Vermin analyzes the complete runtime source, source launcher, and installed bootstrap for minimum Python-version requirements, while `tests/platform/supported_platform_smoke.py` and `tests/python_distribution/smoke_installed_package.py` supply focused runtime execution under Python 3.6 without requiring uv or third-party test packages.
+Use `-t=3.6-` rather than trying to run the exhaustive pytest suite under Python 3.6. Vermin analyzes the complete runtime source, source launcher, and installed bootstrap for minimum Python-version requirements, while `tests/platform/supported_platform_smoke.py` and `tests/python_distribution/smoke_installed_package.py` supply focused dependency-free runtime execution under Python 3.6. The dedicated `smoke_pytest_isolation.py` separately covers the optional plugin with fixed pytest.
 
 ## Recommended pre-commit check
 
@@ -166,6 +197,14 @@ Run the exact read-only checks used by CI's main pre-commit job:
 
 ```bash
 uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run --all-files --hook-stage manual
+```
+
+Validate the published hook manifest and exercise both Markdown-table hooks explicitly:
+
+```bash
+uvx --python 3.10 --from pre-commit==4.6.0 pre-commit validate-manifest .pre-commit-hooks.yaml
+uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run markdown-tables-fix --all-files
+uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run markdown-tables-check --all-files --hook-stage manual
 ```
 
 Also run the supported-platform smoke program and macOS selector locally as shown above. CI repeats the smoke checks on the supported baseline and forward-compatibility operating-system targets.

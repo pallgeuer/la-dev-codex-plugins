@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Write a stable Markdown catalogue of effective Perform actions."""
 
+import pathlib
 import sys
-from pathlib import Path
 
 import toolkit_perform_runtime.action_catalogue as action_catalogue
 import toolkit_perform_runtime.cli as runtime_cli
@@ -12,7 +12,7 @@ def _parser():
     """Build the stable bundled-script argument parser."""
     parser = runtime_cli.JsonArgumentParser(description="Write a stable Markdown catalogue of effective Perform actions.")
     parser.add_argument("--output", action="store_once", help="Output path; relative paths resolve from the repository root and may use parent traversal.")
-    parser.add_argument("--cwd", action="store_once", default=str(Path.cwd()), help="Working directory used for conventional local discovery.")
+    parser.add_argument("--cwd", action="store_once", default=str(pathlib.Path.cwd()), help="Working directory used for conventional local discovery.")
     return parser
 
 

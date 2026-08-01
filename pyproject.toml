@@ -11,6 +11,7 @@ build-backend = "setuptools.build_meta"
 filterwarnings = ["error"]
 testpaths = ["tests"]
 markers = [
+    "guarded_cwd: Run the test in a read-only poisoned temporary working directory",
     "isolated_cwd: Run the test in a fresh writable temporary working directory",
 ]
 

@@ -129,11 +129,11 @@ Also account manually for structural changes that the loop cannot classify:
 
 Classify the complete set of changes for each changed existing plugin and classify repository-only changes independently:
 
-| Classification | Change | Component below `1.0.0` | Component at or above `1.0.0` |
-| --- | --- | --- | --- |
-| `fix` | Backward-compatible fix, documentation correction, or maintenance | Patch | Patch |
-| `feature` | Backward-compatible functionality | Minor | Minor |
-| `breaking` | Incompatible user-facing behavior, configuration, interface, or removal | Minor | Major |
+| Classification | Change                                                                  | Component below `1.0.0` | Component at or above `1.0.0` |
+|----------------|-------------------------------------------------------------------------|-------------------------|-------------------------------|
+| `fix`          | Backward-compatible fix, documentation correction, or maintenance       | Patch                   | Patch                         |
+| `feature`      | Backward-compatible functionality                                       | Minor                   | Minor                         |
+| `breaking`     | Incompatible user-facing behavior, configuration, interface, or removal | Minor                   | Major                         |
 
 For a component in initial development (`0.x.y`), a breaking change advances the minor version and resets the patch version. Moving to `1.0.0` is reserved for declaring its public interface stable.
 
@@ -374,19 +374,8 @@ test "$REMOTE_RELEASE_COMMIT" = "$RELEASE_COMMIT"
 Run the non-publishing Python-package preflight against the exact tag:
 
 ```bash
-PACKAGE_PREFLIGHT_PREVIOUS_ID="$(
-    gh run list \
-        --repo "$EXPECTED_REPOSITORY" \
-        --workflow "Python package release" \
-        --event workflow_dispatch \
-        --limit 1 \
-        --json databaseId \
-        --jq '.[0].databaseId // 0'
-)"
-gh workflow run python-package-release.yml \
-    --repo "$EXPECTED_REPOSITORY" \
-    --ref "$TAG" \
-    -f ref="$TAG"
+PACKAGE_PREFLIGHT_PREVIOUS_ID="$(gh run list --repo "$EXPECTED_REPOSITORY" --workflow "Python package release" --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId // 0')"
+gh workflow run python-package-release.yml --repo "$EXPECTED_REPOSITORY" --ref "$TAG" -f ref="$TAG"
 ```
 
 Wait for GitHub to register the manual run for the tag and watch it to completion:
@@ -395,15 +384,7 @@ Wait for GitHub to register the manual run for the tag and watch it to completio
 PACKAGE_PREFLIGHT_ID=""
 PACKAGE_PREFLIGHT_DEADLINE=$((SECONDS + 300))
 while test -z "$PACKAGE_PREFLIGHT_ID" && test "$SECONDS" -lt "$PACKAGE_PREFLIGHT_DEADLINE"; do
-    PACKAGE_PREFLIGHT_ID="$(
-        gh run list \
-            --repo "$EXPECTED_REPOSITORY" \
-            --workflow "Python package release" \
-            --event workflow_dispatch \
-            --limit 100 \
-            --json databaseId,headSha \
-            --jq "[.[] | select(.databaseId > $PACKAGE_PREFLIGHT_PREVIOUS_ID and .headSha == \"$RELEASE_COMMIT\")] | max_by(.databaseId).databaseId // empty"
-    )" || break
+    PACKAGE_PREFLIGHT_ID="$(gh run list --repo "$EXPECTED_REPOSITORY" --workflow "Python package release" --event workflow_dispatch --limit 100 --json databaseId,headSha --jq "[.[] | select(.databaseId > $PACKAGE_PREFLIGHT_PREVIOUS_ID and .headSha == \"$RELEASE_COMMIT\")] | max_by(.databaseId).databaseId // empty")" || break
     test -n "$PACKAGE_PREFLIGHT_ID" || sleep 5
 done
 if test -z "$PACKAGE_PREFLIGHT_ID"; then
@@ -422,23 +403,8 @@ The manual workflow never publishes. If it fails, keep the immutable remote tag 
 Create and immediately publish a stable GitHub Release. Explicitly starting the generated notes at `LAST_TAG` makes the comparison correct even if earlier tags do not have corresponding GitHub Releases:
 
 ```bash
-PACKAGE_PUBLISH_PREVIOUS_ID="$(
-    gh run list \
-        --repo "$EXPECTED_REPOSITORY" \
-        --workflow "Python package release" \
-        --event release \
-        --limit 1 \
-        --json databaseId \
-        --jq '.[0].databaseId // 0'
-)"
-gh release create "$TAG" \
-    --repo "$EXPECTED_REPOSITORY" \
-    --verify-tag \
-    --generate-notes \
-    --notes-start-tag "$LAST_TAG" \
-    --fail-on-no-commits \
-    --title "Release $TAG" \
-    --latest
+PACKAGE_PUBLISH_PREVIOUS_ID="$(gh run list --repo "$EXPECTED_REPOSITORY" --workflow "Python package release" --event release --limit 1 --json databaseId --jq '.[0].databaseId // 0')"
+gh release create "$TAG" --repo "$EXPECTED_REPOSITORY" --verify-tag --generate-notes --notes-start-tag "$LAST_TAG" --fail-on-no-commits --title "Release $TAG" --latest
 ```
 
 This command must use the already-pushed annotated tag; `--verify-tag` prevents GitHub CLI from silently creating a different tag.
@@ -463,15 +429,7 @@ Wait for the publication workflow run and require success:
 PACKAGE_PUBLISH_ID=""
 PACKAGE_PUBLISH_DEADLINE=$((SECONDS + 300))
 while test -z "$PACKAGE_PUBLISH_ID" && test "$SECONDS" -lt "$PACKAGE_PUBLISH_DEADLINE"; do
-    PACKAGE_PUBLISH_ID="$(
-        gh run list \
-            --repo "$EXPECTED_REPOSITORY" \
-            --workflow "Python package release" \
-            --event release \
-            --limit 100 \
-            --json databaseId,headSha \
-            --jq "[.[] | select(.databaseId > $PACKAGE_PUBLISH_PREVIOUS_ID and .headSha == \"$RELEASE_COMMIT\")] | max_by(.databaseId).databaseId // empty"
-    )" || break
+    PACKAGE_PUBLISH_ID="$(gh run list --repo "$EXPECTED_REPOSITORY" --workflow "Python package release" --event release --limit 100 --json databaseId,headSha --jq "[.[] | select(.databaseId > $PACKAGE_PUBLISH_PREVIOUS_ID and .headSha == \"$RELEASE_COMMIT\")] | max_by(.databaseId).databaseId // empty")" || break
     test -n "$PACKAGE_PUBLISH_ID" || sleep 5
 done
 if test -z "$PACKAGE_PUBLISH_ID"; then
@@ -481,6 +439,29 @@ if test -z "$PACKAGE_PUBLISH_ID"; then
 else
     gh run watch "$PACKAGE_PUBLISH_ID" --repo "$EXPECTED_REPOSITORY" --exit-status
 fi
+```
+
+After the workflow has successfully built, checked, smoke-tested, and published its exact artifacts, download that run's validated archives and create their checksum manifest. Preserve the explicit wheel-then-sdist order:
+
+```bash
+RELEASE_ARTIFACT_DIRECTORY="$(mktemp -d)"
+gh run download "$PACKAGE_PUBLISH_ID" --repo "$EXPECTED_REPOSITORY" --name python-package-distributions --dir "$RELEASE_ARTIFACT_DIRECTORY"
+WHEEL="$RELEASE_ARTIFACT_DIRECTORY/la_dev_codex_plugins-$NEW_REPO_VERSION-py3-none-any.whl"
+SDIST="$RELEASE_ARTIFACT_DIRECTORY/la_dev_codex_plugins-$NEW_REPO_VERSION.tar.gz"
+CHECKSUMS="$RELEASE_ARTIFACT_DIRECTORY/SHA256SUMS"
+test -f "$WHEEL"
+test -f "$SDIST"
+CHECKSUM_STDOUT="$(PYTHONPATH=src python3 -m la_dev_codex_plugins.release_checksums.cli --output "$CHECKSUMS" "$WHEEL" "$SDIST")"
+printf '%s\n' "$CHECKSUM_STDOUT" | cmp - "$CHECKSUMS"
+```
+
+The command writes the complete manifest atomically and prints the same bytes. If generation fails after establishing that the output target is safe, it deliberately removes any older regular `SHA256SUMS`; treat the absent file as invalidation of stale checksums and diagnose the failure instead of restoring an older manifest.
+
+Upload `SHA256SUMS` as a GitHub Release asset and verify its presence. The wheel and sdist themselves remain distributed through PyPI; the GitHub Release carries the checksum manifest only:
+
+```bash
+gh release upload "$TAG" "$CHECKSUMS" --repo "$EXPECTED_REPOSITORY"
+test "$(gh release view "$TAG" --repo "$EXPECTED_REPOSITORY" --json assets --jq '[.assets[] | select(.name == "SHA256SUMS")] | length')" = 1
 ```
 
 Open `https://pypi.org/project/la-dev-codex-plugins/$NEW_REPO_VERSION/` and verify that it shows one source distribution and one `py3-none-any` wheel with the expected description, Python requirement, and trusted-publishing provenance.
@@ -496,6 +477,7 @@ No local Codex marketplace or plugin installation needs to be modified as part o
 - If the package preflight fails before GitHub Release publication, do not publish that release. Retry infrastructure failures against the same tag; fix package defects in a new release without moving the existing tag.
 - If trusted publication fails before any file reaches PyPI, correct the environment, publisher, permission, or transient service problem and rerun the failed workflow job against the unchanged release.
 - If only part of a Python distribution reaches PyPI, stop and inspect the immutable uploaded files before taking further action. Do not enable `skip-existing` or replace an uploaded filename; complete recovery manually only when the remaining artifact is byte-for-byte from the validated release workflow.
+- If checksum generation fails, do not upload or restore an older manifest. Regenerate only from the successful publication workflow's downloaded artifacts. If the checksum asset upload response is lost, inspect the release assets before retrying and never replace an existing `SHA256SUMS` without first proving its bytes differ from the newly verified manifest for an understood reason.
 - If a published release contains a functional problem, fix it and make a new release using this complete procedure. Classify the corrective changes normally; a backward-compatible bug fix is usually a patch, but a feature or incompatible correction requires its corresponding bump.
 - Generated release notes may be edited after publication without changing the release tag or source snapshot.
 

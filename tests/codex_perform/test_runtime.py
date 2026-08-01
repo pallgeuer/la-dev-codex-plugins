@@ -5,13 +5,13 @@ import importlib
 import io
 import json
 import os
+import pathlib
 import signal
 import subprocess
 import sys
 import time
 import types
 import typing
-from pathlib import Path
 
 import pytest
 
@@ -19,7 +19,7 @@ import la_dev_codex_plugins._process as process_module
 import la_dev_codex_plugins.codex_perform.cli as perform
 from la_dev_codex_plugins.codex_perform import _runtime as perform_runtime
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 PLUGIN_ROOT = REPOSITORY_ROOT / "plugins" / "toolkit"
 
 
@@ -189,7 +189,7 @@ def test_supervised_process_termination_cleans_real_descendants(tmp_path):
                 os.kill(pid, 0)
             except ProcessLookupError:
                 return False
-            stat = Path("/proc") / str(pid) / "stat"
+            stat = pathlib.Path("/proc") / str(pid) / "stat"
             return not (stat.is_file() and stat.read_text(encoding="ascii").split()[2] == "Z")
 
         deadline = time.monotonic() + 3
@@ -381,7 +381,7 @@ def test_discover_plugin_root_uses_bounded_exact_environment(monkeypatch, tmp_pa
         return process
 
     def fake_validate(path, expected_version=None):
-        observed["path"] = Path(path)
+        observed["path"] = pathlib.Path(path)
         observed["version"] = expected_version
         return "root", "scripts"
 
@@ -403,7 +403,7 @@ def test_discover_plugin_root_accepts_full_semver(monkeypatch, tmp_path, version
     observed = {}
 
     def fake_validate(path, expected_version=None):
-        observed["path"] = Path(path)
+        observed["path"] = pathlib.Path(path)
         observed["version"] = expected_version
         return "root", "scripts"
 

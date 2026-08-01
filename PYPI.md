@@ -1,8 +1,14 @@
 # Language-Agnostic Development Codex Plugins
 
-`la-dev-codex-plugins` supplies dependency-free Python command-line tooling for the [Language-Agnostic Development Codex Plugins](https://github.com/pallgeuer/la-dev-codex-plugins) marketplace.
+`la-dev-codex-plugins` supplies dependency-free Python command-line tooling and reusable development utilities from the [Language-Agnostic Development Codex Plugins](https://github.com/pallgeuer/la-dev-codex-plugins) repository.
 
-The current Python distribution installs `codex-perform`, a standalone launcher for actions configured by the marketplace's Toolkit plugin. It contains the slim launcher only: it does not install Codex, the marketplace, any Codex plugin, or the Toolkit action runtime and assets.
+The Python distribution installs three commands:
+
+- `codex-perform`, a standalone launcher for actions configured by the marketplace's Toolkit plugin.
+- `la-dev-markdown-tables`, a canonical Markdown pipe-table formatter and checker.
+- `la-dev-release-checksums`, a deterministic, failure-safe SHA-256 manifest generator.
+
+It also contains an explicitly loaded pytest-isolation plugin. The distribution does not install Codex, the marketplace, any Codex plugin, or the Toolkit action runtime and assets.
 
 ## Install in a virtual environment
 
@@ -13,16 +19,33 @@ python3 -m venv /PATH/TO/VENV
 source /PATH/TO/VENV/bin/activate
 python -m pip install la-dev-codex-plugins
 codex-perform --version
-codex-perform --help
+la-dev-markdown-tables --version
+la-dev-release-checksums --version
 ```
 
 The command is available while the virtual environment is active. It always uses that environment's Python interpreter and restarts it in isolated mode before importing the package, so the caller's current directory, `PYTHONPATH`, and user site-packages cannot replace the installed launcher.
 
-The published pure-Python wheel supports Python 3.6 through current Python releases without runtime dependencies. On an older Python installation, use `--only-binary=:all:` if you want installation to fail rather than fall back to building the source distribution:
+The published pure-Python wheel supports Python 3.6 through current Python releases. The base install has no mandatory dependencies; Codex Perform, Markdown tables, and release checksums use only the Python standard library. On an older Python installation, use `--only-binary=:all:` if you want installation to fail rather than fall back to building the source distribution:
 
 ```bash
 python -m pip install --only-binary=:all: la-dev-codex-plugins
 ```
+
+Install the optional pytest integration with either extra:
+
+```bash
+python -m pip install 'la-dev-codex-plugins[pytest]'
+python -m pip install 'la-dev-codex-plugins[dev]'
+```
+
+Both extras currently add `pytest>=7.0.1`. The package does not register a `pytest11` entry point, so installing an extra never activates the plugin automatically; explicitly load `la_dev_codex_plugins.pytest_isolation.plugin` in the downstream suite.
+
+Detailed documentation:
+
+- [Codex Perform](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/codex_perform.md)
+- [Markdown tables](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/markdown_tables.md)
+- [Pytest working-directory isolation](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/pytest_isolation.md)
+- [Release checksums](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/release_checksums.md)
 
 ## Install the Toolkit plugin separately
 

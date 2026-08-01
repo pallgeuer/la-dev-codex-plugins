@@ -1,0 +1,13 @@
+- id: markdown-tables-fix
+  name: Format Markdown tables
+  description: Canonically format supported Markdown tables in place.
+  entry: la-dev-markdown-tables
+  language: python
+  types: [markdown]
+
+- id: markdown-tables-check
+  name: Check Markdown table formatting
+  description: Verify supported Markdown tables without modifying files.
+  entry: la-dev-markdown-tables --check
+  language: python
+  types: [markdown]

@@ -2,15 +2,16 @@
 
 import json
 import os
+import pathlib
 import stat
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
-from conftest import SCRIPTS_ROOT, SKILL_ROOT
-
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[5]
+SKILL_ROOT = REPOSITORY_ROOT / "plugins" / "toolkit" / "skills" / "perform"
+SCRIPTS_ROOT = SKILL_ROOT / "scripts"
 LIST_SCRIPT = SCRIPTS_ROOT / "list_perform_actions.py"
 GET_SCRIPT = SCRIPTS_ROOT / "get_perform_action.py"
 CATALOGUE_SCRIPT = SCRIPTS_ROOT / "write_perform_action_catalogue.py"
@@ -40,7 +41,7 @@ def clean_environment(tmp_path, codex_home=None):
     """Return an environment without repository-specific import configuration."""
     env = {key: value for key, value in os.environ.items() if key not in ("PYTHONPATH", "PYTHONHOME", "CODEX_HOME")}
     env["HOME"] = str(tmp_path / "home")
-    Path(env["HOME"]).mkdir(exist_ok=True)
+    pathlib.Path(env["HOME"]).mkdir(exist_ok=True)
     if codex_home is None:
         codex_home = tmp_path / "codex-home"
         codex_home.mkdir(exist_ok=True)

@@ -2,16 +2,17 @@
 """Dependency-free smoke checks for supported operating systems and Python 3.6+."""
 
 import contextlib
+import hashlib
 import importlib.util
 import io
 import json
 import os
+import pathlib
 import subprocess
 import sys
 import tempfile
-from pathlib import Path
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 PERFORM_SCRIPTS = REPOSITORY_ROOT / "plugins" / "toolkit" / "skills" / "perform" / "scripts"
 TOOLKIT_ROOT = REPOSITORY_ROOT / "plugins" / "toolkit"
 ACTIVATE = REPOSITORY_ROOT / "activate.sh"
@@ -114,6 +115,52 @@ def smoke_bounded_process(environment):
     assert result.capture_incomplete is False
 
 
+def smoke_release_checksums(temporary_root):
+    """Exercise pure UTF-8/LF checksum output and atomic final placement."""
+    sys.path.insert(0, str(REPOSITORY_ROOT / "src"))
+    try:
+        release_checksums = importlib.import_module("la_dev_codex_plugins.release_checksums")
+    finally:
+        sys.path.pop(0)
+    if "pytest" in sys.modules:
+        raise AssertionError("Dependency-free checksum smoke unexpectedly imported pytest")
+    artifact = temporary_root / "r\u00e9lease.whl"
+    artifact_data = b"supported platform release artifact\n"
+    artifact.write_bytes(artifact_data)
+    output = temporary_root / "SHA256SUMS"
+    output.write_bytes(b"stale manifest\n")
+    manifest = release_checksums.write_sha256_manifest(artifact, output)
+    expected = "{}  r\u00e9lease.whl\n".format(hashlib.sha256(artifact_data).hexdigest())
+    assert manifest == expected
+    assert output.read_bytes() == expected.encode("utf-8")
+    assert not list(temporary_root.glob(".la-dev-release-checksums-*.tmp"))
+
+    symlink = temporary_root / "release-symlink.whl"
+    hardlink = temporary_root / "release-hardlink.whl"
+    symlink.symlink_to(artifact)
+    os.link(str(artifact), str(hardlink))
+
+    def assert_duplicate_rejected(duplicate):
+        try:
+            release_checksums.generate_sha256_manifest((artifact, duplicate))
+        except release_checksums.ReleaseChecksumError:
+            return
+        raise AssertionError("Checksum smoke accepted duplicate artifact identity: {}".format(duplicate))
+
+    for duplicate in (symlink, hardlink):
+        assert_duplicate_rejected(duplicate)
+
+    alias_output = temporary_root / "hardlinked-output"
+    os.link(str(artifact), str(alias_output))
+    try:
+        release_checksums.write_sha256_manifest(artifact, alias_output)
+    except release_checksums.ReleaseChecksumError:
+        pass
+    else:
+        raise AssertionError("Checksum smoke accepted an output hard-linked to its artifact")
+    assert artifact.read_bytes() == alias_output.read_bytes() == artifact_data
+
+
 def smoke_loupe_runner():
     """Exercise Loupe's Bash launch and UTF-8 JSON capture path."""
     runner = load_module("supported_platform_loupe_runner", LOUPE_RUNNER)
@@ -132,7 +179,7 @@ def main():
         raise AssertionError("Python 3.6+ is required")
     sys.dont_write_bytecode = True
     with tempfile.TemporaryDirectory(prefix="la-dev-codex-plugins-smoke-") as temporary_directory:
-        temporary_root = Path(temporary_directory)
+        temporary_root = pathlib.Path(temporary_directory)
         codex_home = temporary_root / "codex-home"
         home = temporary_root / "home"
         codex_home.mkdir()
@@ -148,6 +195,7 @@ def main():
         smoke_perform_scripts(environment, temporary_root)
         smoke_activated_launcher(environment)
         smoke_bounded_process(environment)
+        smoke_release_checksums(temporary_root)
         smoke_loupe_runner()
     print("Supported-platform smoke checks passed on {} with Python {}.{}.{}.".format(sys.platform, *sys.version_info[:3]))
     return 0

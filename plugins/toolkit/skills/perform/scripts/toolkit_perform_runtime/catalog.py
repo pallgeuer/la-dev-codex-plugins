@@ -2,8 +2,8 @@
 
 import copy
 import json
+import pathlib
 import re
-from pathlib import Path
 
 from . import diagnostics as diagnostics_module
 from . import discovery as discovery_module
@@ -225,7 +225,7 @@ def _file_diagnostic(source, filename, code, message, severity="error", json_pat
         severity=severity,
         code=code,
         message=message,
-        source_file=str(Path(source.display_path) / filename),
+        source_file=str(pathlib.Path(source.display_path) / filename),
         json_path=json_path,
         selector=selector,
         fatality=fatality,
@@ -492,7 +492,7 @@ class _BuiltInActionSpec:
 
 def _built_in_help_fields():
     """Return immutable help fields with resolved literal guide paths."""
-    references = Path(__file__).resolve().parents[2] / "references"
+    references = pathlib.Path(__file__).resolve().parents[2] / "references"
     guide_paths = (
         references / "action_files.md",
         references / "codex_skill.md",
@@ -542,7 +542,7 @@ def _built_in_spec_for_name(name):
 
 def _load_json_file(source, filename):
     """Decode and root-validate one action file, returning data and diagnostics."""
-    path = Path(source.normalized_path) / filename
+    path = pathlib.Path(source.normalized_path) / filename
     try:
         with path.open("rb") as stream:
             raw = stream.read()
@@ -805,7 +805,7 @@ class ActionCatalog:
 def _list_source_files(source, diagnostics):
     """Return direct JSON filenames in exact UTF-8 byte order."""
     try:
-        entries = list(Path(source.normalized_path).iterdir())
+        entries = list(pathlib.Path(source.normalized_path).iterdir())
     except OSError as exc:
         diagnostics.append(
             Diagnostic(

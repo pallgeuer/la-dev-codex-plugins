@@ -1,9 +1,9 @@
 """Standalone command-line launcher for Perform actions."""
 
 import argparse
+import pathlib
 import sys
 import tempfile
-from pathlib import Path
 
 from .. import __version__
 from . import _output as output
@@ -237,7 +237,7 @@ def main(argv=None):
         normalized = normalize_argv(raw_arguments, parser=parser)
         launcher_arguments, codex_args = split_codex_remainder(normalized)
         args = parser.parse_args(launcher_arguments)
-        args.original_cwd = str(Path.cwd())
+        args.original_cwd = str(pathlib.Path.cwd())
         args.resolved_cwd = launcher_runtime.resolve_directory(args.cwd or args.original_cwd)
         environment = launcher_runtime.normalize_codex_environment(args.resolved_cwd)
         _reject_irrelevant_options(args, codex_args, parser)

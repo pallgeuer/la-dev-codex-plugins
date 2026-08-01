@@ -16,6 +16,20 @@ repos:
 
   - repo: local
     hooks:
+      - id: markdown-tables-fix
+        name: Format Markdown tables
+        entry: env PYTHONPATH=src python3 -m la_dev_codex_plugins.markdown_tables.cli
+        language: system
+        types: [markdown]
+        stages: [pre-commit]
+
+      - id: markdown-tables-check
+        name: Check Markdown table formatting
+        entry: env PYTHONPATH=src python3 -m la_dev_codex_plugins.markdown_tables.cli --check
+        language: system
+        types: [markdown]
+        stages: [pre-push, manual]
+
       - id: ruff-check-fix
         name: ruff check (fix)
         entry: uvx --python 3.8 --from ruff==0.15.22 ruff check --fix

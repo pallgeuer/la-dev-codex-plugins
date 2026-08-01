@@ -2,15 +2,20 @@
 """Dependency-free smoke checks for an installed Python distribution."""
 
 import argparse
+import hashlib
+import importlib.util
 import json
 import os
+import pathlib
 import shutil
 import subprocess
 import sys
 import tempfile
-from pathlib import Path
 
 import la_dev_codex_plugins
+import la_dev_codex_plugins.markdown_tables as markdown_tables
+import la_dev_codex_plugins.pytest_isolation as pytest_isolation
+import la_dev_codex_plugins.release_checksums as release_checksums
 
 
 def run(command, environment=None, cwd=None):
@@ -35,7 +40,7 @@ def run(command, environment=None, cwd=None):
 def smoke_isolated_command(executable, expected_version):
     """Prove that the installed command ignores hostile import roots."""
     with tempfile.TemporaryDirectory(prefix="la-dev-codex-plugins-package-smoke-") as temporary_directory:
-        temporary_root = Path(temporary_directory)
+        temporary_root = pathlib.Path(temporary_directory)
         hostile_package = temporary_root / "la_dev_codex_plugins"
         hostile_package.mkdir()
         (hostile_package / "__init__.py").write_text('raise RuntimeError("hostile package loaded")\n', encoding="ascii")
@@ -60,6 +65,36 @@ def smoke_plugin_root(executable, plugin_root):
         raise AssertionError("Unexpected Toolkit result: payload={!r}, stderr={!r}".format(payload, stderr))
 
 
+def smoke_reusable_tools(expected_version):
+    """Exercise dependency-free library APIs and their installed commands."""
+    if importlib.util.find_spec("pytest") is not None:
+        raise AssertionError("The base no-dependency environment unexpectedly contains pytest")
+
+    source = "| A | B |\n|---|---|\n|x|y|\n"
+    expected = "| A | B |\n|---|---|\n| x | y |\n"
+    if markdown_tables.normalize_markdown_tables(source) != expected:
+        raise AssertionError("Markdown table library returned unexpected canonical text")
+    if "pytest" in sys.modules:
+        raise AssertionError("Importing the pytest-isolation package imported pytest")
+    if pytest_isolation.PLUGIN_MODULE != "la_dev_codex_plugins.pytest_isolation.plugin":
+        raise AssertionError("The pytest-isolation package exposes an unexpected plugin module")
+
+    with tempfile.TemporaryDirectory(prefix="la-dev-reusable-tools-smoke-") as temporary_directory:
+        artifact = pathlib.Path(temporary_directory) / "artifact.bin"
+        artifact.write_bytes(b"release artifact\n")
+        expected_manifest = "{}  artifact.bin\n".format(hashlib.sha256(b"release artifact\n").hexdigest())
+        if release_checksums.generate_sha256_manifest(artifact) != expected_manifest:
+            raise AssertionError("Release checksum library returned unexpected manifest text")
+
+    for name in ("la-dev-markdown-tables", "la-dev-release-checksums"):
+        executable = shutil.which(name)
+        if executable is None:
+            raise AssertionError("{} is not available on PATH".format(name))
+        stdout, stderr = run([executable, "--version"])
+        if stdout.strip() != "{} {}".format(name, expected_version) or stderr:
+            raise AssertionError("Unexpected {} version output: stdout={!r}, stderr={!r}".format(name, stdout, stderr))
+
+
 def main(argv=None):
     """Run every installed-distribution smoke check."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -76,8 +111,9 @@ def main(argv=None):
         raise AssertionError("codex-perform is not available on PATH")
 
     smoke_isolated_command(executable, args.expected_version)
+    smoke_reusable_tools(args.expected_version)
     if args.plugin_root is not None:
-        smoke_plugin_root(executable, str(Path(args.plugin_root).resolve()))
+        smoke_plugin_root(executable, str(pathlib.Path(args.plugin_root).resolve()))
     print("Installed package smoke checks passed on Python {}.{}.{}.".format(*sys.version_info[:3]))
     return 0
 

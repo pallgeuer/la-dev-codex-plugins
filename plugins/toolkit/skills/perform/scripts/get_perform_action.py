@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Inspect or render one strict Perform action as compact JSON."""
 
+import pathlib
 import sys
-from pathlib import Path
 
 import toolkit_perform_runtime.cli as runtime_cli
 import toolkit_perform_runtime.validation as validation
@@ -16,7 +16,7 @@ def _parser():
     operation.add_argument("--render", action="store_once", metavar="ACTION[LANGUAGE]", help="Render one canonical strict selector.")
     parser.add_argument("--var", action="append", default=[], metavar="NAME=VALUE", help="Bind one prompt variable; repeat for multiple variables.")
     parser.add_argument("--qualification", "--question", dest="qualification", action="store_once", help="Append one compatible qualification, or ask built-in help one question.")
-    parser.add_argument("--cwd", action="store_once", default=str(Path.cwd()), help="Working directory used for conventional local discovery.")
+    parser.add_argument("--cwd", action="store_once", default=str(pathlib.Path.cwd()), help="Working directory used for conventional local discovery.")
     return parser
 
 

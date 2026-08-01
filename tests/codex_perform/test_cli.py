@@ -3,16 +3,16 @@
 import importlib
 import json
 import os
+import pathlib
 import sys
 import types
-from pathlib import Path
 
 import pytest
 
 import la_dev_codex_plugins.codex_perform.cli as perform
 from la_dev_codex_plugins.codex_perform import _runtime as perform_runtime
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 PLUGIN_ROOT = REPOSITORY_ROOT / "plugins" / "toolkit"
 
 
@@ -253,7 +253,7 @@ def test_dry_run_json_reports_complete_noninteractive_invocation(capsys, tmp_pat
     assert payload["launch_spec"]["action"]["requires_interactive"] is False
     assert payload["effective_settings"]["non_interactive"] is True
     assert payload["effective_settings"]["model"] == "gpt-5"
-    assert Path(payload["argv"][0]).is_absolute()
+    assert pathlib.Path(payload["argv"][0]).is_absolute()
     assert "exec" in payload["argv"]
     assert payload["argv"][-2:] == ["--", payload["submitted_prompt"]]
     assert payload["effective_settings"]["cwd"] == str(tmp_path)
@@ -271,7 +271,7 @@ def test_real_noninteractive_json_is_forwarded_to_codex(monkeypatch, capsys):
     with pytest.raises(ExecCalled) as raised:
         perform.main(local_arguments("ensure-ascii-only", "--json"))
 
-    assert Path(raised.value.executable).is_absolute()
+    assert pathlib.Path(raised.value.executable).is_absolute()
     assert raised.value.argv[0] == raised.value.executable
     assert "exec" in raised.value.argv
     assert "--json" in raised.value.argv

@@ -6,9 +6,9 @@ This Python script must support Python 3.6+.
 
 import argparse
 import json
+import pathlib
 import subprocess
 import sys
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 DEFAULT_REVIEW_SCOPE = "uncommitted changes (staged + unstaged + untracked)"
@@ -60,7 +60,7 @@ def write_diff_artifact(chunks: Sequence[bytes], output_path: str) -> int:
     """Write diff chunks and return the artifact byte count."""
     byte_count = 0
     wrote_chunk = False
-    with Path(output_path).open("wb") as output_file:
+    with pathlib.Path(output_path).open("wb") as output_file:
         for chunk in chunks:
             if not chunk:
                 continue
@@ -83,7 +83,7 @@ def collect_default_diff(output_path: str) -> Dict[str, Any]:
     return {
         "review_scope": DEFAULT_REVIEW_SCOPE,
         "git_root": git_root,
-        "diff_path": str(Path(output_path).resolve()),
+        "diff_path": str(pathlib.Path(output_path).resolve()),
         "byte_count": byte_count,
         "binary_payloads_included": False,
         "note": BINARY_PAYLOAD_NOTE,

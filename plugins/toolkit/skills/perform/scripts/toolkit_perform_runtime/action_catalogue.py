@@ -2,9 +2,9 @@
 
 import contextlib
 import os
+import pathlib
 import stat
 import uuid
-from pathlib import Path
 
 from . import catalog as catalog_module
 from .diagnostics import PerformRequestError
@@ -93,15 +93,15 @@ def resolve_action_catalogue_path(catalog, output=None):
     if output is None:
         if repository_root is None:
             raise PerformRequestError("repository_not_found", "The default action catalogue path requires a discovered repository root.")
-        return Path(repository_root).joinpath(*DEFAULT_CATALOGUE_PARTS), True
+        return pathlib.Path(repository_root).joinpath(*DEFAULT_CATALOGUE_PARTS), True
     if not isinstance(output, str) or not output or "\x00" in output:
         raise PerformRequestError("invalid_output", "The action catalogue output must be a nonempty path without NUL characters.")
-    expanded = Path(output).expanduser()
+    expanded = pathlib.Path(output).expanduser()
     if expanded.is_absolute():
-        return Path(os.path.abspath(str(expanded))), False  # noqa: PTH100 - Preserve the final path component for symlink rejection.
+        return pathlib.Path(os.path.abspath(str(expanded))), False  # noqa: PTH100 - Preserve the final path component for symlink rejection.
     if repository_root is None:
         raise PerformRequestError("repository_not_found", "A relative action catalogue path requires a discovered repository root.")
-    return Path(os.path.abspath(str(Path(repository_root) / expanded))), False  # noqa: PTH100 - Preserve the final path component for symlink rejection.
+    return pathlib.Path(os.path.abspath(str(pathlib.Path(repository_root) / expanded))), False  # noqa: PTH100 - Preserve the final path component for symlink rejection.
 
 
 def _prepare_parent(path, create_parent):

@@ -50,6 +50,22 @@
         "notes": ""
       }
     },
+    "audit-test-performance": {
+      "agnostic": {
+        "gloss": "Audit repository test performance into an evidence-based Markdown report",
+        "model": "default",
+        "reasoning_effort": "high",
+        "goal_mode": true,
+        "plan_mode": false,
+        "plan_reasoning_effort": "high",
+        "no_edits": false,
+        "prompt_vars": {},
+        "prompt": "Audit the complete automatically collected and runnable test suite in the current repository for test performance, then create or update exactly one selected Markdown audit document and make no other file edits. Discover the audit document before measuring: inspect NUL-delimited Git-tracked Markdown paths plus the default docs/test_performance_audit.md when that path exists but is still untracked, while ignoring ignored files and every other untracked file. A candidate must have the exact first line `<!-- la-dev-test-performance-audit:v1 -->` immediately followed by the exact second line `# Test performance audit`, with no leading blank line, UTF-8 BOM, whitespace variation, other heading level, or later-position match. When exactly one candidate exists, keep that path stable and preserve those exact first two lines. When none exists, create docs/test_performance_audit.md unless that default path already exists and is nonempty without the required marker and heading, in which case stop without overwriting it. When multiple candidates exist, stop with a clear ambiguity report and edit no audit file. After selecting the document, inspect the repository's test-runner configuration, project metadata, scripts, workflows, fixtures, helpers, and established test commands. Build a complete test inventory by meaningful category rather than stopping after one slow test. Run safe bounded collection and performance diagnostics using existing repository commands where possible. Do not install dependencies unless the enclosing Codex session separately authorizes that installation, do not contact external services merely to populate the audit, and record failed commands, skips, unavailable tools, optional services, and excluded platform/integration coverage instead of silently omitting them. Record the audit date; audited commit identifier and dirty-worktree state; operating system, architecture, Python/runtime and relevant test-tool versions; discovered runners and configuration files; full inventory; every exact command; collection-only, serial-suite, and available already-supported parallel-suite timings; supported per-file, per-module, slowest-test, setup/teardown, and fixture-heavy timings; expensive helper processes, repeated builds, network access, filesystem scans, sleeps, and subprocess patterns observed in test support code; cache warmth, unavailable services, skips, platform exclusions, and every other measurement distortion; comparison with compatible prior audit data; ranked evidence-based findings with likely impact; an explicit no-material-finding conclusion when warranted; and follow-up recommendations clearly separated from changes actually made. Distinguish coarse wall-clock observations from benchmark-quality measurements and do not claim conclusions without recording their measurement context. Never significantly weaken or delete tests to improve timings. Do not edit application or production code, test code, test infrastructure, configuration, workflows, or CI. Do not implement performance fixes. The selected audit Markdown document is the only permitted edit. Complete the inventory and evidence gathering, write the report, verify that only the selected audit document changed, and summarize the audit path, measurements, failures or unavailable coverage, findings, and recommendations.",
+        "requires_interactive": false,
+        "custom_codex_args": [],
+        "notes": ""
+      }
+    },
     "check-cross-platform": {
       "agnostic": {
         "gloss": "Check repository support for specified operating systems",

@@ -42,11 +42,13 @@ Test-only dependencies are allowed only through the fixed-version `uvx` commands
 
 ## Python distribution runtime requirements
 
-Runtime code shipped in the `la-dev-codex-plugins` Python distribution, including files under `src/` and `package_scripts/`, must support Python 3.6+ and use only the Python standard library. The source-only launcher under `source_launcher/` has the same requirements.
+Runtime code shipped in the `la-dev-codex-plugins` Python distribution must support Python 3.6+ and use only the Python standard library. The base distribution has no mandatory dependencies.
 
-Do not add mandatory or optional runtime dependencies to the base distribution. A future tool that cannot satisfy the Python 3.6+ standard-library-only contract must use a separate distribution rather than weakening the `codex-perform` installation contract.
+The sole permitted third-party runtime import is `pytest` in `src/la_dev_codex_plugins/pytest_isolation/plugin.py`. This is an optional integration boundary: `src/la_dev_codex_plugins/pytest_isolation/__init__.py` must not import the plugin eagerly, and no other distribution runtime code or plugin script may import it, directly or indirectly.
 
-Keep the wheel and sdist manifests minimal. The wheel must not contain plugin payloads, tests, repository helpers, or source-only activation files. The sdist may additionally contain only the dedicated dependency-free tests under `tests/python_distribution/` and the files required to build and describe the distribution.
+Ubuntu 18.04 or newer and macOS 14 or newer are officially supported. Compatibility with other POSIX Linux distributions is intended but is not part of the official support guarantee. Native Windows and WSL are not supported, tested, or maintained.
+
+Keep the wheel and sdist manifests minimal. The wheel must not contain plugin payloads, tests, repository helpers, or source-only activation files. The sdist may additionally contain only `tests/python_distribution/smoke_*.py` plus the files required to build and describe the distribution.
 
 ## Required checks after editing plugin scripts
 

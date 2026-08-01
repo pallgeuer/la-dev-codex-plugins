@@ -21,6 +21,39 @@ jobs:
       - name: Run pre-commit hooks
         run: uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run --all-files --hook-stage manual
 
+      - name: Validate published pre-commit hook manifest
+        run: uvx --python 3.10 --from pre-commit==4.6.0 pre-commit validate-manifest .pre-commit-hooks.yaml
+
+      - name: Exercise published Markdown hooks
+        shell: bash
+        run: |
+          fixture="pre-commit-hook-fixture.md"
+          trap 'rm -f "$fixture"' EXIT
+          printf '| A|B |\n|-|-|\n' > "$fixture"
+          before="$(sha256sum "$fixture")"
+          if uvx --python 3.10 --from pre-commit==4.6.0 pre-commit try-repo . markdown-tables-check --files "$fixture"; then
+              echo "Published check hook unexpectedly accepted an unformatted fixture" >&2
+              exit 1
+          fi
+          test "$before" = "$(sha256sum "$fixture")"
+          uvx --python 3.10 --from pre-commit==4.6.0 pre-commit try-repo . markdown-tables-fix --files "$fixture"
+          python3 -c 'from pathlib import Path; assert Path("pre-commit-hook-fixture.md").read_bytes() == b"| A | B |\n|---|---|\n"'
+          uvx --python 3.10 --from pre-commit==4.6.0 pre-commit try-repo . markdown-tables-check --files "$fixture"
+
+  pytest-isolation-current:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.29"
+
+      - name: Run focused tests with current pytest
+        run: uvx --python 3.10 --from pytest==9.1.1 pytest tests/pytest_isolation
+
   ubuntu-18-04:
     runs-on: ubuntu-latest
     steps:
@@ -34,7 +67,16 @@ jobs:
             --volume "${GITHUB_WORKSPACE}:/workspace:ro" \
             --workdir /workspace \
             ubuntu:18.04 \
-            bash -c "apt-get update && apt-get install --yes git python3 && python3 tests/platform/supported_platform_smoke.py"
+            bash -c "apt-get update && apt-get install --yes git python3 python3-venv && python3 tests/platform/supported_platform_smoke.py"
+
+      - name: Run Python 3.6 pytest-isolation smoke with minimum pytest
+        run: |
+          docker run --rm \
+            --env PYTHONDONTWRITEBYTECODE=1 \
+            --volume "${GITHUB_WORKSPACE}:/workspace:ro" \
+            --workdir /workspace \
+            ubuntu:18.04 \
+            bash -c "apt-get update && apt-get install --yes python3-venv && python3 -m venv /tmp/pytest-venv && /tmp/pytest-venv/bin/pip install pytest==7.0.1 && PYTHONPATH=/workspace/src /tmp/pytest-venv/bin/python tests/python_distribution/smoke_pytest_isolation.py --expected-pytest-version 7.0.1"
 
   select_oldest_macos:
     runs-on: ubuntu-latest
@@ -70,6 +112,13 @@ jobs:
       - name: Run supported-platform smoke checks
         run: python3 tests/platform/supported_platform_smoke.py
 
+      - name: Run installed pytest-isolation smoke
+        run: |
+          python3 -m venv pytest-isolation-venv
+          pytest-isolation-venv/bin/python -m pip install --no-deps .
+          pytest-isolation-venv/bin/python -m pip install pytest==8.3.5
+          pytest-isolation-venv/bin/python tests/python_distribution/smoke_pytest_isolation.py --expected-pytest-version 8.3.5
+
   macos_latest:
     runs-on: macos-latest
     steps:
@@ -83,3 +132,10 @@ jobs:
 
       - name: Run supported-platform smoke checks
         run: python3 tests/platform/supported_platform_smoke.py
+
+      - name: Run installed pytest-isolation smoke
+        run: |
+          python3 -m venv pytest-isolation-venv
+          pytest-isolation-venv/bin/python -m pip install --no-deps .
+          pytest-isolation-venv/bin/python -m pip install pytest==9.1.1
+          pytest-isolation-venv/bin/python tests/python_distribution/smoke_pytest_isolation.py --expected-pytest-version 9.1.1

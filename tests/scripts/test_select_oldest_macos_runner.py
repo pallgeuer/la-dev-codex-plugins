@@ -1,11 +1,11 @@
 """Tests for dynamic selection of the oldest supported macOS Intel runner."""
 
 import importlib.util
-from pathlib import Path
+import pathlib
 
 import pytest
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 SELECTOR_PATH = REPOSITORY_ROOT / "scripts" / "select_oldest_macos_runner.py"
 
 

@@ -3,10 +3,10 @@
 import contextlib
 import functools
 import os
+import pathlib
 import signal
 import subprocess
 import threading
-from pathlib import Path
 
 from . import diagnostics as diagnostics_module
 from .diagnostics import Diagnostic
@@ -29,15 +29,15 @@ class FilesystemView:
 
     def exists(self, path):
         """Return whether a path exists."""
-        return Path(path).exists()
+        return pathlib.Path(path).exists()
 
     def is_file(self, path):
         """Return whether a path is a regular file."""
-        return Path(path).is_file()
+        return pathlib.Path(path).is_file()
 
     def is_dir(self, path):
         """Return whether a path is a directory."""
-        return Path(path).is_dir()
+        return pathlib.Path(path).is_dir()
 
     def accessible_directory(self, path):
         """Return whether a directory can be traversed and read."""
@@ -45,11 +45,11 @@ class FilesystemView:
 
     def join(self, *parts):
         """Join path components."""
-        return str(Path(parts[0]).joinpath(*parts[1:]))
+        return str(pathlib.Path(parts[0]).joinpath(*parts[1:]))
 
     def dirname(self, path):
         """Return a path's parent directory."""
-        return str(Path(path).parent)
+        return str(pathlib.Path(path).parent)
 
     def commonpath(self, paths):
         """Return the common normalized path."""
@@ -289,7 +289,7 @@ def _resolve_repository(filesystem, cwd, git_runner):
             diagnostics.append(_diagnostic("git_invalid_utf8", "Git repository discovery returned non-UTF-8 output. Falling back to a marker walk."))
         else:
             lines = decoded.splitlines()
-            if len(lines) == 1 and lines[0].strip() == lines[0] and lines[0] and Path(lines[0]).is_absolute():
+            if len(lines) == 1 and lines[0].strip() == lines[0] and lines[0] and pathlib.Path(lines[0]).is_absolute():
                 candidate = filesystem.realpath(filesystem.abspath(lines[0]))
                 if filesystem.is_dir(candidate) and _contains(filesystem, candidate, cwd):
                     return candidate, "git", diagnostics
@@ -316,7 +316,7 @@ def discover_action_directories(
     """Discover ordered bundled, system, user, and one-root repository sources."""
     filesystem = filesystem or FilesystemView()
     env = dict(os.environ if env is None else env)
-    cwd_input = str(Path.cwd()) if cwd is None else cwd
+    cwd_input = str(pathlib.Path.cwd()) if cwd is None else cwd
     cwd_absolute = filesystem.abspath(cwd_input)
     diagnostics = []
     sources = []
@@ -382,7 +382,7 @@ def discover_action_directories(
             precedence_incomplete = True
             user_root = None
         else:
-            if not Path(configured_path).is_absolute():
+            if not pathlib.Path(configured_path).is_absolute():
                 configured_path = filesystem.join(cwd_absolute, configured_path)
             user_root = filesystem.abspath(configured_path)
         if user_root is not None and (not filesystem.is_dir(user_root) or not filesystem.accessible_directory(user_root)):
@@ -394,7 +394,7 @@ def discover_action_directories(
         if not mapped_home:
             user_root = None
         else:
-            mapped_home = mapped_home if Path(mapped_home).is_absolute() else filesystem.join(cwd_absolute, mapped_home)
+            mapped_home = mapped_home if pathlib.Path(mapped_home).is_absolute() else filesystem.join(cwd_absolute, mapped_home)
             user_root = filesystem.abspath(filesystem.join(mapped_home, ".codex"))
         if user_root is not None and filesystem.exists(user_root) and (not filesystem.is_dir(user_root) or not filesystem.accessible_directory(user_root)):
             diagnostics.append(_diagnostic("invalid_default_codex_home", "The default Codex home is not an accessible directory: {}".format(user_root), severity="error", fatality="catalog_fatal"))
