@@ -13,8 +13,8 @@ import sys
 STABLE_VERSION_RE = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
 STABLE_TAG_RE = re.compile(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
 MANIFEST_RE = re.compile(r"plugins/([^/]+)/\.codex-plugin/plugin\.json")
-CHANGE_CLASSES = ("none", "fix", "feature", "breaking")
-PLUGIN_CHANGE_CLASSES = ("fix", "feature", "breaking")
+CHANGE_CLASSES = ("none", "fix", "enhancement", "feature", "breaking")
+PLUGIN_CHANGE_CLASSES = ("fix", "enhancement", "feature", "breaking")
 PATCH = 1
 MINOR = 2
 MAJOR = 3
@@ -216,7 +216,7 @@ def validate_baseline(repository_root, tag):
 def _bump_level(version, change_class):
     if change_class == "none":
         return 0
-    if change_class == "fix":
+    if change_class in ("fix", "enhancement"):
         return PATCH
     if change_class == "feature":
         return MINOR
@@ -301,7 +301,7 @@ def validate_versions(repository_root, tag, repository_change, plugin_changes):
 def _plugin_change(value):
     name, separator, change_class = value.partition("=")
     if not separator or not name or change_class not in PLUGIN_CHANGE_CLASSES:
-        raise argparse.ArgumentTypeError("plugin changes must have form NAME=fix|feature|breaking")
+        raise argparse.ArgumentTypeError("plugin changes must have form NAME=fix|enhancement|feature|breaking")
     return name, change_class
 
 

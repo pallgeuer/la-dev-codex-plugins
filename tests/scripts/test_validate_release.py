@@ -128,6 +128,21 @@ def test_versions_combine_repository_feature_plugin_fix_and_stable_plugin_breaki
     assert "plugin stable: class=breaking, old=1.4.2, expected=2.0.0" in completed.stdout
 
 
+def test_enhancement_applies_patch_bump_to_repository_and_plugin(tmp_path):
+    repository, tag = create_repository(tmp_path, repository_version="0.3.0", plugins={"demo": "0.2.3"})
+    change_plugin(repository, "demo")
+    (repository / "repository.txt").write_text("enhancement\n", encoding="utf-8")
+    commit_all(repository, "Narrow enhancements")
+    write_repository_versions(repository, "0.3.1")
+    set_plugin_version(repository, "demo", "0.2.4")
+
+    completed = run_validator(repository, "versions", tag, "--repository-change", "enhancement", "--plugin-change", "demo=enhancement")
+
+    assert completed.returncode == 0
+    assert completed.stdout.splitlines()[0] == "repository: class=enhancement, old=0.3.0, expected=0.3.1, actual=0.3.1"
+    assert "plugin demo: class=enhancement, old=0.2.3, expected=0.2.4, actual=0.2.4" in completed.stdout
+
+
 def test_stable_repository_receives_major_bump_from_stable_plugin_breaking_change(tmp_path):
     repository, tag = create_repository(tmp_path, repository_version="1.3.0", plugins={"stable": "1.4.2"})
     change_plugin(repository, "stable")
@@ -366,4 +381,4 @@ def test_versions_reject_invalid_plugin_classification(tmp_path):
     completed = run_validator(repository, "versions", tag, "--repository-change", "none", "--plugin-change", "demo=maintenance")
 
     assert completed.returncode == 2
-    assert "plugin changes must have form NAME=fix|feature|breaking" in completed.stderr
+    assert "plugin changes must have form NAME=fix|enhancement|feature|breaking" in completed.stderr

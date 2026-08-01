@@ -132,7 +132,8 @@ Classify the complete set of changes for each changed existing plugin and classi
 | Classification | Change                                                                  | Component below `1.0.0` | Component at or above `1.0.0` |
 |----------------|-------------------------------------------------------------------------|-------------------------|-------------------------------|
 | `fix`          | Backward-compatible fix, documentation correction, or maintenance       | Patch                   | Patch                         |
-| `feature`      | Backward-compatible functionality                                       | Minor                   | Minor                         |
+| `enhancement`  | Narrow backward-compatible capability addition                          | Patch                   | Patch                         |
+| `feature`      | Substantial backward-compatible public capability or workflow expansion | Minor                   | Minor                         |
 | `breaking`     | Incompatible user-facing behavior, configuration, interface, or removal | Minor                   | Major                         |
 
 For a component in initial development (`0.x.y`), a breaking change advances the minor version and resets the patch version. Moving to `1.0.0` is reserved for declaring its public interface stable.
@@ -141,6 +142,7 @@ Apply these repository rules:
 
 - Bump every changed existing plugin independently from the version in its manifest.
 - Give each changed existing plugin its highest applicable classification when it contains several kinds of changes.
+- Judge `enhancement` versus `feature` by compatibility, public surface area, and overall user impact rather than by the mere presence of new functionality. When the distinction is debatable, require the release maintainer to confirm it explicitly.
 - Leave every unchanged plugin version untouched.
 - Classify changes outside plugin runtime subtrees according to their independent effect on the repository. Ancillary repository changes that only accompany plugin work may be classified as `none`.
 - Bump the repository exactly once using the highest effective bump contributed by repository-only changes, structural plugin changes, and changed existing plugins.
@@ -151,18 +153,20 @@ Apply these repository rules:
 Examples:
 
 - A plugin bug fix changes that plugin from `0.1.6` to `0.1.7` and applies a patch bump to the repository.
-- A minor feature in one plugin and a patch fix in another bump those plugins by minor and patch respectively, and apply a minor bump to the repository.
+- Adding one action to an existing plugin is normally an enhancement unless it changes the plugin's core runtime or interaction contract.
+- Adding recovery behavior to an existing workflow is normally an enhancement unless it substantially expands or changes that workflow's public contract.
+- A substantial public workflow in one plugin and a patch fix in another bump those plugins by minor and patch respectively, and apply a minor bump to the repository.
 - README-only corrections leave all plugin versions unchanged and apply a patch bump to the repository when those corrections are intentionally released.
 - A breaking change to a `0.2.1` plugin changes it to `0.3.0` and applies a minor bump to a repository that is also below `1.0.0`.
 - A breaking change to a stable plugin changes it from `1.4.2` to `2.0.0`; if the repository is `0.5.3`, its effective contribution is a repository minor bump to `0.6.0`.
 - A breaking repository-only CLI change and a plugin patch apply a breaking repository bump rather than allowing the plugin patch to lower the repository bump.
 
-Record the classifications. `REPOSITORY_CHANGE` must be `none`, `fix`, `feature`, or `breaking`. Add one `PLUGIN_CHANGES` entry for every changed existing plugin and no entry for new, removed, or unchanged plugins:
+Record the classifications. `REPOSITORY_CHANGE` must be `none`, `fix`, `enhancement`, `feature`, or `breaking`. Add one `PLUGIN_CHANGES` entry for every changed existing plugin and no entry for new, removed, or unchanged plugins:
 
 ```bash
 REPOSITORY_CHANGE=feature
 PLUGIN_CHANGES=(
-    "PLUGIN_NAME=fix"
+    "PLUGIN_NAME=enhancement"
     "ANOTHER_PLUGIN=breaking"
 )
 ```
