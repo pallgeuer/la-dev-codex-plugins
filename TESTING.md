@@ -164,6 +164,8 @@ CI repeats the installed-plugin smoke with pytest 7.0.1 in the Ubuntu 18.04/Pyth
 docker run --rm --env PYTHONDONTWRITEBYTECODE=1 --volume "$PWD:/workspace:ro" --workdir /workspace ubuntu:18.04 bash -c "apt-get update && apt-get install --yes python3-venv && python3 -m venv /tmp/pytest-venv && /tmp/pytest-venv/bin/pip install pytest==7.0.1 && LANG=C LC_ALL=C PYTHONPATH=/workspace/src /tmp/pytest-venv/bin/python tests/python_distribution/smoke_pytest_isolation.py --expected-pytest-version 7.0.1"
 ```
 
+The Python-package release workflow also downloads the exact validated wheel into a current macOS Arm64 job, installs it without package-index access or dependencies, and runs `smoke_installed_package.py`. Publication depends on this macOS wheel smoke as well as the Ubuntu installation checks.
+
 The macOS selector reads the official `actions/runner-images` availability table and fails closed if it cannot identify one ordinary non-deprecated GA Intel label:
 
 ```bash
