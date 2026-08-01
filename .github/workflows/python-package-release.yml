@@ -136,7 +136,7 @@ jobs:
               --volume "$GITHUB_WORKSPACE:/workspace:ro" \
               --workdir /workspace \
               ubuntu:18.04 \
-              bash -c "apt-get update && apt-get install --yes git python3-venv && python3 -m venv /tmp/package-venv && /tmp/package-venv/bin/pip install --no-index --no-deps /workspace/dist/*.whl && PATH=/tmp/package-venv/bin:\$PATH /tmp/package-venv/bin/python tests/python_distribution/smoke_installed_package.py --expected-version '${{ needs.build.outputs.version }}' --plugin-root plugins/toolkit"
+              bash -c "apt-get update && apt-get install --yes git python3-venv && git config --global --add safe.directory /workspace && python3 -m venv /tmp/package-venv && /tmp/package-venv/bin/pip install --no-index --no-deps /workspace/dist/*.whl && PATH=/tmp/package-venv/bin:\$PATH /tmp/package-venv/bin/python tests/python_distribution/smoke_installed_package.py --expected-version '${{ needs.build.outputs.version }}' --plugin-root plugins/toolkit"
 
       - name: Run installed pytest-isolation smoke with minimum pytest
         shell: bash

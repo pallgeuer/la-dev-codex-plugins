@@ -10,6 +10,7 @@ SETUP_CONFIG = REPOSITORY_ROOT / "setup.cfg"
 INSTALLED_BOOTSTRAP = REPOSITORY_ROOT / "package_scripts" / "codex-perform"
 SOURCE_BOOTSTRAP = REPOSITORY_ROOT / "source_launcher" / "codex_perform.py"
 VALIDATOR = REPOSITORY_ROOT / "scripts" / "validate_python_distribution.py"
+RELEASE_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "python-package-release.yml"
 
 
 def load_validator():
@@ -78,3 +79,12 @@ def test_sdist_package_inventory_is_derived_from_wheel_package_files():
 
     assert package_entries == {"src/{}".format(path) for path in validator.PACKAGE_FILES}
     assert validator.SDIST_NON_PACKAGE_FILES | package_entries == validator.SDIST_FILES
+
+
+def test_python36_release_smoke_trusts_mounted_checkout():
+    workflow = RELEASE_WORKFLOW.read_text(encoding="ascii")
+    step_start = workflow.index("      - name: Install and test with Ubuntu 18.04 system Python\n")
+    step_end = workflow.index("\n      - name:", step_start + 1)
+    step = workflow[step_start:step_end]
+
+    assert "git config --global --add safe.directory /workspace" in step
