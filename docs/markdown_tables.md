@@ -60,6 +60,7 @@ The partial APIs are:
 - `format_markdown_tables(text, path=None)`: return safe partial formatting plus every unresolved issue;
 - `markdown_table_issues(text, path=None)`: expose proposed changes as `format` issues together with unresolved `malformed` issues;
 - `format_markdown_tables_file(path, check=False)`: inspect one file and write all safe changes unless checking;
+- `select_markdown_paths(paths=(), root=None, include_untracked=False, exclude=(), config_path=None, use_config=True, apply_excludes=True)`: reproduce command-line path selection and return ordered absolute paths;
 - `tracked_markdown_paths(root=None)`: return absolute tracked Markdown paths from the nearest enclosing Git worktree; and
 - `normalize_markdown_tables(text)` and `normalize_markdown_tables_file(path, check=False)`: strict conveniences that refuse partial output or writes when malformed input remains.
 
@@ -74,12 +75,48 @@ File APIs open one regular UTF-8 file with no-follow semantics and refuse a fina
 Install the base package and run:
 
 ```text
-la-dev-markdown-tables [--check] [PATH ...]
+la-dev-markdown-tables [--check] [--include-untracked]
+                       [--exclude REGEX | --no-exclude]
+                       [--config PATH | --no-config]
+                       [PATH ...]
 la-dev-markdown-tables --version
 la-dev-markdown-tables --help
 ```
 
-Explicit paths are processed once in first-occurrence command-line order and are not suffix-restricted. With no paths, the command discovers the nearest Git root through bounded subprocess execution, reads NUL-delimited `git ls-files` output, selects present `.md` and `.markdown` paths case-insensitively, and processes them in repository-relative Git-path order.
+### Controlling file selection
+
+The invocation form determines the initial candidates:
+
+| Invocation                                     | Initial candidates                                                                                                                  |
+|------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| No `PATH`                                      | Present Git-tracked `.md` and `.markdown` files from the nearest worktree, case-insensitively and in repository-relative path order |
+| No `PATH`, with `--include-untracked`          | The preceding files plus untracked, nonignored Markdown files                                                                       |
+| Explicit file                                  | Exactly that file, even when untracked, ignored, outside the worktree, or not Markdown-suffixed                                     |
+| Explicit directory                             | Present tracked Markdown descendants of that directory, which must be inside the active worktree                                    |
+| Explicit directory, with `--include-untracked` | The preceding descendants plus untracked, nonignored Markdown descendants                                                           |
+| Pre-commit hook                                | The filenames selected and passed by pre-commit; the command does not perform no-path discovery                                     |
+
+Explicit inputs are expanded in first-occurrence command-line order, each directory expansion is repository-relative-path sorted, and overlapping inputs are processed once. Unless excluded, missing explicit files remain candidates and produce an operational diagnostic during processing. A real directory outside the active worktree is an error, while an ignored file remains available when named explicitly. `--include-untracked` never includes ignored files and has no effect on explicit file arguments.
+
+Git discovery uses bounded, NUL-delimited `git ls-files` output. Explicit files remain usable when Git confirms that the current directory is outside every worktree, but Git launch failures, timeouts, unsafe output, and repository errors stop selection before any file is written. Without `--include-untracked`, Git ignore rules are irrelevant because only tracked files are selected. With the option, standard repository, information-exclude, and global Git ignore rules filter the additional untracked files. Deleted tracked paths are omitted. Final-component symlinks are not followed and fail regular-file or directory validation.
+
+After candidate selection, exclusions apply to every invocation form, including explicit filenames passed by pre-commit. Repeat `--exclude REGEX` to add Python regular expressions. Patterns use `re.search` against repository-relative POSIX paths such as `docs/generated/a.md`; an explicit file outside the active worktree is matched by absolute POSIX path. Excluded paths are silently omitted, and a completely excluded invocation succeeds. Use `--no-exclude` for a one-off invocation that must bypass every configured exclusion.
+
+By default the command loads `.la-dev-markdown-tables.json` from the active Git root when that file exists. The UTF-8 file is strict and versioned:
+
+```json
+{
+  "version": 1,
+  "exclude": [
+    "^docs/generated/",
+    "^vendor/"
+  ]
+}
+```
+
+Both fields are required and no other fields are accepted. Invalid JSON, schema values, versions, or regular expressions fail before any file is written. Configured exclusions and command-line exclusions are additive. `--config PATH` replaces automatic lookup, `--no-config` disables it, and `--no-exclude` bypasses configuration loading as well as filtering. Contradictory switches are rejected.
+
+Python callers can use `select_markdown_paths()` for the same selection behavior. `paths` accepts one path-like value or an iterable, and `exclude` accepts one regular expression or an iterable. `root` selects the enclosing active worktree, `config_path` replaces automatic lookup, `use_config=False` corresponds to `--no-config`, and `apply_excludes=False` corresponds to `--no-exclude`. The older `tracked_markdown_paths()` deliberately remains a narrow tracked-only discovery API and does not consult configuration.
 
 Default mode writes safe changes and prints `Formatted Markdown tables: PATH` for each changed file. Check mode writes nothing and reports proposed changes. Malformed and operational diagnostics use `la-dev-markdown-tables: PATH:LINE: MESSAGE` on stderr; operational errors without a source line omit `:LINE`. Human-readable paths preserve printable Unicode but use backslash escapes for controls, format characters, surrogates, line separators, and literal backslashes so every record remains on one physical line.
 
@@ -113,11 +150,22 @@ repos:
       - id: markdown-tables-check
 ```
 
-The hooks receive selected filenames and install only the dependency-free base package. Version 1 has no per-table directives and no formatter configuration file. Limit scope by passing explicit CLI paths or using pre-commit's path-level `exclude`, for example:
+The hooks receive selected filenames and install only the dependency-free base package. Pre-commit first chooses candidates according to the hook stage or `pre-commit run` arguments, then applies its `files`, `exclude`, `types`, and `exclude_types` filters. The published hooks use `types: [markdown]`. The resulting filenames enter the command as explicit files, so command no-path and directory discovery do not run; repository configuration and tool-native exclusions still filter them.
+
+There are two common exclusion levels. Pre-commit's path-level `exclude` affects only that hook invocation:
 
 ```yaml
       - id: markdown-tables-fix
         exclude: ^docs/vendor/
 ```
+
+For matching standalone, CI, fix-hook, and check-hook behavior, prefer `.la-dev-markdown-tables.json`. Alternatively, pass tool-native patterns through hook arguments:
+
+```yaml
+      - id: markdown-tables-check
+        args: [--exclude, ^docs/vendor/]
+```
+
+Version 1 has no per-table or in-document opt-out directives.
 
 For local manual verification, run `la-dev-markdown-tables --check`. In CI, use the same command or the check hook so the job cannot mutate its checkout.

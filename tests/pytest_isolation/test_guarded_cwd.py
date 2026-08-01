@@ -11,9 +11,11 @@ def test_symlinked_temporary_root_is_the_same_guarded_directory(run_isolation, m
     result = run_isolation(
         """
 import os
+from pathlib import Path
 
 def test_guard(guarded_cwd):
-    assert os.path.samefile(os.getcwd(), str(guarded_cwd))
+    assert Path.cwd() == guarded_cwd
+    assert Path(os.environ["TMPDIR"]).parent == guarded_cwd.parent
 """
     )
 

@@ -24,6 +24,7 @@ PACKAGE_FILES = {
     "la_dev_codex_plugins/markdown_tables/formatter.py",
     "la_dev_codex_plugins/markdown_tables/models.py",
     "la_dev_codex_plugins/markdown_tables/parser.py",
+    "la_dev_codex_plugins/markdown_tables/selection.py",
     "la_dev_codex_plugins/pytest_isolation/__init__.py",
     "la_dev_codex_plugins/pytest_isolation/plugin.py",
     "la_dev_codex_plugins/release_checksums/__init__.py",

@@ -1,16 +1,11 @@
-"""Git discovery and failure-safe file operations for Markdown tables."""
+"""Failure-safe Markdown file operations."""
 
 import os
 import pathlib
 import stat
-import sys
 
 from .. import _filesystem as filesystem
-from .. import _process as process
 from . import formatter, models
-
-_GIT_TIMEOUT = 10
-_GIT_OUTPUT_LIMIT = 32 * 1024 * 1024
 
 
 def _coerce_path(path):
@@ -34,11 +29,11 @@ def _symlink_after_open_failure(path):
 
 
 def _read_text(path):
-    if not hasattr(os, "O_NOFOLLOW"):
-        raise models.MarkdownTableError("Safe no-follow file opening is unavailable", path=path)
+    if not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_NONBLOCK"):
+        raise models.MarkdownTableError("Safe nonblocking no-follow file opening is unavailable", path=path)
     descriptor = None
     try:
-        descriptor = os.open(str(path), os.O_RDONLY | os.O_NOFOLLOW)
+        descriptor = os.open(str(path), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except OSError as exc:
         if _symlink_after_open_failure(path):
             raise models.MarkdownTableError("Refusing final-component symbolic link", path=path) from exc
@@ -113,56 +108,3 @@ def normalize_markdown_tables_file(path, check=False):
     if result.changed and not check:
         _atomic_write(selected, result.text, metadata)
     return result.changed
-
-
-def _decode_git_output(data):
-    encoding = sys.getfilesystemencoding() or "utf-8"
-    return data.decode(encoding, "surrogateescape")
-
-
-def _run_git(command, cwd):
-    result = process.run_bounded_process(command, str(cwd), os.environ, _GIT_TIMEOUT, _GIT_OUTPUT_LIMIT)
-    if result.launch_error:
-        raise models.MarkdownTableError("Git launch failed: {}".format(result.launch_error), path=cwd)
-    if result.timed_out:
-        raise models.MarkdownTableError("Git command timed out", path=cwd)
-    if result.capture_incomplete or result.stdout_truncated or result.stderr_truncated:
-        raise models.MarkdownTableError("Git command output exceeded the safe capture limit", path=cwd)
-    if result.returncode != 0:
-        message = _decode_git_output(result.stderr).strip() or "Git command failed with status {}".format(result.returncode)
-        raise models.MarkdownTableError(message, path=cwd)
-    return result.stdout
-
-
-def _discover_git_root(start=None):
-    selected = _lexical_absolute(pathlib.Path.cwd() if start is None else _coerce_path(start))
-    output = _run_git(("git", "rev-parse", "--show-toplevel"), selected)
-    root_text = _decode_git_output(output)
-    if root_text.endswith("\n"):
-        root_text = root_text[:-1]
-    if not root_text:
-        raise models.MarkdownTableError("Git returned an empty worktree root", path=selected)
-    return _lexical_absolute(pathlib.Path(root_text))
-
-
-def _tracked_markdown_paths(repository):
-    output = _run_git(("git", "ls-files", "-z"), repository)
-    paths = []
-    for raw_path in output.split(b"\0"):
-        if not raw_path:
-            continue
-        relative_text = _decode_git_output(raw_path)
-        suffix = pathlib.PurePath(relative_text).suffix.lower()
-        if suffix not in {".md", ".markdown"}:
-            continue
-        selected = _lexical_absolute(repository / relative_text)
-        if not os.path.lexists(str(selected)):
-            continue
-        paths.append((relative_text, selected))
-    paths.sort(key=lambda item: item[0])
-    return tuple(item[1] for item in paths)
-
-
-def tracked_markdown_paths(root=None):
-    """Return present tracked Markdown paths sorted by repository-relative path."""
-    return _tracked_markdown_paths(_discover_git_root(root))

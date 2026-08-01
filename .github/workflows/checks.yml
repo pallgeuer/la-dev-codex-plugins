@@ -67,7 +67,7 @@ jobs:
             --volume "${GITHUB_WORKSPACE}:/workspace:ro" \
             --workdir /workspace \
             ubuntu:18.04 \
-            bash -c "apt-get update && apt-get install --yes git python3 python3-venv && python3 tests/platform/supported_platform_smoke.py"
+            bash -c "apt-get update && apt-get install --yes git python3 python3-venv && LANG=C LC_ALL=C python3 -c 'import sys; assert sys.getfilesystemencoding() == \"ascii\"' && LANG=C LC_ALL=C python3 tests/platform/supported_platform_smoke.py && LANG=C.UTF-8 LC_ALL=C.UTF-8 python3 -c 'import sys; assert sys.getfilesystemencoding() == \"utf-8\"' && LANG=C.UTF-8 LC_ALL=C.UTF-8 python3 tests/platform/supported_platform_smoke.py"
 
       - name: Run Python 3.6 pytest-isolation smoke with minimum pytest
         run: |
@@ -76,7 +76,7 @@ jobs:
             --volume "${GITHUB_WORKSPACE}:/workspace:ro" \
             --workdir /workspace \
             ubuntu:18.04 \
-            bash -c "apt-get update && apt-get install --yes python3-venv && python3 -m venv /tmp/pytest-venv && /tmp/pytest-venv/bin/pip install pytest==7.0.1 && PYTHONPATH=/workspace/src /tmp/pytest-venv/bin/python tests/python_distribution/smoke_pytest_isolation.py --expected-pytest-version 7.0.1"
+            bash -c "apt-get update && apt-get install --yes python3-venv && python3 -m venv /tmp/pytest-venv && /tmp/pytest-venv/bin/pip install pytest==7.0.1 && LANG=C LC_ALL=C PYTHONPATH=/workspace/src /tmp/pytest-venv/bin/python tests/python_distribution/smoke_pytest_isolation.py --expected-pytest-version 7.0.1"
 
   select_oldest_macos:
     runs-on: ubuntu-latest

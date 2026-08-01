@@ -113,7 +113,7 @@ def _create_boundary(state, poison_files):
         boundary_value = tempfile.mkdtemp(prefix="la-dev-pytest-isolation-")
     finally:
         tempfile.tempdir = saved_tempdir
-    state.boundary = pathlib.Path(os.fsdecode(boundary_value))
+    state.boundary = pathlib.Path(os.path.realpath(os.fsdecode(boundary_value)))
     state.boundary.chmod(0o700)
     state.cwd = state.boundary / "cwd"
     state.tmp = state.boundary / "tmp"

@@ -124,13 +124,27 @@ def smoke_release_checksums(temporary_root):
         sys.path.pop(0)
     if "pytest" in sys.modules:
         raise AssertionError("Dependency-free checksum smoke unexpectedly imported pytest")
-    artifact = temporary_root / "r\u00e9lease.whl"
+    unicode_basename = "r\u00e9lease.whl"
+    try:
+        os.fsencode(unicode_basename)
+    except UnicodeEncodeError:
+        artifact_basename = "release.whl"
+        try:
+            release_checksums.generate_sha256_manifest(temporary_root / unicode_basename)
+        except release_checksums.ReleaseChecksumError as exc:
+            if not isinstance(exc.__cause__, UnicodeEncodeError):
+                raise AssertionError("Checksum smoke did not preserve the filesystem encoding failure") from exc
+        else:
+            raise AssertionError("Checksum smoke accepted a filename that the filesystem encoding cannot represent")
+    else:
+        artifact_basename = unicode_basename
+    artifact = temporary_root / artifact_basename
     artifact_data = b"supported platform release artifact\n"
     artifact.write_bytes(artifact_data)
     output = temporary_root / "SHA256SUMS"
     output.write_bytes(b"stale manifest\n")
     manifest = release_checksums.write_sha256_manifest(artifact, output)
-    expected = "{}  r\u00e9lease.whl\n".format(hashlib.sha256(artifact_data).hexdigest())
+    expected = "{}  {}\n".format(hashlib.sha256(artifact_data).hexdigest(), artifact_basename)
     assert manifest == expected
     assert output.read_bytes() == expected.encode("utf-8")
     assert not list(temporary_root.glob(".la-dev-release-checksums-*.tmp"))

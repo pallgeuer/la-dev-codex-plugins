@@ -1,12 +1,18 @@
 """Markdown table command-line interface tests."""
 
 import pathlib
+import subprocess
 
 import pytest
 
 import la_dev_codex_plugins._filesystem as filesystem
 import la_dev_codex_plugins.markdown_tables.cli as markdown_cli
 import la_dev_codex_plugins.markdown_tables.files as markdown_files
+import la_dev_codex_plugins.markdown_tables.selection as markdown_selection
+
+
+def _git(repository, *arguments):
+    subprocess.run(("git", *arguments), cwd=str(repository), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
 def test_check_reports_changes_without_mutation_and_uses_status_one(tmp_path, capsys):
@@ -135,7 +141,7 @@ def test_operational_errors_continue_to_later_files(tmp_path, capsys):
 
 
 @pytest.mark.parametrize("check", [False, True])
-def test_cli_refuses_directory_and_final_symlink_in_both_modes(tmp_path, capsys, check):
+def test_cli_refuses_outside_directory_and_final_symlink_in_both_modes(tmp_path, capsys, check):
     target = tmp_path / "target.md"
     target.write_text("| A |\n|---|\n", encoding="utf-8")
     link = tmp_path / "link.md"
@@ -147,7 +153,7 @@ def test_cli_refuses_directory_and_final_symlink_in_both_modes(tmp_path, capsys,
     assert markdown_cli.main(arguments) == 2
 
     diagnostics = capsys.readouterr().err
-    assert "Expected a regular file" in diagnostics
+    assert "Directory must be inside the active Git worktree" in diagnostics
     assert "symbolic link" in diagnostics
 
 
@@ -160,8 +166,8 @@ def test_no_paths_uses_tracked_discovery(monkeypatch, tmp_path, capsys):
         discoveries.append(True)
         return tmp_path
 
-    monkeypatch.setattr(markdown_files, "_discover_git_root", discover)
-    monkeypatch.setattr(markdown_files, "_tracked_markdown_paths", lambda _root: (path,))
+    monkeypatch.setattr(markdown_selection, "_discover_git_root", discover)
+    monkeypatch.setattr(markdown_selection, "_git_markdown_entries", lambda _root, **_kwargs: (("table.md", path),))
 
     assert markdown_cli.main(["--check"]) == 1
     assert "table.md:1" in capsys.readouterr().err
@@ -174,3 +180,145 @@ def test_help_and_version_exit_zero(option, capsys):
         markdown_cli.main([option])
     assert caught.value.code == 0
     assert capsys.readouterr().out
+
+
+def test_cli_applies_root_config_to_pre_commit_style_explicit_paths_and_can_bypass_it(tmp_path, monkeypatch, capsys):
+    repository = tmp_path / "repo"
+    repository.mkdir()
+    _git(repository, "init")
+    path = repository / "generated.md"
+    path.write_text("| A|B |\n|-|-|\n", encoding="utf-8")
+    (repository / ".la-dev-markdown-tables.json").write_text('{"version": 1, "exclude": ["^generated\\\\.md$"]}\n', encoding="utf-8")
+    monkeypatch.chdir(repository)
+
+    assert markdown_cli.main(["--check", str(path)]) == 0
+    assert capsys.readouterr() == ("", "")
+    assert markdown_cli.main(["--check", "--no-exclude", str(path)]) == 1
+    assert "generated.md:1" in capsys.readouterr().err
+
+
+def test_cli_exclusions_are_additive_and_no_config_disables_root_config(tmp_path, monkeypatch, capsys):
+    repository = tmp_path / "repo"
+    repository.mkdir()
+    _git(repository, "init")
+    configured = repository / "configured.md"
+    command_line = repository / "command-line.md"
+    for path in (configured, command_line):
+        path.write_text("| A|B |\n|-|-|\n", encoding="utf-8")
+    (repository / ".la-dev-markdown-tables.json").write_text('{"version": 1, "exclude": ["^configured\\\\.md$"]}\n', encoding="utf-8")
+    monkeypatch.chdir(repository)
+
+    assert markdown_cli.main(["--check", "--exclude", "^command-line\\.md$", str(configured), str(command_line)]) == 0
+    assert capsys.readouterr() == ("", "")
+    assert markdown_cli.main(["--check", "--no-config", str(configured)]) == 1
+    assert "configured.md:1" in capsys.readouterr().err
+
+
+def test_cli_directory_discovery_adds_only_nonignored_untracked_files(tmp_path, monkeypatch, capsys):
+    repository = tmp_path / "repo"
+    docs = repository / "docs"
+    docs.mkdir(parents=True)
+    _git(repository, "init")
+    tracked = docs / "tracked.md"
+    untracked = docs / "untracked.md"
+    ignored = docs / "ignored.md"
+    for path in (tracked, untracked, ignored):
+        path.write_text("| A|B |\n|-|-|\n", encoding="utf-8")
+    (repository / ".gitignore").write_text("docs/ignored.md\n", encoding="utf-8")
+    _git(repository, "add", "--", "docs/tracked.md", ".gitignore")
+    monkeypatch.chdir(repository)
+
+    assert markdown_cli.main(["--check", str(docs)]) == 1
+    diagnostics = capsys.readouterr().err
+    assert "docs/tracked.md:1" in diagnostics
+    assert "untracked.md" not in diagnostics
+    assert markdown_cli.main(["--check", "--include-untracked", str(docs)]) == 1
+    diagnostics = capsys.readouterr().err
+    assert "docs/tracked.md:1" in diagnostics
+    assert "docs/untracked.md:1" in diagnostics
+    assert "ignored.md" not in diagnostics
+
+
+def test_cli_invalid_config_fails_before_fixing_any_file(tmp_path, monkeypatch, capsys):
+    repository = tmp_path / "repo"
+    repository.mkdir()
+    _git(repository, "init")
+    path = repository / "table.md"
+    source = "| A|B |\n|-|-|\n"
+    path.write_text(source, encoding="utf-8")
+    (repository / ".la-dev-markdown-tables.json").write_text('{"version": 1, "exclude": ["["]}\n', encoding="utf-8")
+    monkeypatch.chdir(repository)
+
+    assert markdown_cli.main([str(path)]) == 2
+    assert "Invalid exclusion regular expression" in capsys.readouterr().err
+    assert path.read_text(encoding="utf-8") == source
+
+
+def test_cli_operational_git_failure_stops_before_writing_explicit_file(tmp_path, monkeypatch, capsys):
+    repository = tmp_path / "repo"
+    repository.mkdir()
+    _git(repository, "init")
+    path = repository / "table.md"
+    source = "| A|B |\n|-|-|\n"
+    path.write_text(source, encoding="utf-8")
+    (repository / ".la-dev-markdown-tables.json").write_text('{"version": 1, "exclude": ["^table\\\\.md$"]}\n', encoding="utf-8")
+    monkeypatch.chdir(repository)
+    monkeypatch.setenv("PATH", "")
+
+    assert markdown_cli.main([str(path)]) == 2
+    assert "Git launch failed" in capsys.readouterr().err
+    assert path.read_text(encoding="utf-8") == source
+
+
+def test_cli_directory_error_does_not_prevent_later_file_fix(tmp_path, monkeypatch, capsys):
+    repository = tmp_path / "repo"
+    outside = tmp_path / "outside"
+    repository.mkdir()
+    outside.mkdir()
+    _git(repository, "init")
+    path = repository / "table.md"
+    path.write_text("| A|B |\n|-|-|\n", encoding="utf-8")
+    monkeypatch.chdir(repository)
+
+    assert markdown_cli.main([str(outside), str(path)]) == 2
+    captured = capsys.readouterr()
+    assert "Directory must be inside the active Git worktree" in captured.err
+    assert captured.out == "Formatted Markdown tables: table.md\n"
+    assert path.read_text(encoding="utf-8") == "| A | B |\n|---|---|\n"
+
+
+def test_cli_input_inspection_error_does_not_prevent_later_file_fix(tmp_path, monkeypatch, capsys):
+    denied = tmp_path / "denied.md"
+    selected = tmp_path / "selected.md"
+    denied.write_text("denied\n", encoding="utf-8")
+    selected.write_text("| A|B |\n|-|-|\n", encoding="utf-8")
+    original_lstat = pathlib.Path.lstat
+
+    def inspect(path):
+        if path == denied:
+            raise PermissionError("denied")
+        return original_lstat(path)
+
+    monkeypatch.setattr(pathlib.Path, "lstat", inspect)
+
+    assert markdown_cli.main([str(denied), str(selected)]) == 2
+    captured = capsys.readouterr()
+    assert "Cannot inspect input path: denied" in captured.err
+    assert captured.out == "Formatted Markdown tables: {}\n".format(selected.as_posix())
+    assert denied.read_text(encoding="utf-8") == "denied\n"
+    assert selected.read_text(encoding="utf-8") == "| A | B |\n|---|---|\n"
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["--no-exclude", "--exclude", "docs"],
+        ["--config", "config.json", "--no-config"],
+        ["--no-exclude", "--config", "config.json"],
+        ["--no-exclude", "--no-config"],
+    ],
+)
+def test_cli_rejects_contradictory_selection_controls(arguments):
+    with pytest.raises(SystemExit) as caught:
+        markdown_cli.main(arguments)
+    assert caught.value.code == 2

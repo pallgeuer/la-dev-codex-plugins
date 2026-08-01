@@ -1,18 +1,12 @@
-"""Markdown table file and Git discovery tests."""
+"""Markdown table file operation tests."""
 
-import os
 import stat
-import subprocess
 
 import pytest
 
 import la_dev_codex_plugins._filesystem as filesystem
 import la_dev_codex_plugins.markdown_tables as markdown_tables
 import la_dev_codex_plugins.markdown_tables.files as markdown_files
-
-
-def _git(repository, *arguments):
-    subprocess.run(("git", *arguments), cwd=str(repository), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
 def test_format_file_check_does_not_write_and_fix_preserves_mode(tmp_path):
@@ -152,75 +146,3 @@ def test_noop_file_is_not_replaced(tmp_path):
     after = path.stat()
     assert not result.changed
     assert (after.st_ino, after.st_mtime_ns) == (before.st_ino, before.st_mtime_ns)
-
-
-def test_tracked_paths_use_nearest_root_case_insensitive_suffixes_and_nul_output(tmp_path, monkeypatch):
-    repository = tmp_path / "repo"
-    nested = repository / "nested" / "deeper"
-    nested.mkdir(parents=True)
-    _git(repository, "init")
-    paths = [repository / "a.md", repository / "B.MARKDOWN", repository / "line\nbreak.md", repository / "skip.txt"]
-    for path in paths:
-        path.write_text("text\n", encoding="utf-8")
-    _git(repository, "add", "--", ".")
-    monkeypatch.chdir(nested)
-
-    discovered = markdown_tables.tracked_markdown_paths()
-
-    assert discovered == (repository / "B.MARKDOWN", repository / "a.md", repository / "line\nbreak.md")
-    assert all(path.is_absolute() for path in discovered)
-
-
-def test_tracked_paths_decode_non_utf8_filename_with_filesystem_surrogateescape(tmp_path):
-    repository = tmp_path / "repo"
-    repository.mkdir()
-    _git(repository, "init")
-    raw_name = b"non-utf8-\xff.md"
-    raw_path = os.fsencode(str(repository)) + b"/" + raw_name
-    descriptor = os.open(raw_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    os.close(descriptor)
-    decoded_name = os.fsdecode(raw_name)
-    _git(repository, "add", "--", decoded_name)
-
-    discovered = markdown_tables.tracked_markdown_paths(repository)
-
-    assert len(discovered) == 1
-    assert os.fsencode(discovered[0].name) == raw_name
-
-
-def test_tracked_paths_ignore_absent_files_but_return_tracked_symlinks_for_validation(tmp_path):
-    repository = tmp_path / "repo"
-    repository.mkdir()
-    _git(repository, "init")
-    present = repository / "present.md"
-    absent = repository / "absent.md"
-    target = repository / "target.txt"
-    link = repository / "link.md"
-    present.write_text("text\n", encoding="utf-8")
-    absent.write_text("text\n", encoding="utf-8")
-    target.write_text("text\n", encoding="utf-8")
-    link.symlink_to(target)
-    _git(repository, "add", "--", ".")
-    absent.unlink()
-
-    discovered = markdown_tables.tracked_markdown_paths(repository)
-
-    assert present in discovered
-    assert absent not in discovered
-    assert link in discovered
-
-
-def test_empty_git_discovery_succeeds(tmp_path):
-    repository = tmp_path / "repo"
-    repository.mkdir()
-    _git(repository, "init")
-    assert markdown_tables.tracked_markdown_paths(repository) == ()
-
-
-@pytest.mark.parametrize("suffix", ["\r", "\n"])
-def test_git_root_preserves_trailing_path_line_characters(tmp_path, suffix):
-    repository = tmp_path / ("repository" + suffix)
-    repository.mkdir()
-    _git(repository, "init")
-
-    assert markdown_files._discover_git_root(repository) == repository.absolute()

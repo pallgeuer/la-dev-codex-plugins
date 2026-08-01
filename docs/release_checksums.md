@@ -49,7 +49,7 @@ Each line is:
 
 Input order is retained and the manifest has a final LF. Persisted output is strict UTF-8 with literal LF independently of the process locale. Hashing reads binary files in bounded 1 MiB chunks.
 
-The basename belongs to the supplied artifact path, not a resolved symlink target, so a manifest remains portable beside the named release artifacts. Spaces and strictly UTF-8-encodable names are accepted. The basename `-` is rejected because standard checksum tools reserve it for standard input. Carriage return, line feed, backslash, NUL, surrogate code points, and any other name that cannot be strictly UTF-8 encoded are rejected because the unescaped line format would be ambiguous or non-portable.
+The basename belongs to the supplied artifact path, not a resolved symlink target, so a manifest remains portable beside the named release artifacts. Spaces and strictly UTF-8-encodable names are accepted when the active Python filesystem encoding can represent the supplied text path; an unrepresentable path raises `ReleaseChecksumError`. The basename `-` is rejected because standard checksum tools reserve it for standard input. Carriage return, line feed, backslash, NUL, surrogate code points, and any other name that cannot be strictly UTF-8 encoded are rejected because the unescaped line format would be ambiguous or non-portable.
 
 Duplicate basenames are compared by exact UTF-8 bytes without case folding or Unicode normalization.
 

@@ -80,6 +80,10 @@ def smoke_reusable_tools(expected_version):
         raise AssertionError("The pytest-isolation package exposes an unexpected plugin module")
 
     with tempfile.TemporaryDirectory(prefix="la-dev-reusable-tools-smoke-") as temporary_directory:
+        markdown_path = pathlib.Path(temporary_directory) / "table.md"
+        markdown_path.write_text(source, encoding="utf-8")
+        if markdown_tables.select_markdown_paths(markdown_path, use_config=False) != (markdown_path,):
+            raise AssertionError("Markdown path selector returned unexpected paths")
         artifact = pathlib.Path(temporary_directory) / "artifact.bin"
         artifact.write_bytes(b"release artifact\n")
         expected_manifest = "{}  artifact.bin\n".format(hashlib.sha256(b"release artifact\n").hexdigest())

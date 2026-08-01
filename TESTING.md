@@ -125,6 +125,13 @@ python3 tests/platform/supported_platform_smoke.py
 
 This smoke program covers shipped action discovery and inspection, atomic catalogue writes, the source-activated launcher, bounded process termination, Loupe's Bash subprocess path, and dependency-free UTF-8/LF release-checksum placement with symlink and hard-link identity checks. It is deliberately compatible with Python 3.6 and uses only the standard library so that CI can run it with Ubuntu 18.04's native interpreter. Keep this no-dependency proof separate from every pytest smoke.
 
+Ubuntu CI runs the smoke once with the C locale and once with C.UTF-8. The C-locale run completes the checksum workflow with an ASCII artifact name and verifies that an unrepresentable Unicode text path raises the documented `ReleaseChecksumError`; the C.UTF-8 run completes the same workflow with a Unicode artifact name. Reproduce both modes on a host that provides C.UTF-8 with:
+
+```bash
+LANG=C LC_ALL=C python3 tests/platform/supported_platform_smoke.py
+LANG=C.UTF-8 LC_ALL=C.UTF-8 python3 tests/platform/supported_platform_smoke.py
+```
+
 Build and validate the exact Python source and wheel distributions:
 
 ```bash
@@ -154,7 +161,7 @@ Only after the base `--no-index --no-deps` smoke passes, add a fixed pytest and 
 CI repeats the installed-plugin smoke with pytest 7.0.1 in the Ubuntu 18.04/Python 3.6 environment, pytest 8.3.5 on the oldest supported macOS Intel runner, and pytest 9.1.1 on the current macOS Arm64 runner. The smoke checks exact guarded permissions and leak detection without assuming those permissions prevent root writes. The macOS jobs use separate virtual environments so the dependency-free platform smoke always runs before pytest is installed. To reproduce the minimum combination in the Ubuntu 18.04 container:
 
 ```bash
-docker run --rm --env PYTHONDONTWRITEBYTECODE=1 --volume "$PWD:/workspace:ro" --workdir /workspace ubuntu:18.04 bash -c "apt-get update && apt-get install --yes python3-venv && python3 -m venv /tmp/pytest-venv && /tmp/pytest-venv/bin/pip install pytest==7.0.1 && PYTHONPATH=/workspace/src /tmp/pytest-venv/bin/python tests/python_distribution/smoke_pytest_isolation.py --expected-pytest-version 7.0.1"
+docker run --rm --env PYTHONDONTWRITEBYTECODE=1 --volume "$PWD:/workspace:ro" --workdir /workspace ubuntu:18.04 bash -c "apt-get update && apt-get install --yes python3-venv && python3 -m venv /tmp/pytest-venv && /tmp/pytest-venv/bin/pip install pytest==7.0.1 && LANG=C LC_ALL=C PYTHONPATH=/workspace/src /tmp/pytest-venv/bin/python tests/python_distribution/smoke_pytest_isolation.py --expected-pytest-version 7.0.1"
 ```
 
 The macOS selector reads the official `actions/runner-images` availability table and fails closed if it cannot identify one ordinary non-deprecated GA Intel label:
