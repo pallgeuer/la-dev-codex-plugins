@@ -86,7 +86,9 @@ def test_parse_args_accepts_zero_timeout() -> None:
 def test_dry_run_uses_expected_json_shape_and_reviewer_commands(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
     """Emit dry-run reviewer names and commands using the public JSON keys."""
     runner = load_loupe_runner()
+    session_id = "11111111-2222-4333-8444-555555555555"
     monkeypatch.setattr(runner, "executable_is_available", executable_availability("claude", "codex", "jq"))
+    monkeypatch.setattr(runner.uuid, "uuid4", lambda: session_id)
 
     exit_code = runner.main(["--dry-run", "uncommitted changes"], environment={})
 
@@ -96,10 +98,10 @@ def test_dry_run_uses_expected_json_shape_and_reviewer_commands(capsys: pytest.C
     assert payload["review_scope"] == "uncommitted changes"
     assert payload["timeout_seconds"] == 1800
     assert [list(reviewer) for reviewer in payload["reviewers"]] == [
-        ["reviewer_name", "launched_command"],
-        ["reviewer_name", "launched_command"],
-        ["reviewer_name", "launched_command"],
-        ["reviewer_name", "launched_command"],
+        ["reviewer_name", "launched_command", "session_id", "session_log_path"],
+        ["reviewer_name", "launched_command", "session_id", "session_log_path"],
+        ["reviewer_name", "launched_command", "session_id", "session_log_path"],
+        ["reviewer_name", "launched_command", "session_id", "session_log_path"],
     ]
     assert payload["reviewers"] == [
         {
@@ -111,7 +113,10 @@ def test_dry_run_uses_expected_json_shape_and_reviewer_commands(capsys: pytest.C
                     )
                 ),
                 reasoning_effort="medium",
+                session_id=runner.shlex.quote(session_id),
             ),
+            "session_id": session_id,
+            "session_log_path": runner.claude_session_log_path({}, payload["git_root"], session_id),
         },
         {
             "reviewer_name": "Codex Review",
@@ -123,6 +128,8 @@ def test_dry_run_uses_expected_json_shape_and_reviewer_commands(capsys: pytest.C
                 ),
                 reasoning_effort="high",
             ),
+            "session_id": None,
+            "session_log_path": None,
         },
         {
             "reviewer_name": "Codex Correctness",
@@ -134,6 +141,8 @@ def test_dry_run_uses_expected_json_shape_and_reviewer_commands(capsys: pytest.C
                 ),
                 reasoning_effort="high",
             ),
+            "session_id": None,
+            "session_log_path": None,
         },
         {
             "reviewer_name": "Codex Design",
@@ -145,6 +154,8 @@ def test_dry_run_uses_expected_json_shape_and_reviewer_commands(capsys: pytest.C
                 ),
                 reasoning_effort="high",
             ),
+            "session_id": None,
+            "session_log_path": None,
         },
     ]
     assert runner.REVIEW_SKILL_PROHIBITION in payload["reviewers"][2]["launched_command"]
@@ -225,8 +236,72 @@ def test_every_builtin_reviewer_has_stable_effort_configuration_keys() -> None:
         "codex-correctness": "LOUPE_EFFORT_CODEX_CORRECTNESS",
         "codex-design": "LOUPE_EFFORT_CODEX_DESIGN",
     }
-    assert "--effort medium" in runner.REVIEWERS[0].build_command("configured scope")
+    assert "--effort medium" in runner.REVIEWERS[0].build_command("configured scope", session_id="11111111-2222-4333-8444-555555555555")
     assert all("model_reasoning_effort='\"high\"'" in reviewer.build_command("configured scope") for reviewer in runner.REVIEWERS[1:])
+
+
+def test_persistent_reviewer_requires_assigned_session_id() -> None:
+    """Reject commands that would launch a persistent reviewer without its assigned identity."""
+    runner = load_loupe_runner()
+
+    with pytest.raises(ValueError, match="requires a session ID"):
+        runner.REVIEWERS[0].build_command("configured scope")
+
+
+def test_claude_session_log_path_uses_config_root_and_ascii_project_encoding(tmp_path: pathlib.Path) -> None:
+    """Build Claude's documented transcript path from its config root, Git root, and session ID."""
+    runner = load_loupe_runner()
+    config_root = tmp_path / "claude state"
+    git_root = "/work/Review repo.v1/\N{SNOWMAN}"
+
+    path = runner.claude_session_log_path({"CLAUDE_CONFIG_DIR": str(config_root)}, git_root, "session-id")
+
+    assert path == str(config_root / "projects" / "-work-Review-repo-v1--" / "session-id.jsonl")
+
+
+def test_relative_claude_config_root_resolves_from_git_root() -> None:
+    """Resolve a relative Claude config override from the reviewer's launch directory."""
+    runner = load_loupe_runner()
+
+    assert runner.claude_config_root({"CLAUDE_CONFIG_DIR": "state/claude"}, "/repo/root") == "/repo/root/state/claude"
+
+
+def test_persistent_reviewer_launch_plan_assigns_session_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Assign one UUID consistently to a persistent reviewer's command and transcript path."""
+    runner = load_loupe_runner()
+    session_id = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+    reviewer = runner.Reviewer("Persistent", "review --session {session_id} {prompt}", "{review_scope}", persistent_session=True)
+    monkeypatch.setattr(runner.uuid, "uuid4", lambda: session_id)
+
+    runs = runner.reviewer_launch_plan((reviewer,), "metadata scope", git_root="/repo/root", environment={"CLAUDE_CONFIG_DIR": "/config"})
+
+    assert len(runs) == 1
+    assert runs[0].session_id == session_id
+    assert runs[0].session_log_path == "/config/projects/-repo-root/{}.jsonl".format(session_id)
+    assert "--session {}".format(session_id) in runs[0].launched_command
+
+
+def test_persistent_reviewer_keeps_session_metadata_on_launch_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Retain assigned transcript metadata when a helper prevents reviewer launch."""
+    runner = load_loupe_runner()
+    session_id = "aaaaaaaa-bbbb-4ccc-8ddd-ffffffffffff"
+    reviewer = runner.Reviewer(
+        "Persistent",
+        "review --session {session_id} {prompt}",
+        "{review_scope}",
+        required_executable="claude",
+        additional_required_executables=("jq",),
+        persistent_session=True,
+    )
+    monkeypatch.setattr(runner, "executable_is_available", executable_availability("claude"))
+    monkeypatch.setattr(runner.uuid, "uuid4", lambda: session_id)
+
+    run = runner.reviewer_launch_plan((reviewer,), "metadata scope", git_root="/repo/root", environment={"CLAUDE_CONFIG_DIR": "/config"})[0]
+    result = run.result()
+
+    assert result["status"] == "launch_failed"
+    assert result["session_id"] == session_id
+    assert result["session_log_path"] == "/config/projects/-repo-root/{}.jsonl".format(session_id)
 
 
 def test_reviewer_configuration_rejects_duplicate_and_colliding_keys() -> None:
@@ -524,6 +599,36 @@ def test_failed_reviewer_produces_failed_status_and_nonzero_exit(capsys: pytest.
     assert failure["status"] == "failed"
     assert failure["return_code"] == 4
     assert failure["stderr"] == "problem"
+
+
+@pytest.mark.parametrize(
+    ("command", "arguments", "expected_status"),
+    [
+        ("printf ok # {session_id}", ["persistent success"], "succeeded"),
+        ("exit 4 # {session_id}", ["persistent failure"], "failed"),
+        ("sleep 10 # {session_id}", ["--timeout-seconds", "0", "persistent timeout"], "timed_out"),
+    ],
+)
+def test_persistent_session_metadata_survives_reviewer_outcomes(
+    command: str,
+    arguments: List[str],
+    expected_status: str,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Retain assigned session metadata across successful, failed, and timed-out runs."""
+    runner = load_loupe_runner()
+    session_id = "aaaaaaaa-bbbb-4ccc-8ddd-111111111111"
+    reviewer = runner.Reviewer("Persistent", command, "{review_scope}", persistent_session=True)
+    monkeypatch.setattr(runner.uuid, "uuid4", lambda: session_id)
+
+    runner.main(arguments, reviewers=(reviewer,), environment={"CLAUDE_CONFIG_DIR": "/config"})
+
+    payload = json.loads(capsys.readouterr().out)
+    result = payload["reviewers"][0]
+    assert result["status"] == expected_status
+    assert result["session_id"] == session_id
+    assert result["session_log_path"] == "/config/projects/{}/{}.jsonl".format(runner.re.sub(r"[^A-Za-z0-9]", "-", payload["git_root"]), session_id)
 
 
 def test_zero_timeout_immediately_stops_active_reviewer(capsys: pytest.CaptureFixture[str]) -> None:

@@ -9,6 +9,7 @@ import json
 import math
 import os
 import pathlib
+import re
 import shlex
 import signal
 import subprocess
@@ -16,6 +17,7 @@ import sys
 import tempfile
 import threading
 import time
+import uuid
 from typing import Any, BinaryIO, Dict, List, Mapping, Optional, Sequence
 
 DEFAULT_TIMEOUT_SECONDS = 30 * 60
@@ -24,7 +26,7 @@ NO_LAUNCHABLE_REVIEWERS_MESSAGE = "No launchable reviewers are available."
 MISSING_ADDITIONAL_EXECUTABLE_MESSAGE_TEMPLATE = "Missing additional executable '{}' for {}. Please install {} and rerun Loupe."
 
 CODEX_COMMAND_TEMPLATE = """( set -o pipefail; codex exec --cd "$(git rev-parse --show-toplevel)" --ephemeral --sandbox workspace-write -c model_reasoning_effort='"{reasoning_effort}"' --json {prompt} | jq -ser 'map(select(.type == "item.completed" and .item.type == "agent_message") | .item.text) | last // empty' )"""
-CLAUDE_COMMAND_TEMPLATE = """( set -o pipefail; cd "$(git rev-parse --show-toplevel)" && claude -p --no-session-persistence --permission-mode auto --effort {reasoning_effort} --output-format json {prompt} | jq -er ".result" )"""  # fmt: skip
+CLAUDE_COMMAND_TEMPLATE = """( set -o pipefail; cd "$(git rev-parse --show-toplevel)" && claude -p --session-id {session_id} --permission-mode auto --effort {reasoning_effort} --output-format json {prompt} | jq -er ".result" )"""  # fmt: skip
 
 REVIEW_SKILL_PROHIBITION = "Do not launch any kind of review skill."
 REVIEW_POLICY = "Review only. Do not modify repository files, stage changes, commit, install dependencies, or use external network access except normal web search. You may inspect files and run local validation, including manual tests; incidental temp/cache artifacts are okay."
@@ -69,8 +71,9 @@ class Reviewer:
         additional_required_executables: Sequence[str] = (),
         reviewer_key: Optional[str] = None,
         provider: Optional[ReasoningEffortProvider] = None,
+        persistent_session: bool = False,
     ) -> None:
-        """Store reviewer identity, command and prompt templates, configuration keys, and required executables."""
+        """Store reviewer identity, templates, configuration keys, executables, and session policy."""
         self.reviewer_name = reviewer_name
         self.command_template = command_template
         self.prompt_template = prompt_template
@@ -78,26 +81,42 @@ class Reviewer:
         self.additional_required_executables = tuple(additional_required_executables)
         self.reviewer_key = reviewer_key
         self.provider = provider
+        self.persistent_session = persistent_session
 
     def build_prompt(self, review_scope: str) -> str:
         """Return the complete prompt passed to this reviewer for a scope."""
         return self.prompt_template.format(review_scope=review_scope, review_policy=REVIEW_POLICY, review_skill_prohibition=REVIEW_SKILL_PROHIBITION, review_note=REVIEW_NOTE)
 
-    def build_command(self, review_scope: str, reasoning_effort: Optional[str] = None) -> str:
-        """Return the launched shell command for this reviewer, scope, and resolved reasoning effort."""
+    def build_command(self, review_scope: str, reasoning_effort: Optional[str] = None, session_id: Optional[str] = None) -> str:
+        """Return the launched shell command for this reviewer, scope, effort, and assigned session."""
+        if self.persistent_session and session_id is None:
+            raise ValueError("persistent reviewer '{}' requires a session ID".format(self.reviewer_name))
         resolved_reasoning_effort = reasoning_effort
         if resolved_reasoning_effort is None and self.provider is not None:
             resolved_reasoning_effort = self.provider.default_reasoning_effort
-        return self.command_template.format(prompt=shlex.quote(self.build_prompt(review_scope)), reasoning_effort=resolved_reasoning_effort or "")
+        return self.command_template.format(
+            prompt=shlex.quote(self.build_prompt(review_scope)),
+            reasoning_effort=resolved_reasoning_effort or "",
+            session_id=shlex.quote(session_id or ""),
+        )
 
 
 class ReviewerRun:
     """Mutable execution state for one launched reviewer process."""
 
-    def __init__(self, reviewer: Reviewer, launched_command: str, launch_error: Optional[str] = None) -> None:
-        """Initialize process, timing, and captured output fields."""
+    def __init__(
+        self,
+        reviewer: Reviewer,
+        launched_command: str,
+        launch_error: Optional[str] = None,
+        session_id: Optional[str] = None,
+        session_log_path: Optional[str] = None,
+    ) -> None:
+        """Initialize process, timing, output, and persistent-session fields."""
         self.reviewer = reviewer
         self.launched_command = launched_command
+        self.session_id = session_id
+        self.session_log_path = session_log_path
         self.process = None  # type: Optional[subprocess.Popen[Any]]
         self.started_at: Optional[float] = None
         self.finished_at: Optional[float] = None
@@ -213,6 +232,8 @@ class ReviewerRun:
         return {
             "reviewer_name": self.reviewer.reviewer_name,
             "launched_command": self.launched_command,
+            "session_id": self.session_id,
+            "session_log_path": self.session_log_path,
             "status": self.status(),
             "timed_out": self.timed_out,
             "return_code": self.return_code(),
@@ -231,6 +252,7 @@ REVIEWERS = (
         additional_required_executables=("jq",),
         reviewer_key="claude-code-review",
         provider=CLAUDE_PROVIDER,
+        persistent_session=True,
     ),
     Reviewer(
         reviewer_name="Codex Review",
@@ -277,10 +299,34 @@ def executable_is_available(executable: str) -> bool:
     return completed.returncode == 0
 
 
-def reviewer_launch_plan(reviewers: Sequence[Reviewer], review_scope: str, reasoning_efforts: Optional[Mapping[str, str]] = None) -> List[ReviewerRun]:
-    """Return reviewer runs that can launch or fail with a planned launch error."""
+def claude_config_root(environment: Mapping[str, str], git_root: Optional[str]) -> str:
+    """Return Claude's absolute configuration root for the reviewer launch environment."""
+    configured_root = environment.get("CLAUDE_CONFIG_DIR")
+    expanded_root = pathlib.Path(configured_root or "~/.claude").expanduser()
+    if not expanded_root.is_absolute():
+        expanded_root = pathlib.Path(git_root) / expanded_root if git_root is not None else pathlib.Path.cwd() / expanded_root
+    return str(expanded_root.absolute())
+
+
+def claude_session_log_path(environment: Mapping[str, str], git_root: Optional[str], session_id: str) -> Optional[str]:
+    """Return the expected absolute Claude transcript path for one assigned session."""
+    if git_root is None:
+        return None
+    project_storage_name = re.sub(r"[^A-Za-z0-9]", "-", git_root)
+    return str(pathlib.Path(claude_config_root(environment, git_root)) / "projects" / project_storage_name / "{}.jsonl".format(session_id))
+
+
+def reviewer_launch_plan(
+    reviewers: Sequence[Reviewer],
+    review_scope: str,
+    reasoning_efforts: Optional[Mapping[str, str]] = None,
+    git_root: Optional[str] = None,
+    environment: Optional[Mapping[str, str]] = None,
+) -> List[ReviewerRun]:
+    """Return reviewer runs that can launch or fail with planned session metadata and errors."""
     availability_cache: Dict[str, bool] = {}
     resolved_reasoning_efforts = reasoning_efforts or {}
+    active_environment = os.environ if environment is None else environment
     runs: List[ReviewerRun] = []
     for reviewer in reviewers:
         required_executable = reviewer.required_executable
@@ -296,7 +342,17 @@ def reviewer_launch_plan(reviewers: Sequence[Reviewer], review_scope: str, reaso
                 launch_errors.append(MISSING_ADDITIONAL_EXECUTABLE_MESSAGE_TEMPLATE.format(executable, reviewer.reviewer_name, executable))
         launch_error = "\n".join(launch_errors) if launch_errors else None
         reasoning_effort = resolved_reasoning_efforts.get(reviewer.reviewer_key) if reviewer.reviewer_key is not None else None
-        runs.append(ReviewerRun(reviewer=reviewer, launched_command=reviewer.build_command(review_scope, reasoning_effort), launch_error=launch_error))
+        session_id = str(uuid.uuid4()) if reviewer.persistent_session else None
+        session_log_path = claude_session_log_path(active_environment, git_root, session_id) if session_id is not None else None
+        runs.append(
+            ReviewerRun(
+                reviewer=reviewer,
+                launched_command=reviewer.build_command(review_scope, reasoning_effort, session_id),
+                launch_error=launch_error,
+                session_id=session_id,
+                session_log_path=session_log_path,
+            )
+        )
     return runs
 
 
@@ -512,7 +568,15 @@ def dry_run_output(review_scope: str, git_root: Optional[str], timeout_seconds: 
         "review_scope": review_scope,
         "git_root": git_root,
         "timeout_seconds": timeout_seconds,
-        "reviewers": [{"reviewer_name": run.reviewer.reviewer_name, "launched_command": run.launched_command} for run in runs],
+        "reviewers": [
+            {
+                "reviewer_name": run.reviewer.reviewer_name,
+                "launched_command": run.launched_command,
+                "session_id": run.session_id,
+                "session_log_path": run.session_log_path,
+            }
+            for run in runs
+        ],
     }
 
 
@@ -550,9 +614,10 @@ def emit_launch_error_messages(runs: Sequence[ReviewerRun]) -> None:
 
 def main(argv: Optional[Sequence[str]] = None, reviewers: Sequence[Reviewer] = REVIEWERS, environment: Optional[Mapping[str, str]] = None) -> int:
     """Run configured external reviewers with environment and CLI effort overrides."""
-    args = parse_args(argv, reviewers=reviewers, environment=environment)
-    runs = reviewer_launch_plan(reviewers, args.review_scope, args.reasoning_efforts)
+    active_environment = os.environ if environment is None else environment
+    args = parse_args(argv, reviewers=reviewers, environment=active_environment)
     git_root = get_repo_root()
+    runs = reviewer_launch_plan(reviewers, args.review_scope, args.reasoning_efforts, git_root=git_root, environment=active_environment)
     if args.dry_run:
         emit_json_output(dry_run_output(args.review_scope, git_root, args.timeout_seconds, runs), args.output)
         if not runs:

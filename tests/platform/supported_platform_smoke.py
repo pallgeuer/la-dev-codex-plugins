@@ -185,6 +185,8 @@ def smoke_loupe_runner():
     assert exit_code == 0
     payload = json.loads(stdout.getvalue())
     assert payload["reviewers"][0]["stdout"] == "smoke"
+    assert payload["reviewers"][0]["session_id"] is None
+    assert payload["reviewers"][0]["session_log_path"] is None
 
 
 def main():
