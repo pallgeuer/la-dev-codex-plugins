@@ -314,4 +314,4 @@ Install `la-dev-codex-plugins[pytest]` to obtain the optional pytest dependency,
 
 ## Development
 
-See [Testing](TESTING.md), [Releasing](RELEASE.md), and [Codex Perform](docs/codex_perform.md). Shipped plugin scripts and package source support Python 3.6+. The base runtime uses only the Python standard library; only the explicitly loaded pytest-isolation plugin may import its declared optional pytest dependency.
+See [AI-supported repository development](docs/ai_supported_development.md) for guidance on turning recurring development decisions into tools, tests, specifications, and repeatable workflows. See also [Testing](TESTING.md), [Releasing](RELEASE.md), and [Codex Perform](docs/codex_perform.md). Shipped plugin scripts and package source support Python 3.6+. The base runtime uses only the Python standard library; only the explicitly loaded pytest-isolation plugin may import its declared optional pytest dependency.
