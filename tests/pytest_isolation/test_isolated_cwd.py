@@ -22,9 +22,8 @@ def assert_isolated(path):
     assert tmp.is_dir() and os.access(str(tmp), os.W_OK)
 
 @pytest.mark.isolated_cwd
-def test_marker_only(request):
-    state = getattr(request.node, "_la_dev_pytest_isolation_state")
-    assert_isolated(state.cwd)
+def test_marker_only():
+    assert_isolated(Path.cwd())
 
 def test_fixture_only(isolated_cwd):
     assert_isolated(isolated_cwd)

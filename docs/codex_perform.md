@@ -7,6 +7,8 @@ Codex Perform runs reusable actions configured by the Toolkit plugin. The same a
 
 The Python distribution contains only the launcher. It does not install Codex, the marketplace, any plugin, or the Toolkit runtime and action assets. The launcher discovers an installed and enabled `toolkit@la-dev-codex-plugins` plugin and checks its launcher API compatibility. The Python distribution and plugin versions do not need to match when that API version is compatible.
 
+See [Marketplace plugin installation](installation.md) to install and verify the required `toolkit` plugin separately.
+
 ## Use the Perform skill in Codex
 
 List configured actions:

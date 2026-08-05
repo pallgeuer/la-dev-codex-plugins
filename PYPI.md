@@ -38,7 +38,7 @@ python -m pip install 'la-dev-codex-plugins[pytest]'
 python -m pip install 'la-dev-codex-plugins[dev]'
 ```
 
-Both extras currently add `pytest>=7.0.1`. The package does not register a `pytest11` entry point, so installing an extra never activates the plugin automatically; explicitly load `la_dev_codex_plugins.pytest_isolation.plugin` in the downstream suite.
+Both extras currently add `pytest>=7.0.1`. The package does not register a `pytest11` entry point, so installing an extra never activates the plugin automatically; explicitly load `la_dev_codex_plugins.pytest_isolation.plugin` in the downstream suite. Loading alone leaves unmarked tests untouched. Suites can use private per-test `isolated_cwd` and `guarded_cwd` fixtures or markers, separately opt otherwise unmarked tests into one session-shared guarded CWD per pytest process, and customize that process-global shared boundary through a pytest hook.
 
 Detailed documentation:
 
@@ -49,7 +49,7 @@ Detailed documentation:
 
 ## Install the Toolkit plugin separately
 
-The default launcher flow requires the `toolkit` plugin from the `la-dev-codex-plugins` marketplace to be installed and enabled for the active `codex` executable and `CODEX_HOME`. See the [repository installation guide](https://github.com/pallgeuer/la-dev-codex-plugins#install) for marketplace and plugin installation.
+The default launcher flow requires the `toolkit` plugin from the `la-dev-codex-plugins` marketplace to be installed and enabled for the active `codex` executable and `CODEX_HOME`. See the [marketplace plugin installation guide](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/installation.md) for marketplace and plugin installation.
 
 At runtime, `codex-perform` asks Codex for the installed Toolkit version, validates its cache layout and manifest, checks the launcher API version, and imports the runtime from that selected plugin. The Python distribution and Toolkit plugin versions do not have to match exactly, but their launcher API versions must be compatible.
 
@@ -72,4 +72,4 @@ codex-perform --version
 
 ## Support
 
-The officially supported hosts are Ubuntu 18.04 or newer and macOS 14 or newer. Compatibility with other POSIX Linux distributions is intended but is not part of the official support guarantee. Native Windows and WSL are not supported. For action configuration, CLI behavior, and troubleshooting, use the [Codex Perform documentation](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/codex_perform.md). For marketplace and development documentation, use the [repository README](https://github.com/pallgeuer/la-dev-codex-plugins#readme).
+The officially supported hosts are Ubuntu 18.04 or newer and macOS 14 or newer. Compatibility with other POSIX Linux distributions is intended but is not part of the official support guarantee. Native Windows and WSL are not supported. For action configuration, CLI behavior, and troubleshooting, use the [Codex Perform documentation](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/codex_perform.md). For marketplace and development documentation, use the [documentation index](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/README.md).

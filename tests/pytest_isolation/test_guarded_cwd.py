@@ -1,5 +1,8 @@
 """Read-only poisoned guarded working-directory behavior tests."""
 
+import pathlib
+import stat
+
 
 def test_symlinked_temporary_root_is_the_same_guarded_directory(run_isolation, monkeypatch, tmp_path):
     real = tmp_path / "real-temporary-root"
@@ -45,17 +48,19 @@ def test_guard(guarded_cwd):
 def test_marker_only_custom_merge_override_disable_and_nested_parents(run_isolation):
     result = run_isolation(
         """
+from pathlib import Path
+
 import pytest
 
 @pytest.mark.guarded_cwd(poison_files={"nested/config.ini": "exact", "pyproject.toml": "override"})
-def test_merge(request):
-    cwd = getattr(request.node, "_la_dev_pytest_isolation_state").cwd
+def test_merge():
+    cwd = Path.cwd()
     assert (cwd / "nested/config.ini").read_bytes() == b"exact"
     assert (cwd / "pyproject.toml").read_bytes() == b"override"
 
 @pytest.mark.guarded_cwd(poison_files={"only.txt": "no newline"}, include_default_poison=False)
-def test_disable_default(request):
-    cwd = getattr(request.node, "_la_dev_pytest_isolation_state").cwd
+def test_disable_default():
+    cwd = Path.cwd()
     assert not (cwd / "pyproject.toml").exists()
     assert (cwd / "only.txt").read_bytes() == b"no newline"
 
@@ -184,14 +189,24 @@ def test_root_aware_guard(guarded_cwd):
     result.stdout.fnmatch_lines(["*guarded_cwd test escaped its guarded working directory*"])
 
 
-def test_permission_restoration_uses_verified_directories_without_following_links(run_isolation):
+def test_cleanup_restores_permissions_without_following_links(run_isolation, monkeypatch, tmp_path):
+    outside = tmp_path / "guard-cleanup-outside"
+    outside.mkdir()
+    (outside / "directory").mkdir()
+    (outside / "file").write_text("external", encoding="ascii")
+    (outside / "directory").chmod(0o500)
+    (outside / "file").chmod(0o400)
+    record = tmp_path / "guard-cleanup-record.txt"
+    monkeypatch.setenv("GUARD_CLEANUP_OUTSIDE", str(outside))
+    monkeypatch.setenv("GUARD_CLEANUP_RECORD", str(record))
     result = run_isolation(
         """
 import os
 import pathlib
 
-def test_restore_safely(guarded_cwd):
-    outside = pathlib.Path(os.environ["GUARD_RESTORE_OUTSIDE"])
+def test_cleanup_safely(guarded_cwd):
+    outside = pathlib.Path(os.environ["GUARD_CLEANUP_OUTSIDE"])
+    pathlib.Path(os.environ["GUARD_CLEANUP_RECORD"]).write_text(str(guarded_cwd.parent), encoding="ascii")
     os.chmod(str(guarded_cwd), 0o700)
     nested = guarded_cwd / "nested"
     nested.mkdir()
@@ -200,37 +215,17 @@ def test_restore_safely(guarded_cwd):
     (guarded_cwd / "directory-link").symlink_to(outside / "directory", target_is_directory=True)
     os.link(str(outside / "file"), str(guarded_cwd / "hard-link"))
 """,
-        conftest="""
-import os
-import pathlib
-import stat
-import la_dev_codex_plugins.pytest_isolation.plugin as isolation_plugin
-
-outside = pathlib.Path.cwd() / "guard-restore-outside"
-outside.mkdir()
-(outside / "directory").mkdir()
-(outside / "file").write_text("external", encoding="ascii")
-(outside / "directory").chmod(0o500)
-(outside / "file").chmod(0o400)
-os.environ["GUARD_RESTORE_OUTSIDE"] = str(outside)
-original_restore_permissions = isolation_plugin._restore_permissions
-
-def observe_restoration(state, failures):
-    original_restore_permissions(state, failures)
-    assert failures == []
-    assert stat.S_IMODE(state.cwd.stat().st_mode) == 0o700
-    assert stat.S_IMODE((state.cwd / "nested").stat().st_mode) == 0o700
-    assert stat.S_IMODE((state.cwd / "pyproject.toml").stat().st_mode) == 0o400
+    )
+    result.assert_outcomes(passed=1)
+    assert not pathlib.Path(record.read_text(encoding="ascii")).exists()
+    assert (outside / "file").read_text(encoding="ascii") == "external"
     assert stat.S_IMODE((outside / "file").stat().st_mode) == 0o400
     assert stat.S_IMODE((outside / "directory").stat().st_mode) == 0o500
 
-isolation_plugin._restore_permissions = observe_restoration
-""",
-    )
-    result.assert_outcomes(passed=1)
 
-
-def test_replaced_guarded_directory_fails_closed_without_touching_target(run_isolation):
+def test_replaced_guarded_directory_fails_closed_without_touching_target(run_isolation, monkeypatch, tmp_path, remove_preserved_boundary):
+    record = tmp_path / "guard-replacement-boundary.txt"
+    monkeypatch.setenv("GUARD_REPLACEMENT_RECORD", str(record))
     result = run_isolation(
         """
 import os
@@ -239,6 +234,7 @@ import pathlib
 def test_replace_guard(guarded_cwd):
     outside = pathlib.Path(os.environ["GUARD_REPLACEMENT_OUTSIDE"])
     boundary = guarded_cwd.parent
+    pathlib.Path(os.environ["GUARD_REPLACEMENT_RECORD"]).write_text(str(boundary), encoding="ascii")
     os.chdir(str(boundary / "tmp"))
     os.chmod(str(guarded_cwd), 0o700)
     guarded_cwd.rename(boundary / "original-cwd")
@@ -255,7 +251,106 @@ os.environ["GUARD_REPLACEMENT_OUTSIDE"] = str(outside)
 """,
     )
     result.assert_outcomes(passed=1, errors=1)
-    result.stdout.fnmatch_lines(["*could not safely open guarded working directory*"])
+    result.stdout.fnmatch_lines(["*could not safely open recorded working directory*"])
+    boundary = pathlib.Path(record.read_text(encoding="ascii"))
+    assert boundary.is_dir()
+    assert (boundary / "cwd").is_symlink()
+    assert (boundary / "original-cwd").is_dir()
+    remove_preserved_boundary(boundary)
+
+
+def test_private_cleanup_preserves_identity_replaced_cwd_and_tmp(run_isolation, monkeypatch, tmp_path, remove_preserved_boundary):
+    for fixture_name in ("isolated_cwd", "guarded_cwd"):
+        for child_name in ("cwd", "tmp"):
+            label = "{}-{}".format(fixture_name, child_name)
+            external = tmp_path / (label + "-external")
+            external.mkdir()
+            (external / "sentinel.txt").write_text("keep", encoding="ascii")
+            record = tmp_path / (label + "-boundary.txt")
+            monkeypatch.setenv("PRIVATE_REPLACEMENT_EXTERNAL", str(external))
+            monkeypatch.setenv("PRIVATE_REPLACEMENT_RECORD", str(record))
+            result = run_isolation(
+                """
+import os
+import pathlib
+
+def test_replace({fixture_name}):
+    boundary = {fixture_name}.parent
+    target = boundary / {child_name!r}
+    pathlib.Path(os.environ["PRIVATE_REPLACEMENT_RECORD"]).write_text(str(boundary), encoding="ascii")
+    if pathlib.Path.cwd() == target:
+        os.chdir(str(boundary))
+    target.rename(boundary / ({child_name!r} + "-original"))
+    pathlib.Path(os.environ["PRIVATE_REPLACEMENT_EXTERNAL"]).rename(target)
+""".format(fixture_name=fixture_name, child_name=child_name)
+            )
+            result.assert_outcomes(passed=1, errors=1)
+            boundary = pathlib.Path(record.read_text(encoding="ascii"))
+            assert (boundary / child_name / "sentinel.txt").read_text(encoding="ascii") == "keep"
+            assert (boundary / (child_name + "-original")).is_dir()
+            remove_preserved_boundary(boundary)
+
+
+def test_private_cleanup_restores_unreadable_temporary_descendants(run_isolation, monkeypatch, tmp_path):
+    for fixture_name in ("isolated_cwd", "guarded_cwd"):
+        record = tmp_path / (fixture_name + "-unreadable-boundary.txt")
+        monkeypatch.setenv("UNREADABLE_PRIVATE_RECORD", str(record))
+        result = run_isolation(
+            """
+import os
+import pathlib
+
+def test_unreadable_tmp({fixture_name}):
+    boundary = {fixture_name}.parent
+    pathlib.Path(os.environ["UNREADABLE_PRIVATE_RECORD"]).write_text(str(boundary), encoding="ascii")
+    locked = boundary / "tmp" / "locked"
+    locked.mkdir()
+    nested = locked / "nested"
+    nested.mkdir()
+    (nested / "sentinel.txt").write_text("remove", encoding="ascii")
+    nested.chmod(0o300)
+    locked.chmod(0o000)
+""".format(fixture_name=fixture_name)
+        )
+        result.assert_outcomes(passed=1)
+        assert not pathlib.Path(record.read_text(encoding="ascii")).exists()
+
+
+def test_cleanup_descriptor_exhaustion_is_reported_and_preserved(run_isolation, monkeypatch, tmp_path, remove_preserved_boundary):
+    record = tmp_path / "descriptor-exhaustion-boundary.txt"
+    monkeypatch.setenv("DESCRIPTOR_EXHAUSTION_RECORD", str(record))
+    result = run_isolation(
+        """
+import os
+import pathlib
+
+def test_descriptor_exhaustion(isolated_cwd):
+    boundary = isolated_cwd.parent
+    pathlib.Path(os.environ["DESCRIPTOR_EXHAUSTION_RECORD"]).write_text(str(boundary), encoding="ascii")
+    nested = boundary / "tmp" / "nested"
+    nested.mkdir()
+    (nested / "sentinel.txt").write_text("keep", encoding="ascii")
+""",
+        conftest="""
+import errno
+import la_dev_codex_plugins.pytest_isolation.plugin as isolation_plugin
+
+original_open = isolation_plugin.os.open
+
+def fail_nested_open(path, flags, *args, **kwargs):
+    if path == "nested" and kwargs.get("dir_fd") is not None:
+        raise OSError(errno.EMFILE, "injected descriptor exhaustion")
+    return original_open(path, flags, *args, **kwargs)
+
+isolation_plugin.os.open = fail_nested_open
+""",
+    )
+    result.assert_outcomes(passed=1, errors=1)
+    output = "\n".join(result.stdout.lines + result.stderr.lines)
+    assert "injected descriptor exhaustion" in output
+    boundary = pathlib.Path(record.read_text(encoding="ascii"))
+    assert (boundary / "tmp" / "nested" / "sentinel.txt").read_text(encoding="ascii") == "keep"
+    remove_preserved_boundary(boundary)
 
 
 def test_original_cwd_restore_failure_still_restores_environment_and_permissions(run_isolation):
@@ -275,7 +370,7 @@ original_cwd = os.getcwd()
 original_environment = {name: os.environ.get(name) for name in ("TMPDIR", "TEMP", "TMP")}
 original_tempdir = tempfile.tempdir
 original_chdir = isolation_plugin.os.chdir
-original_restore_permissions = isolation_plugin._restore_permissions
+original_cleanup_boundary = isolation_plugin._cleanup_boundary
 failed = [False]
 
 def fail_original_restore(path):
@@ -284,16 +379,16 @@ def fail_original_restore(path):
         raise OSError("original cwd restore failed")
     return original_chdir(path)
 
-def observe_restoration(state, failures):
+def observe_cleanup(state, failures):
     assert {name: os.environ.get(name) for name in original_environment} == original_environment
     assert tempfile.tempdir is original_tempdir
-    original_restore_permissions(state, failures)
-    assert stat.S_IMODE(state.cwd.stat().st_mode) == 0o700
+    assert stat.S_IMODE(state.cwd.stat().st_mode) == 0o500
     assert stat.S_IMODE((state.cwd / "pyproject.toml").stat().st_mode) == 0o400
     original_chdir(original_cwd)
+    original_cleanup_boundary(state, failures)
 
 isolation_plugin.os.chdir = fail_original_restore
-isolation_plugin._restore_permissions = observe_restoration
+isolation_plugin._cleanup_boundary = observe_cleanup
 """,
     )
     result.assert_outcomes(passed=1, errors=1)

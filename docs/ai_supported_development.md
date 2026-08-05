@@ -9,13 +9,13 @@ The general rule is to express each requirement at the strongest practical enfor
 Apply the first suitable option in this order:
 
 1. **Adopt a standard project-independent tool.** Use established formatters, linters, type checkers, documentation formatters, security scanners, and similar tools as extensively as practical. Tools such as Ruff, ty, and pydocformatter provide precise feedback, require little project-specific explanation, and make many classes of mistakes impossible to merge.
-2. **Extract a reusable check or formatter.** If a mechanistic rule is not covered by an existing tool but is useful across projects, implement it once as a focused reusable tool, like the [reusable development tools](../README.md#reusable-development-tools) packaged with this repository. Expose a checking mode for CI and, where safe, an auto-fixing mode for development. Make the same implementation callable from pytest or pre-commit or miscellaneous code rather than duplicating its logic in each integration.
+2. **Extract a reusable check or formatter.** If a mechanistic rule is not covered by an existing tool but is useful across projects, implement it once as a focused reusable tool, like this repository's [Markdown table formatter](markdown_tables.md), [pytest working-directory isolation](pytest_isolation.md), and [release checksum generator](release_checksums.md). Expose a checking mode for CI and, where safe, an auto-fixing mode for development. Make the same implementation callable from pytest or pre-commit or miscellaneous code rather than duplicating its logic in each integration.
 3. **Encode project-specific contracts in tests.** Use pytest to lock down repository structure, metadata consistency, generated-file freshness, supported combinations, architectural boundaries, documentation invariants, and other project-specific rules that can be evaluated mechanically. For complicated but repeated project-specific checks, build repo-wide parsing and fixing support and exercise that support from the tests.
 4. **Write a specification or instruction.** When a requirement depends on judgment or is too difficult to check reliably mechanistically, document it as a project rule. Put a very concise rule in `AGENTS.md`, and if necessary, put any further substantial guidance in a focused specification file linked from `AGENTS.md`, with a clear trigger condition when to read this specification file.
-5. **Keep a repeatable AI workflow.** When a recurring development task requires contextual reasoning or original edits, preserve the exact prompt and its operating conditions using [Perform](../README.md#perform-skill), instead of freestyling it every time you need it.
-6. **Use review for the remaining judgment.** Run [Loupe](../README.md#loupe-skill) before committing every non-trivial change. Human review remains important for intent, product trade-offs, security-sensitive behavior, and other decisions for which passing checks is necessary but not sufficient.
+5. **Keep a repeatable AI workflow.** When a recurring development task requires contextual reasoning or original edits, preserve the exact prompt and its operating conditions using [Perform](codex_perform.md), instead of freestyling it every time you need it.
+6. **Use review for the remaining judgment.** Run [Loupe](loupe.md) before committing every non-trivial change, and consider using its diff summary line as the future git commit message. Human review remains important for intent, product trade-offs, security-sensitive behavior, and other decisions for which passing checks is necessary but not sufficient. Human review can be done by manually staging all git diff hunks or files one at a time that you accept.
 
-This order is a preference, not an infallible rule. A clear `AGENTS.mc` instruction may be the correct choice when enforcement would be fragile, slow, or harder to maintain than the underlying rule.
+This order is a preference, not an infallible rule. A clear `AGENTS.md` instruction may be the correct choice when enforcement would be fragile, slow, or harder to maintain than the underlying rule.
 
 ## Turn corrections into repository memory
 
@@ -51,7 +51,7 @@ A sticky prompt is a recurring instruction that should survive beyond the curren
 Maintain a small catalogue of these workflows and periodically promote each one to the most durable suitable form:
 
 - Replace verification-oriented workflows with deterministic tools or pytest checks when possible.
-- Package project-independent workflows as a shared focused skill (e.g. as part of a plugin marketplace) or as a [Perform](../README.md#perform-skill) action, depending on their complexity and cohesion.
+- Package project-independent workflows as a shared focused skill (e.g. as part of a plugin marketplace) or as a [Perform](codex_perform.md) action, depending on their complexity and cohesion.
 - Package self-contained, project-specific workflows that need no human interaction as project-local skills.
 - Keep the remainder in a dedicated Markdown file. For each workflow, record when to run it, its scope and expected outcome, suitable coding and planning reasoning levels, whether the context should be cleared first, and the order of commands when it is a multi-step workflow.
 
