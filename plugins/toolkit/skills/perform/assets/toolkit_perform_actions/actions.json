@@ -84,6 +84,22 @@
         "notes": ""
       }
     },
+    "check-python-dists": {
+      "python": {
+        "gloss": "Check repository support for common Python distributions",
+        "model": "default",
+        "reasoning_effort": "high",
+        "goal_mode": false,
+        "plan_mode": false,
+        "plan_reasoning_effort": "high",
+        "no_edits": true,
+        "prompt_vars": {},
+        "prompt": "Audit the current repository for support across the common general-purpose Python distributions and implementations CPython, PyPy, GraalPy, Jython, and IronPython. Assess every distribution by default even when repository metadata, tests, or documentation mention only CPython or use the generic term Python. Separately assess the supported Python language-version range within each distribution; do not treat language-version compatibility, operating-system compatibility, CPU architecture, or package-format compatibility as evidence of implementation compatibility. Inspect first-party source for implementation-specific language behavior, standard-library and C API assumptions, reference counting or garbage-collection dependencies, bytecode and interpreter internals, concurrency and signal behavior, subprocess and executable-name assumptions, native extensions, ABI and wheel tags, build backends, dependency markers, packaging metadata, installers, entry points, and runtime feature detection. Inspect direct and optional dependencies for declared or known interpreter constraints, and inspect tests, continuous-integration matrices, documentation, classifiers, lock files, and stated support guarantees for evidence relevant to each distribution. Treat MicroPython, CircuitPython, and other embedded or special-purpose runtimes as out of the default compatibility target unless the repository claims or clearly implies support for them, but report any such claim and assess it. Run safe non-mutating local tests or build checks when useful, identify the exact interpreter and version actually exercised, and never imply that an unavailable distribution was executed. Do not treat missing distribution-specific CI as proof of incompatibility. Produce a per-distribution summary matrix covering the compatible Python-version range, static-compatibility assessment, dependency and packaging constraints, available test or CI evidence, known blockers or gaps, and confidence. Clearly distinguish confirmed compatibility, identified blockers, likely compatibility without direct execution evidence, and areas that remain unverified. Present actionable findings in a (possibly giant) enumerated list; for each finding include severity, affected distributions and Python versions, exact file and line or configuration references, the technical evidence and impact, and a concrete remediation or verification recommendation. Report the complete scope examined, all exclusions, assumptions, and unresolved uncertainties. If no actionable compatibility problems are found, state that explicitly without overstating the available evidence.",
+        "requires_interactive": false,
+        "custom_codex_args": [],
+        "notes": ""
+      }
+    },
     "check-work-complete": {
       "agnostic": {
         "gloss": "Verify uncommitted work against its requirements",
