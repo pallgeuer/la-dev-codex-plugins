@@ -2,7 +2,9 @@
 """Smoke checks for the explicitly loaded installed pytest-isolation plugin."""
 
 import argparse
+import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -24,6 +26,22 @@ def run(command, cwd, expected_returncode=0):
     if completed.returncode != expected_returncode:
         raise AssertionError("Command returned exit code {}, expected {}: {!r}\nstdout:\n{}\nstderr:\n{}".format(completed.returncode, expected_returncode, command, stdout, stderr))
     return stdout, stderr
+
+
+def remove_retained_tree(path):
+    """Restore owner permissions and remove one intentional smoke fixture."""
+    for root, directories, files in os.walk(str(path)):
+        root_path = pathlib.Path(root)
+        root_path.chmod(0o700)
+        for name in directories:
+            child = root_path / name
+            if not child.is_symlink():
+                child.chmod(0o700)
+        for name in files:
+            child = root_path / name
+            if not child.is_symlink():
+                child.chmod(0o600)
+    shutil.rmtree(str(path))
 
 
 def smoke_plugin(expected_pytest_version):
@@ -244,6 +262,72 @@ def test_04_returns_to_shared_guard():
             raise AssertionError("Shared pytest suite did not preserve its pytest temporary artifact")
         if restored_record.read_text(encoding="ascii") != "restored":
             raise AssertionError("Shared pytest suite did not verify session restoration")
+
+        retained_record = suite_root / "retained-boundaries.txt"
+        retained_restored = suite_root / "retained-restored.txt"
+        (suite_root / "pytest.ini").write_text(
+            "[pytest]\nla_dev_cwd_isolation_unmarked = shared_guarded\nla_dev_cwd_isolation_cleanup = pytest_retained\n",
+            encoding="ascii",
+        )
+        (suite_root / "conftest.py").write_text(
+            """import os
+import pathlib
+import tempfile
+
+INITIAL_CWD = os.getcwd()
+INITIAL_ENVIRONMENT = {{name: (name in os.environ, os.environ.get(name)) for name in ("TMPDIR", "TEMP", "TMP")}}
+INITIAL_TEMPDIR = tempfile.tempdir
+RECORD = pathlib.Path({record})
+RESTORED = pathlib.Path({restored})
+
+def pytest_unconfigure(config):
+    assert os.getcwd() == INITIAL_CWD
+    assert {{name: (name in os.environ, os.environ.get(name)) for name in INITIAL_ENVIRONMENT}} == INITIAL_ENVIRONMENT
+    assert tempfile.tempdir is INITIAL_TEMPDIR
+    boundaries = [pathlib.Path(value) for value in RECORD.read_text(encoding="ascii").splitlines()]
+    assert all(boundary.is_dir() for boundary in boundaries)
+    RESTORED.write_text("restored", encoding="ascii")
+""".format(record=repr(str(retained_record)), restored=repr(str(retained_restored))),
+            encoding="ascii",
+        )
+        retained_path = suite_root / "test_retained_guard.py"
+        retained_path.write_text(
+            """import pathlib
+
+RECORD = pathlib.Path({record})
+SHARED = None
+
+def test_01_shared_retained():
+    global SHARED
+    SHARED = pathlib.Path.cwd().parent
+    RECORD.write_text(str(SHARED) + "\\n", encoding="ascii")
+
+def test_02_nested_private_retained(isolated_cwd):
+    private = isolated_cwd.parent
+    assert private.parent == SHARED / "tmp"
+    with RECORD.open("a", encoding="ascii") as handle:
+        handle.write(str(private) + "\\n")
+""".format(record=repr(str(retained_record))),
+            encoding="ascii",
+        )
+        retained_stdout, retained_stderr = run(
+            [sys.executable, "-m", "pytest", "-p", "la_dev_codex_plugins.pytest_isolation.plugin", "-q", str(retained_path)],
+            str(suite_root),
+        )
+        if "2 passed" not in retained_stdout:
+            raise AssertionError("Retained pytest suite did not report two passing tests: {!r}".format(retained_stdout))
+        if "incomplete" in retained_stdout + retained_stderr:
+            raise AssertionError("Retained pytest suite reported incomplete cleanup: {!r}".format(retained_stdout + retained_stderr))
+        retained_boundaries = [pathlib.Path(value) for value in retained_record.read_text(encoding="ascii").splitlines()]
+        if len(retained_boundaries) != 2 or not all(boundary.is_dir() for boundary in retained_boundaries):
+            raise AssertionError("Retained pytest suite did not preserve shared and private boundaries")
+        if retained_boundaries[1].parent != retained_boundaries[0] / "tmp":
+            raise AssertionError("Retained private boundary was not nested below the shared temporary directory")
+        if retained_restored.read_text(encoding="ascii") != "restored":
+            raise AssertionError("Retained pytest suite did not verify session restoration")
+        remove_retained_tree(retained_boundaries[0])
+        (suite_root / "pytest.ini").unlink()
+        (suite_root / "conftest.py").unlink()
 
         leak_path = suite_root / "test_guarded_leak.py"
         leak_path.write_text(

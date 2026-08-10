@@ -38,7 +38,7 @@ python -m pip install 'la-dev-codex-plugins[pytest]'
 python -m pip install 'la-dev-codex-plugins[dev]'
 ```
 
-Both extras currently add `pytest>=7.0.1`. The package does not register a `pytest11` entry point, so installing an extra never activates the plugin automatically; explicitly load `la_dev_codex_plugins.pytest_isolation.plugin` in the downstream suite. Loading alone leaves unmarked tests untouched. Suites can use private per-test `isolated_cwd` and `guarded_cwd` fixtures or markers, separately opt otherwise unmarked tests into one session-shared guarded CWD per pytest process, and customize that process-global shared boundary through a pytest hook.
+Both extras currently add `pytest>=7.0.1`. The package does not register a `pytest11` entry point, so installing an extra never activates the plugin automatically; explicitly load `la_dev_codex_plugins.pytest_isolation.plugin` in the downstream suite. Loading alone leaves unmarked tests untouched. Suites can use private per-test `isolated_cwd` and `guarded_cwd` fixtures or markers, separately opt otherwise unmarked tests into one session-shared guarded CWD per pytest process, and customize that process-global shared boundary through a pytest hook. Boundaries use immediate verified cleanup by default; suites with interpreter-owned resources can opt into a pytest-retained lifecycle whose compatibility requirements and later-pruning tradeoffs are documented in the detailed guide.
 
 Detailed documentation:
 

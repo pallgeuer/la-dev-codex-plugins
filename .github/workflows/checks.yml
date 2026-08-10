@@ -54,6 +54,20 @@ jobs:
       - name: Run focused tests with current pytest
         run: uvx --python 3.10 --from pytest==9.1.1 pytest tests/pytest_isolation
 
+  pytest-isolation-python-314:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.29"
+
+      - name: Run focused tests with Python 3.14 and current pytest
+        run: uvx --python 3.14 --from pytest==9.1.1 pytest tests/pytest_isolation
+
   ubuntu-18-04:
     runs-on: ubuntu-latest
     steps:

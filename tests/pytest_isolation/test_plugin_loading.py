@@ -205,11 +205,12 @@ def test_interrupt(isolated_cwd):
         conftest="""
 import la_dev_codex_plugins.pytest_isolation.plugin as isolation_plugin
 
-def interrupt_setup(*args, **kwargs):
+def interrupt_setup(state, *args, **kwargs):
+    state.boundary = isolation_plugin.pathlib.Path("injected-boundary")
     raise KeyboardInterrupt("injected setup interrupt")
 
 def fail_cleanup(state, failures):
-    state.cleanup_complete = False
+    state.disposition = isolation_plugin._DISPOSITION_FAILED
     failures.append("injected restoration failure")
 
 isolation_plugin._create_boundary = interrupt_setup

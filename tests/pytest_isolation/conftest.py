@@ -3,6 +3,8 @@
 import os
 import pathlib
 import shutil
+import subprocess
+import sys
 
 import pytest
 
@@ -57,5 +59,29 @@ def run_isolation(pytester, monkeypatch):
             options.extend(("-p", PLUGIN))
         options.extend(arguments)
         return pytester.runpytest_subprocess(*options)
+
+    return run
+
+
+@pytest.fixture
+def run_isolation_without_basetemp(pytester, monkeypatch):
+    """Return a direct subprocess runner that does not inject ``--basetemp``."""
+    existing = os.environ.get("PYTHONPATH")
+    pythonpath = str(SRC_ROOT) if not existing else str(SRC_ROOT) + os.pathsep + existing
+    monkeypatch.setenv("PYTHONPATH", pythonpath)
+    monkeypatch.setenv("PYTHONDONTWRITEBYTECODE", "1")
+
+    def run(source, config):
+        pytester.makepyfile(test_isolation=source)
+        pytester.makeini(config)
+        return subprocess.run(
+            [sys.executable, "-m", "pytest", "-q", "-p", PLUGIN],
+            cwd=str(pytester.path),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            check=False,
+        )
 
     return run

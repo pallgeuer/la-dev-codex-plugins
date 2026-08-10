@@ -18,7 +18,7 @@ It currently exposes the following plugins:
 The separately installed Python distribution defined in this repository also provides the following reusable development tools:
 
 - [Markdown table formatting](docs/markdown_tables.md) through the `la-dev-markdown-tables` command, library, and pre-commit hooks
-- [Pytest working-directory isolation](docs/pytest_isolation.md) through the explicitly loaded `la_dev_codex_plugins.pytest_isolation.plugin` module
+- [Pytest working-directory isolation](docs/pytest_isolation.md) through the explicitly loaded `la_dev_codex_plugins.pytest_isolation.plugin` module, with eager cleanup by default and opt-in pytest-retained cleanup for interpreter-owned resources
 - [Release checksum manifests](docs/release_checksums.md) through the `la-dev-release-checksums` command and library
 
 ## Operating-system support
@@ -145,7 +145,7 @@ The bundled `audit-test-performance[agnostic]` action measures a repository's te
 The Python distribution also installs reusable development tools that are independent of the marketplace plugins:
 
 - [Markdown table formatting](docs/markdown_tables.md) documents the `la-dev-markdown-tables` checker, formatter, library, and pre-commit hooks.
-- [Pytest working-directory isolation](docs/pytest_isolation.md) documents the explicitly loaded `la_dev_codex_plugins.pytest_isolation.plugin` module, including private per-test fixtures and the opt-in session-shared guard.
+- [Pytest working-directory isolation](docs/pytest_isolation.md) documents the explicitly loaded `la_dev_codex_plugins.pytest_isolation.plugin` module, including private per-test fixtures, the opt-in session-shared guard, and eager or pytest-retained boundary lifecycles.
 - [Release checksum manifests](docs/release_checksums.md) documents the deterministic, failure-safe `la-dev-release-checksums` library and command.
 
 The [documentation index](docs/README.md) collects these guides with the marketplace plugin and repository-development documentation.

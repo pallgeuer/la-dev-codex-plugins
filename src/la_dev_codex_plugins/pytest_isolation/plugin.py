@@ -16,6 +16,12 @@ _ENVIRONMENT_NAMES = ("TMPDIR", "TEMP", "TMP")
 _MISSING = object()
 _UNMARKED_OPTION = "la_dev_cwd_isolation_unmarked"
 _UNMARKED_MODES = ("none", "shared_guarded")
+_CLEANUP_OPTION = "la_dev_cwd_isolation_cleanup"
+_CLEANUP_MODES = ("eager", "pytest_retained")
+_DISPOSITION_PENDING = "pending"
+_DISPOSITION_REMOVED = "eagerly_removed"
+_DISPOSITION_RETAINED = "safely_retained"
+_DISPOSITION_FAILED = "failed_preserved"
 _DEFAULT_POISON_FILES = {"pyproject.toml": "[tool.la_dev_cwd_guard\n"}
 _SHARED_POLICY_KEYS = {"boundary_files", "poison_files"}
 _BOUNDARY_RESERVED_NAMES = {"cwd", "tmp"}
@@ -43,18 +49,20 @@ class _IsolationState:
     values, and ``tempfile.tempdir`` cache restored when the boundary ends.
     The boundary fields identify the disposable root and its parent, guarded
     or writable CWD, sibling temporary directory, and recorded identities used
-    for fail-closed cleanup and shared-state activation. Cleanup completion
-    distinguishes removed and preserved roots, while preserved nested paths
-    prevent an outer shared cleanup from traversing uncertain private data.
+    for fail-closed cleanup and shared-state activation. The cleanup mode and
+    disposition distinguish pending, removed, safely retained, and failed
+    lifecycles, while preserved nested paths prevent an outer shared cleanup
+    from traversing uncertain private data.
     """
 
     __slots__ = (
         "boundary",
         "boundary_identity",
         "boundary_parent_identity",
-        "cleanup_complete",
+        "cleanup_mode",
         "cwd",
         "cwd_identity",
+        "disposition",
         "environment",
         "guarded",
         "integrity_manifest",
@@ -65,13 +73,14 @@ class _IsolationState:
         "tmp_identity",
     )
 
-    def __init__(self, original_cwd, environment, tempdir, guarded):
+    def __init__(self, original_cwd, environment, tempdir, guarded, cleanup_mode):
         self.original_cwd = original_cwd
         self.environment = environment
         self.tempdir = tempdir
         self.guarded = guarded
+        self.cleanup_mode = cleanup_mode
         self.integrity_manifest = None
-        self.cleanup_complete = None
+        self.disposition = _DISPOSITION_PENDING
         self.preserved_nested_boundaries = set()
         self.boundary = None
         self.boundary_identity = None
@@ -85,10 +94,12 @@ class _IsolationState:
 class _SessionIsolation:
     """Configured shared-isolation state owned by one pytest configuration."""
 
-    __slots__ = ("boundary_files", "cleanup_attempted", "enabled", "poison_files", "policy_hookimpls", "shared_state")
+    __slots__ = ("allocation_parent", "boundary_files", "cleanup_attempted", "cleanup_mode", "enabled", "poison_files", "policy_hookimpls", "shared_state")
 
-    def __init__(self, enabled):
+    def __init__(self, enabled, cleanup_mode):
         self.enabled = enabled
+        self.cleanup_mode = cleanup_mode
+        self.allocation_parent = None
         self.boundary_files = None
         self.poison_files = None
         self.policy_hookimpls = frozenset()
@@ -162,18 +173,50 @@ def pytest_addhooks(pluginmanager):
 
 
 def pytest_addoption(parser):
-    """Register the string-valued unmarked-test isolation setting."""
+    """Register the string-valued isolation settings."""
     parser.addini(_UNMARKED_OPTION, "Isolation mode for tests without an explicit isolation marker or fixture", default="none")
+    parser.addini(_CLEANUP_OPTION, "Cleanup lifecycle for working-directory isolation boundaries", default="eager")
+
+
+def _get_optional_ini(config, name):
+    """Return one public pytest ini setting or the missing sentinel."""
+    try:
+        return config.getini(name)
+    except ValueError:
+        return _MISSING
+
+
+def _validate_retained_compatibility(config):
+    """Require pytest to keep the current base temp through process exit."""
+    if config.getoption("basetemp") is not None:
+        return
+    policy = _get_optional_ini(config, "tmp_path_retention_policy")
+    count = _get_optional_ini(config, "tmp_path_retention_count")
+    if policy is _MISSING and count is _MISSING:
+        return
+    if policy != "all":
+        raise pytest.UsageError("{}=pytest_retained requires tmp_path_retention_policy=all so the current base temp outlives the session; supplied value: {!r}".format(_CLEANUP_OPTION, policy))
+    try:
+        positive_count = int(count) >= 1
+    except (TypeError, ValueError):
+        positive_count = False
+    if not positive_count:
+        raise pytest.UsageError("{}=pytest_retained requires tmp_path_retention_count of at least 1 so the current base temp outlives the session; supplied value: {!r}".format(_CLEANUP_OPTION, count))
 
 
 def pytest_configure(config):
-    """Register explicit markers and validate unmarked-test configuration."""
+    """Register markers and validate process-wide isolation configuration."""
     config.addinivalue_line("markers", "guarded_cwd(poison_files=None, include_default_poison=True): Run in a read-only poisoned working directory")
     config.addinivalue_line("markers", "isolated_cwd: Run in a fresh writable working directory")
     configured = config.getini(_UNMARKED_OPTION)
     if configured not in _UNMARKED_MODES:
         raise pytest.UsageError("{}={!r} is invalid; allowed values are: {}".format(_UNMARKED_OPTION, configured, ", ".join(_UNMARKED_MODES)))
-    setattr(config, _SESSION_ATTRIBUTE, _SessionIsolation(enabled=configured == "shared_guarded"))
+    cleanup_mode = config.getini(_CLEANUP_OPTION)
+    if cleanup_mode not in _CLEANUP_MODES:
+        raise pytest.UsageError("{}={!r} is invalid; allowed values are: {}".format(_CLEANUP_OPTION, cleanup_mode, ", ".join(_CLEANUP_MODES)))
+    if cleanup_mode == "pytest_retained":
+        _validate_retained_compatibility(config)
+    setattr(config, _SESSION_ATTRIBUTE, _SessionIsolation(enabled=configured == "shared_guarded", cleanup_mode=cleanup_mode))
 
 
 def _fail(message):
@@ -337,14 +380,14 @@ def _select_mode(item):
     return "guarded" if guarded else "isolated", poison_files
 
 
-def _save_process_state(guarded):
+def _save_process_state(guarded, cleanup_mode):
     """Capture exact process state before creating an isolation boundary."""
     try:
         original_cwd = os.getcwd()  # noqa: PTH109 - the contract requires saving the exact os.getcwd value
     except OSError as exc:
         _fail("could not save the original working directory: {}".format(exc))
     environment = {name: os.environ.get(name, _MISSING) for name in _ENVIRONMENT_NAMES}
-    return _IsolationState(original_cwd, environment, tempfile.tempdir, guarded=guarded)
+    return _IsolationState(original_cwd, environment, tempfile.tempdir, guarded=guarded, cleanup_mode=cleanup_mode)
 
 
 def _write_read_only_files(root, files):
@@ -370,12 +413,12 @@ def _write_read_only_files(root, files):
     return manifest
 
 
-def _create_boundary(state, poison_files, boundary_files=None, record_integrity=False):
-    """Create one writable or guarded boundary with optional policy files."""
+def _create_boundary(state, poison_files, boundary_files=None, record_integrity=False, allocation_parent=None):
+    """Create one boundary below an optional explicit allocation parent."""
     saved_tempdir = tempfile.tempdir
     tempfile.tempdir = None
     try:
-        boundary_value = tempfile.mkdtemp(prefix="la-dev-pytest-isolation-")
+        boundary_value = tempfile.mkdtemp(prefix="la-dev-pytest-isolation-", dir=None if allocation_parent is None else str(allocation_parent))
     finally:
         tempfile.tempdir = saved_tempdir
     state.boundary = pathlib.Path(os.path.realpath(os.fsdecode(boundary_value)))
@@ -527,7 +570,7 @@ def _entry_mode(metadata):
 def _verify_descriptor_mode(descriptor, expected, display_path, failures):
     actual = _entry_mode(os.fstat(descriptor))
     if actual != expected:
-        failures.append("shared isolation entry has mode {:04o} instead of {:04o}: {}".format(actual, expected, display_path))
+        failures.append("recorded isolation entry has mode {:04o} instead of {:04o}: {}".format(actual, expected, display_path))
 
 
 def _hash_descriptor(descriptor):
@@ -627,11 +670,11 @@ def _verify_policy_tree(descriptor, display_path, manifest, failures, excluded_n
                 os.close(frame.descriptor)
 
 
-def _verify_shared_layout(state, descriptors, failures):
-    """Verify constant-size shared directory modes after identities are known."""
+def _verify_layout_modes(state, descriptors, cwd_mode, failures):
+    """Verify constant-size boundary modes after identities are known."""
     original_failure_count = len(failures)
     _verify_descriptor_mode(descriptors.boundary, 0o700, state.boundary, failures)
-    _verify_descriptor_mode(descriptors.cwd, 0o500, state.cwd, failures)
+    _verify_descriptor_mode(descriptors.cwd, cwd_mode, state.cwd, failures)
     _verify_descriptor_mode(descriptors.tmp, 0o700, state.tmp, failures)
     return len(failures) == original_failure_count
 
@@ -642,7 +685,7 @@ def _verify_shared_integrity(state, descriptors, failures):
         failures.append("shared isolation integrity manifest is missing")
         return False
     original_failure_count = len(failures)
-    _verify_shared_layout(state, descriptors, failures)
+    _verify_layout_modes(state, descriptors, 0o500, failures)
     _verify_policy_tree(descriptors.boundary, state.boundary, state.integrity_manifest["boundary"], failures, excluded_names=_BOUNDARY_RESERVED_NAMES)
     _verify_policy_tree(descriptors.cwd, state.cwd, state.integrity_manifest["cwd"], failures)
     return len(failures) == original_failure_count
@@ -651,7 +694,7 @@ def _verify_shared_integrity(state, descriptors, failures):
 def _activate_shared_state(state, enter_cwd, failures):
     """Verify and activate one unchanged shared layout in constant time."""
     with _open_recorded_boundary(state, failures, shared=True) as descriptors:
-        if descriptors is None or not _verify_shared_layout(state, descriptors, failures):
+        if descriptors is None or not _verify_layout_modes(state, descriptors, 0o500, failures):
             return False
         if enter_cwd:
             try:
@@ -785,11 +828,11 @@ def _remove_verified_child(parent_descriptor, child_descriptor, name, identity, 
 
 
 def _cleanup_boundary(state, failures):
-    """Remove only the unchanged boundary recorded by one isolation state."""
+    """Verify one recorded boundary and delete or retain it as configured."""
     if state.boundary is None:
-        state.cleanup_complete = True
+        state.disposition = _DISPOSITION_REMOVED
         return
-    state.cleanup_complete = False
+    state.disposition = _DISPOSITION_FAILED
     with _open_recorded_boundary_root(state, failures) as descriptors:
         if descriptors is None:
             return
@@ -825,9 +868,20 @@ def _cleanup_boundary(state, failures):
                 return
             if state.integrity_manifest is not None:
                 complete_descriptors = _BoundaryDescriptors(descriptors.parent, descriptors.boundary, child_descriptors[0][0], child_descriptors[1][0])
-                _verify_shared_integrity(state, complete_descriptors, failures)
+                integrity_verified = _verify_shared_integrity(state, complete_descriptors, failures)
+            elif state.cleanup_mode == "pytest_retained" and not partial and len(child_descriptors) == 2:
+                complete_descriptors = _BoundaryDescriptors(descriptors.parent, descriptors.boundary, child_descriptors[0][0], child_descriptors[1][0])
+                integrity_verified = _verify_layout_modes(state, complete_descriptors, 0o500 if state.guarded else 0o700, failures)
+            else:
+                integrity_verified = True
             if state.preserved_nested_boundaries:
                 failures.append("shared isolation boundary was preserved because nested private cleanup was incomplete: {}".format(", ".join(sorted(state.preserved_nested_boundaries))))
+                return
+            if state.cleanup_mode == "pytest_retained":
+                if not partial and not unresolved and len(child_descriptors) == 2 and integrity_verified:
+                    state.disposition = _DISPOSITION_RETAINED
+                elif partial or unresolved or len(child_descriptors) != 2:
+                    failures.append("recorded isolation boundary state was incomplete and was retained: {}".format(state.boundary))
                 return
 
             children_complete = True
@@ -855,7 +909,7 @@ def _cleanup_boundary(state, failures):
         except OSError as exc:
             failures.append("could not remove isolation boundary {}: {}".format(state.boundary, exc))
             return
-        state.cleanup_complete = True
+        state.disposition = _DISPOSITION_REMOVED
 
 
 def _inspect_final_cwd(state, escaped_label, failures):
@@ -885,7 +939,7 @@ def _restore_cwd(original_cwd, failures):
 
 
 def _restore_state(state, inspect_final=True):
-    """Restore process state and remove one private or shared boundary."""
+    """Restore process state and finalize one private or shared boundary."""
     failures = []
     if inspect_final:
         _inspect_final_cwd(state, "guarded_cwd test", failures)
@@ -907,26 +961,27 @@ def _session_isolation(config):
 
 
 def pytest_sessionstart(session):
-    """Resolve shared policy and initialize pytest temporary retention early."""
+    """Resolve policy and initialize any required pytest base temp early."""
     isolation = _session_isolation(session.config)
-    if not isolation.enabled:
-        return
-    implementations = session.config.hook.pytest_la_dev_cwd_isolation_shared_policy.get_hookimpls()
-    invalid = _non_root_conftest_policy_hookimpls(session.config, implementations)
-    if invalid:
-        raise pytest.UsageError(
-            "pytest_la_dev_cwd_isolation_shared_policy must be implemented by the root conftest or an early-loaded plugin; nested conftest provider(s): {}".format(
-                ", ".join(_policy_provider_names(invalid))
+    if isolation.enabled:
+        implementations = session.config.hook.pytest_la_dev_cwd_isolation_shared_policy.get_hookimpls()
+        invalid = _non_root_conftest_policy_hookimpls(session.config, implementations)
+        if invalid:
+            raise pytest.UsageError(
+                "pytest_la_dev_cwd_isolation_shared_policy must be implemented by the root conftest or an early-loaded plugin; nested conftest provider(s): {}".format(
+                    ", ".join(_policy_provider_names(invalid))
+                )
             )
-        )
-    isolation.policy_hookimpls = _policy_hookimpl_ids(session.config)
-    isolation.boundary_files, isolation.poison_files = _shared_policy(session.config)
+        isolation.policy_hookimpls = _policy_hookimpl_ids(session.config)
+        isolation.boundary_files, isolation.poison_files = _shared_policy(session.config)
+    if not isolation.enabled and isolation.cleanup_mode != "pytest_retained":
+        return
     temporary_factory = getattr(session.config, "_tmp_path_factory", None)
     if temporary_factory is None:
-        raise pytest.UsageError("shared CWD isolation requires pytest's built-in temporary-path plugin")
+        raise pytest.UsageError("working-directory isolation requires pytest's built-in temporary-path plugin")
     saved_tempdir = tempfile.tempdir
     try:
-        temporary_factory.getbasetemp()
+        isolation.allocation_parent = pathlib.Path(os.path.realpath(os.fsdecode(temporary_factory.getbasetemp())))
     finally:
         tempfile.tempdir = saved_tempdir
 
@@ -945,9 +1000,15 @@ def pytest_collection_finish(session):
             )
         )
 
-    state = _save_process_state(guarded=True)
+    state = _save_process_state(guarded=True, cleanup_mode=isolation.cleanup_mode)
     try:
-        _create_boundary(state, isolation.poison_files, boundary_files=isolation.boundary_files, record_integrity=True)
+        _create_boundary(
+            state,
+            isolation.poison_files,
+            boundary_files=isolation.boundary_files,
+            record_integrity=True,
+            allocation_parent=isolation.allocation_parent if isolation.cleanup_mode == "pytest_retained" else None,
+        )
         _redirect_temporary_state(state)
     except BaseException as exc:
         failures = _restore_state(state, inspect_final=False)
@@ -1032,7 +1093,7 @@ def _teardown_shared_item_isolation(item, inspect_final):
 
 def _preserve_shared_after_private_cleanup(private_state, shared_state):
     """Block outer cleanup after an incomplete nested private cleanup."""
-    if private_state.cleanup_complete is False and private_state.boundary is not None and private_state.boundary_parent_identity == shared_state.tmp_identity:
+    if shared_state is not None and private_state.disposition == _DISPOSITION_FAILED and private_state.boundary is not None and private_state.boundary_parent_identity == shared_state.tmp_identity:
         shared_state.preserved_nested_boundaries.add(str(private_state.boundary))
 
 
@@ -1045,9 +1106,14 @@ def _setup_private_item_isolation(item, mode, poison_files):
         failures = []
         if not _activate_shared_state(shared_state, enter_cwd=False, failures=failures):
             _fail("Shared guarded state verification failed before private test setup: {}".format("; ".join(failures)))
-    state = _save_process_state(guarded=mode == "guarded")
+    isolation = _session_isolation(item.config)
+    state = _save_process_state(guarded=mode == "guarded", cleanup_mode=isolation.cleanup_mode)
     try:
-        _create_boundary(state, poison_files)
+        if isolation.cleanup_mode == "pytest_retained":
+            allocation_parent = shared_state.tmp if shared_state is not None else isolation.allocation_parent
+            _create_boundary(state, poison_files, allocation_parent=allocation_parent)
+        else:
+            _create_boundary(state, poison_files)
         _redirect_temporary_state(state)
         os.chdir(str(state.cwd))
     except BaseException:
