@@ -1,6 +1,6 @@
 # Language-Agnostic Development Codex Plugins
 
-This repository is a Codex plugin marketplace, version 0.4.3.
+This repository is a Codex plugin marketplace, version 0.4.4.
 
 It currently exposes the following plugins:
 
