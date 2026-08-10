@@ -50,6 +50,7 @@ For Python development, add these writable roots to the same `[sandbox_workspace
 
 ```toml
 writable_roots = [
+  "~/.cache/gh",
   "~/.cache/pip",
   "~/.cache/uv",
   "~/.local/share/uv",
