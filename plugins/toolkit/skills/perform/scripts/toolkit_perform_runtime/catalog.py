@@ -4,7 +4,9 @@ import copy
 import json
 import pathlib
 import re
+import types
 
+from . import _values as values_module
 from . import diagnostics as diagnostics_module
 from . import discovery as discovery_module
 from . import launching as launching_module
@@ -136,8 +138,42 @@ class ActionSummary:
         """Return the structured metadata for this action variant."""
         result = {"selector": self.selector, "name": self.name, "language": self.language, "gloss": self.gloss}
         if self.prompt_vars:
-            result["prompt_vars"] = copy.deepcopy(self.prompt_vars)
+            result["prompt_vars"] = copy.deepcopy(dict(self.prompt_vars))
         return result
+
+
+class ActionDefinitionSource(values_module.FrozenValue):
+    """Portable-catalogue metadata for one defining JSON file."""
+
+    __slots__ = ("_is_frozen", "directory", "filename", "kind", "source_order")
+    directory: str
+    filename: str
+    kind: str
+    source_order: int
+
+    def __init__(self, kind, directory, filename, source_order):
+        """Store source semantics, displayed directory, filename, and precedence index."""
+        self.kind = kind
+        self.directory = directory
+        self.filename = filename
+        self.source_order = source_order
+        self._freeze()
+
+
+class ActionCatalogueEntry(ActionSummary, values_module.FrozenValue):
+    """Read-only action fields and optional defining source for catalogue rendering."""
+
+    __slots__ = ("_is_frozen", "definition_source")
+    definition_source: object
+
+    def __init__(self, name, language, gloss, prompt_vars, definition_source=None):
+        """Snapshot catalogue fields and definition provenance."""
+        if definition_source is not None and not isinstance(definition_source, ActionDefinitionSource):
+            raise TypeError("definition_source must be an ActionDefinitionSource or None")
+        ActionSummary.__init__(self, name, language, gloss, prompt_vars)
+        self.prompt_vars = types.MappingProxyType(self.prompt_vars)
+        self.definition_source = definition_source
+        self._freeze()
 
 
 class EffectiveAction:
@@ -165,13 +201,14 @@ class EffectiveAction:
 class _ActionEntry:
     """Effective action paired with its rendering and precedence policies."""
 
-    __slots__ = ("action", "precedence_independent", "renderer")
+    __slots__ = ("action", "definition_source", "precedence_independent", "renderer")
 
-    def __init__(self, action, renderer, precedence_independent):
-        """Store one action and the policies needed to select and render it."""
+    def __init__(self, action, renderer, precedence_independent, definition_source=None):
+        """Store one action with its rendering, precedence, and catalogue policies."""
         self.action = action
         self.renderer = renderer
         self.precedence_independent = precedence_independent
+        self.definition_source = definition_source
 
 
 class ActionInspection:
@@ -687,7 +724,7 @@ def _apply_file(data, source, filename, patches, diagnostics):
 
 def _materialize(patches, diagnostics):
     """Apply agnostic inheritance and final validation to accumulated patches."""
-    actions = {}
+    entries = {}
     patches_by_action = {}
     for (action, language), patch in patches.items():
         patches_by_action.setdefault(action, {})[language] = patch
@@ -710,8 +747,10 @@ def _materialize(patches, diagnostics):
             diagnostics.extend(final_diagnostics)
             if final_diagnostics:
                 continue
-            actions[(action, language)] = EffectiveAction(action, language, fields)
-    return actions
+            origin = patch.definition_origin
+            definition_source = ActionDefinitionSource(origin.source.kind, origin.source.display_path, origin.filename, origin.source.source_order)
+            entries[(action, language)] = _ActionEntry(EffectiveAction(action, language, fields), rendering.render_prompt, False, definition_source=definition_source)
+    return entries
 
 
 class ActionCatalog:
@@ -719,13 +758,13 @@ class ActionCatalog:
 
     __slots__ = ("_entries", "diagnostics", "discovery", "precedence_incomplete")
 
-    def __init__(self, actions, diagnostics, discovery, precedence_incomplete=False):
+    def __init__(self, entries, diagnostics, discovery, precedence_incomplete=False):
         """Store validated action entries and deterministic diagnostics."""
         built_in_names = {spec.name for spec in _BUILT_IN_SPECS}
-        mutable_built_in_names = sorted({action.name for action in actions.values()} & built_in_names, key=lambda value: value.encode("ascii"))
+        mutable_built_in_names = sorted({entry.action.name for entry in entries.values()} & built_in_names, key=lambda value: value.encode("ascii"))
         if mutable_built_in_names:
             raise RuntimeError("Mutable actions cannot use reserved built-in names: {}.".format(", ".join(mutable_built_in_names)))
-        self._entries = {identity: _ActionEntry(action, rendering.render_prompt, False) for identity, action in actions.items()}
+        self._entries = dict(entries)
         for spec in _BUILT_IN_SPECS:
             entry = spec.build_entry()
             identity = (entry.action.name, entry.action.language)
@@ -742,6 +781,16 @@ class ActionCatalog:
             raise PerformRequestError("invalid_name", "Action-name filters must match {}.".format(ACTION_NAME_REGEX))
         summaries = [entry.action.summary() for entry in self._entries.values() if name is None or entry.action.name == name]
         return sorted(summaries, key=lambda summary: (summary.name.encode("ascii"), summary.language.encode("ascii")))
+
+    def catalogue_entries(self):
+        """Return stable read-only action entries with catalogue-only provenance."""
+        if self.precedence_incomplete:
+            raise PerformRequestError("fatal_catalog", "Catalog precedence is incomplete; fix the fatal discovery or file diagnostic before generating an action catalogue.")
+        entries = []
+        for entry in self._entries.values():
+            action = entry.action
+            entries.append(ActionCatalogueEntry(action.name, action.language, action.fields["gloss"], action.fields["prompt_vars"], definition_source=entry.definition_source))
+        return sorted(entries, key=lambda entry: (entry.name.encode("ascii"), entry.language.encode("ascii")))
 
     def _require_complete_precedence(self):
         """Reject prompt-sensitive operations when an override source is unknowable."""
@@ -861,5 +910,5 @@ def load_action_catalog(bundled_dir=None, cwd=None, env=None, action_directories
             diagnostics.extend(file_diagnostics)
             if data is not None:
                 _apply_file(data, source, filename, patches, diagnostics)
-    actions = _materialize(patches, diagnostics)
-    return ActionCatalog(actions, diagnostics, discovery)
+    entries = _materialize(patches, diagnostics)
+    return ActionCatalog(entries, diagnostics, discovery)

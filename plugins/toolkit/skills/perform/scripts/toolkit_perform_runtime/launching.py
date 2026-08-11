@@ -3,33 +3,12 @@
 import json
 import types
 
+from . import _values as values_module
 from . import validation
 from .diagnostics import PerformRequestError
 
 
-class _FrozenValue:
-    """Value object that rejects attribute changes after construction."""
-
-    __slots__ = ()
-
-    def __setattr__(self, name, value):
-        """Set attributes only until the object is frozen."""
-        if getattr(self, "_is_frozen", False):
-            raise AttributeError("{} is immutable".format(type(self).__name__))
-        object.__setattr__(self, name, value)
-
-    def __delattr__(self, name):
-        """Delete attributes only until the object is frozen."""
-        if getattr(self, "_is_frozen", False):
-            raise AttributeError("{} is immutable".format(type(self).__name__))
-        object.__delattr__(self, name)
-
-    def _freeze(self):
-        """Finish construction and make the object immutable."""
-        object.__setattr__(self, "_is_frozen", True)
-
-
-class ActionLaunchConfig(_FrozenValue):
+class ActionLaunchConfig(values_module.FrozenValue):
     """Materialized action identity and fields consumed by launchers."""
 
     __slots__ = ("_is_frozen", "language", "name", "selector", *validation.ACTION_FIELDS)
@@ -71,7 +50,7 @@ class ActionLaunchConfig(_FrozenValue):
         }
 
 
-class ActionLaunchSpec(_FrozenValue):
+class ActionLaunchSpec(values_module.FrozenValue):
     """Rendered action prompt paired with its complete launch configuration."""
 
     __slots__ = ("_is_frozen", "config", "qualification", "rendered_prompt")
@@ -93,7 +72,7 @@ class ActionLaunchSpec(_FrozenValue):
         return result
 
 
-class LaunchOverrides(_FrozenValue):
+class LaunchOverrides(values_module.FrozenValue):
     """Validated caller overrides applied while constructing Codex argv."""
 
     __slots__ = ("_is_frozen", "cwd", "extra_codex_args", "json_output", "model", "non_interactive", "plan_reasoning_effort", "reasoning_effort")
@@ -137,7 +116,7 @@ class LaunchOverrides(_FrozenValue):
         }
 
 
-class CodexInvocation(_FrozenValue):
+class CodexInvocation(values_module.FrozenValue):
     """Final direct Codex invocation produced from one launch specification."""
 
     __slots__ = ("_is_frozen", "argv", "effective_settings", "mode", "non_interactive", "objective", "spec", "submitted_prompt")
