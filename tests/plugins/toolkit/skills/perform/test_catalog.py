@@ -504,10 +504,10 @@ def test_prompt_variable_declarations_and_placeholders_are_case_sensitive(tmp_pa
     assert set(diagnostic_codes(catalog)) == {"unused_prompt_variable", "undeclared_prompt_variable"}
 
 
-def test_exported_variable_name_and_placeholder_grammars_are_distinct():
-    assert catalog_module.VARIABLE_NAME_REGEX == r"^[A-Za-z][A-Za-z0-9_]*$"
-    assert catalog_module.VARIABLE_NAME_PATTERN.match("Area")
-    assert catalog_module.VARIABLE_NAME_PATTERN.match("%Area%") is None
+def test_variable_name_and_placeholder_grammars_are_distinct():
+    assert validation_module.VARIABLE_NAME_REGEX == r"^[A-Za-z][A-Za-z0-9_]*$"
+    assert validation_module.VARIABLE_NAME_PATTERN.match("Area")
+    assert validation_module.VARIABLE_NAME_PATTERN.match("%Area%") is None
     assert catalog_module.PLACEHOLDER_REGEX == r"%[A-Za-z][A-Za-z0-9_]*%"
 
 

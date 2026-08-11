@@ -60,8 +60,7 @@ The partial APIs are:
 - `format_markdown_tables(text, path=None)`: return safe partial formatting plus every unresolved issue;
 - `markdown_table_issues(text, path=None)`: expose proposed changes as `format` issues together with unresolved `malformed` issues;
 - `format_markdown_tables_file(path, check=False)`: inspect one file and write all safe changes unless checking;
-- `select_markdown_paths(paths=(), root=None, include_untracked=False, exclude=(), config_path=None, use_config=True, apply_excludes=True)`: reproduce command-line path selection and return ordered absolute paths;
-- `tracked_markdown_paths(root=None)`: return absolute tracked Markdown paths from the nearest enclosing Git worktree; and
+- `select_markdown_paths(paths=(), root=None, include_untracked=False, exclude=(), config_path=None, use_config=True, apply_excludes=True)`: reproduce command-line path selection and return ordered absolute paths; and
 - `normalize_markdown_tables(text)` and `normalize_markdown_tables_file(path, check=False)`: strict conveniences that refuse partial output or writes when malformed input remains.
 
 Public result types are `MarkdownTable`, `MarkdownTableRow`, `MarkdownTableChange`, `MarkdownTableIssue`, `MarkdownTableFormatResult`, and `MarkdownTableError`. Line numbers are one-based physical lines; table ranges are inclusive. Rows retain their exact physical source text without the line ending and expose immutable structurally trimmed cells. Tables retain the exact raw substring, shared container prefix, table indentation, rows, and one alignment value (`none`, `left`, `right`, or `center`) per header cell. A `MarkdownTableChange` has `kind`, `message`, `line_number`, `path`, and `boundary_position`; the last field is `before` or `after` for a boundary change and `None` otherwise.
@@ -116,7 +115,7 @@ By default the command loads `.la-dev-markdown-tables.json` from the active Git 
 
 Both fields are required and no other fields are accepted. Invalid JSON, schema values, versions, or regular expressions fail before any file is written. Configured exclusions and command-line exclusions are additive. `--config PATH` replaces automatic lookup, `--no-config` disables it, and `--no-exclude` bypasses configuration loading as well as filtering. Contradictory switches are rejected.
 
-Python callers can use `select_markdown_paths()` for the same selection behavior. `paths` accepts one path-like value or an iterable, and `exclude` accepts one regular expression or an iterable. `root` selects the enclosing active worktree, `config_path` replaces automatic lookup, `use_config=False` corresponds to `--no-config`, and `apply_excludes=False` corresponds to `--no-exclude`. The older `tracked_markdown_paths()` deliberately remains a narrow tracked-only discovery API and does not consult configuration.
+Python callers can use `select_markdown_paths()` for the same selection behavior. `paths` accepts one path-like value or an iterable, and `exclude` accepts one regular expression or an iterable. `root` selects the enclosing active worktree, `config_path` replaces automatic lookup, `use_config=False` corresponds to `--no-config`, and `apply_excludes=False` corresponds to `--no-exclude`.
 
 Default mode writes safe changes and prints `Formatted Markdown tables: PATH` for each changed file. Check mode writes nothing and reports proposed changes. Malformed and operational diagnostics use `la-dev-markdown-tables: PATH:LINE: MESSAGE` on stderr; operational errors without a source line omit `:LINE`. Human-readable paths preserve printable Unicode but use backslash escapes for controls, format characters, surrogates, line separators, and literal backslashes so every record remains on one physical line.
 

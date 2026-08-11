@@ -17,7 +17,7 @@ def _git(repository, *arguments):
     subprocess.run(("git", *arguments), cwd=str(repository), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
-def test_tracked_paths_use_nearest_root_case_insensitive_suffixes_and_nul_output(tmp_path, monkeypatch):
+def test_select_tracked_paths_uses_nearest_root_case_insensitive_suffixes_and_nul_output(tmp_path, monkeypatch):
     repository = tmp_path / "repo"
     nested = repository / "nested" / "deeper"
     nested.mkdir(parents=True)
@@ -28,13 +28,13 @@ def test_tracked_paths_use_nearest_root_case_insensitive_suffixes_and_nul_output
     _git(repository, "add", "--", ".")
     monkeypatch.chdir(nested)
 
-    discovered = markdown_tables.tracked_markdown_paths()
+    discovered = markdown_tables.select_markdown_paths(use_config=False)
 
     assert discovered == (repository / "B.MARKDOWN", repository / "a.md", repository / "line\nbreak.md")
     assert all(path.is_absolute() for path in discovered)
 
 
-def test_tracked_paths_decode_non_utf8_filename_with_filesystem_surrogateescape(tmp_path):
+def test_select_tracked_paths_decodes_non_utf8_filename_with_filesystem_surrogateescape(tmp_path):
     repository = tmp_path / "repo"
     repository.mkdir()
     _git(repository, "init")
@@ -45,13 +45,13 @@ def test_tracked_paths_decode_non_utf8_filename_with_filesystem_surrogateescape(
     decoded_name = os.fsdecode(raw_name)
     _git(repository, "add", "--", decoded_name)
 
-    discovered = markdown_tables.tracked_markdown_paths(repository)
+    discovered = markdown_tables.select_markdown_paths(root=repository, use_config=False)
 
     assert len(discovered) == 1
     assert os.fsencode(discovered[0].name) == raw_name
 
 
-def test_tracked_paths_ignore_absent_files_but_return_tracked_symlinks_for_validation(tmp_path):
+def test_select_tracked_paths_ignores_absent_files_but_returns_tracked_symlinks_for_validation(tmp_path):
     repository = tmp_path / "repo"
     repository.mkdir()
     _git(repository, "init")
@@ -66,7 +66,7 @@ def test_tracked_paths_ignore_absent_files_but_return_tracked_symlinks_for_valid
     _git(repository, "add", "--", ".")
     absent.unlink()
 
-    discovered = markdown_tables.tracked_markdown_paths(repository)
+    discovered = markdown_tables.select_markdown_paths(root=repository, use_config=False)
 
     assert present in discovered
     assert absent not in discovered
@@ -77,7 +77,7 @@ def test_empty_git_discovery_succeeds(tmp_path):
     repository = tmp_path / "repo"
     repository.mkdir()
     _git(repository, "init")
-    assert markdown_tables.tracked_markdown_paths(repository) == ()
+    assert markdown_tables.select_markdown_paths(root=repository, use_config=False) == ()
 
 
 @pytest.mark.parametrize("suffix", ["\r", "\n"])

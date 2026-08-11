@@ -322,9 +322,3 @@ def select_markdown_paths(paths=(), root=None, include_untracked=False, exclude=
         apply_excludes=apply_excludes,
     )
     return result.paths
-
-
-def tracked_markdown_paths(root=None):
-    """Return present tracked Markdown paths sorted by repository-relative path."""
-    repository = _discover_git_root(root)
-    return tuple(item[1] for item in _git_markdown_entries(repository))

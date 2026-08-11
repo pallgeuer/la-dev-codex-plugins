@@ -13,13 +13,11 @@ from .diagnostics import Diagnostic, PerformRequestError
 
 ACTION_NAME_REGEX = r"^[a-z0-9][a-z0-9._-]*$"
 LANGUAGE_NAME_REGEX = r"^[a-z0-9][a-z0-9.+_-]*$"
-VARIABLE_NAME_REGEX = validation.VARIABLE_NAME_REGEX
 PLACEHOLDER_REGEX = r"%[A-Za-z][A-Za-z0-9_]*%"
 STRICT_SELECTOR_REGEX = r"^([a-z0-9][a-z0-9._-]*)\[([a-z0-9][a-z0-9.+_-]*)\]$"
 
 ACTION_NAME_PATTERN = re.compile(ACTION_NAME_REGEX)
 LANGUAGE_NAME_PATTERN = re.compile(LANGUAGE_NAME_REGEX)
-VARIABLE_NAME_PATTERN = validation.VARIABLE_NAME_PATTERN
 PLACEHOLDER_PATTERN = re.compile(PLACEHOLDER_REGEX)
 STRICT_SELECTOR_PATTERN = re.compile(STRICT_SELECTOR_REGEX)
 
@@ -311,8 +309,8 @@ def _validate_prompt_vars_field(_field, value):
         return [("invalid_prompt_vars", "prompt_vars must be an object.")]
     issues = []
     for name, description in value.items():
-        if not isinstance(name, str) or not validation.full_match(VARIABLE_NAME_PATTERN, name):
-            issues.append(("invalid_variable_name", "Prompt variable names must match {}.".format(VARIABLE_NAME_REGEX)))
+        if not isinstance(name, str) or not validation.full_match(validation.VARIABLE_NAME_PATTERN, name):
+            issues.append(("invalid_variable_name", "Prompt variable names must match {}.".format(validation.VARIABLE_NAME_REGEX)))
         if not isinstance(description, str) or not description.strip() or validation.contains_disallowed_single_line_character(description):
             issues.append(("invalid_variable_description", "Every prompt variable description must be a nonempty single-line string without Unicode control or separator characters."))
     return issues

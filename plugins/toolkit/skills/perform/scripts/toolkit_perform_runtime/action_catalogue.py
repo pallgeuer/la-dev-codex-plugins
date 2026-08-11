@@ -141,8 +141,6 @@ def _atomic_write(path, content, previous_mode=None):
     temporary_path = None
     try:
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
-        if hasattr(os, "O_BINARY"):
-            flags |= os.O_BINARY
         while True:
             temporary_path = path.parent / ".action_catalogue.{}.tmp".format(uuid.uuid4().hex)
             try:
