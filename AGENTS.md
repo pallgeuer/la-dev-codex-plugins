@@ -66,7 +66,7 @@ Refer to `TESTING.md` for more details on linting, formatting, type checking, un
 
 - NEVER manually wrap code/comments/docstrings during code writing and edits; allow the formatters to later enforce line length.
 - Use ASCII-only project source; represent required non-ASCII values with escapes. Markdown files may use literal non-ASCII when required (e.g. do keep the literal middle-dot separators in the final Loupe review).
-- Avoid unqualified function imports like `from X.Y import func`; use `import X.Y` or `import X.Y as Y` and call via the module. Classes, exceptions, types, and constants may be imported directly. Unqualified imports may be acceptable in `__init__.py` files if they are used to define a clean public API interface.
+- Do not import functions directly into the local namespace; import the containing module and call functions through it (for example, `from X import Y` followed by `Y.func()`, or `import X.Y` followed by `X.Y.func()`, or `import X.Y as Z` followed by `Z.func()`). Classes, exceptions, types, and constants may be imported directly. Direct function imports are allowed in `__init__.py` files solely to re-export functions as part of the package's public API.
 - Write concise, meaningful docstrings. Module docstrings should identify what the file/package is, not say that it "provides support" or "implements" something. Attribute documentation must explain the role, semantics, units, source, or downstream use of the attribute; never restate the identifier with filler like "The foo value" or "The FOO enum member."
 
 ## Workflows
