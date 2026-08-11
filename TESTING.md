@@ -69,6 +69,20 @@ Run Codex Perform tests:
 uvx --python 3.8 --from pytest==8.3.5 pytest tests/codex_perform/
 ```
 
+### Manually test `codex-perform` from this checkout
+
+From the repository root, source the activation script in the current Bash session and pass the checkout's Toolkit plugin root explicitly:
+
+```bash
+source ./activate.sh
+codex-perform --plugin-root "$PWD/plugins/toolkit" list
+codex-perform --plugin-root "$PWD/plugins/toolkit" show find-todos
+codex-perform --plugin-root "$PWD/plugins/toolkit" find-todos --dry-run
+codex-perform --plugin-root "$PWD/plugins/toolkit" catalogue
+```
+
+Source activation selects the checkout's launcher, while `--plugin-root` selects its current Toolkit runtime and action payload. Keep both when testing repository changes; omitting `--plugin-root` can silently exercise an installed cached plugin instead. The dry run validates selection, rendering, and the complete Codex invocation without launching Codex. Remove `--dry-run` only when an end-to-end Codex launch is intended. The `catalogue` command also exercises discovery and atomic writing by regenerating the Git-ignored `.codex/toolkit_perform_actions/action_catalogue.md`.
+
 Run shared behavioral contracts:
 
 ```bash
