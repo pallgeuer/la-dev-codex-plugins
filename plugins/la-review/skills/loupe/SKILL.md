@@ -3,7 +3,7 @@ name: loupe
 description: Run multiple parallel external code reviews for a given scope, then independently verify the findings and organize them into one final review. Possible scopes include uncommitted changes (default) or specific commits, commit ranges, branches, pull requests, or other custom textual review scopes.
 ---
 
-# Loupe Skill
+# Loupe skill
 
 Use this skill when explicitly invoked by the user. The skill runs multiple parallel external code reviews for a given code/diff scope, then independently verifies the findings and organizes them into one coherent final review.
 
@@ -82,7 +82,7 @@ Do not modify repository files, stage changes, commit, install dependencies, or 
    - For any reviewer with status `timed_out`, inspect that reviewer's `stdout` and `stderr` from `reviewers.json` before writing the final review. Explain any visible reason the reviewer may have hung, frozen, or failed in a way that caused the timeout, and note whether the latest output suggests the reviewer was still actively working when it timed out. Do not report `timed out` as the whole explanation for why that reviewer produced no findings.
    - After a successful final review with no timed-out reviewers, clean up `LOUPE_ARTIFACT_DIR` with the targeted cleanup command from step 2 so the temporary artifacts are gone as if they were never there. If any reviewer timed out, keep `LOUPE_ARTIFACT_DIR` and report its path to the user.
 
-## Final Review
+## Final review
 
 Use this structure for the final review in chat:
 
@@ -115,3 +115,4 @@ Rules for final output:
 - Every finding must be self-contained and contain all information required for the user to understand the problem.
 - If a reviewer failed then provide a detailed description of what went wrong in place of the structured findings list. For timed-out reviewers, this description must be based on the captured `stdout` and `stderr` and must not simply say that the reviewer timed out.
 - If a reviewer succeeded but produced no findings then just say `No findings.` in place of the structured findings list.
+- Offer to add or update the active `$CODEX_HOME/rules/default.rules` allow rule for the exact active `run_reviewers.py` path ONLY if the user manually had to approve this run or that rule is missing; otherwise omit the offer. Do not edit the rule file unless the user accepts.

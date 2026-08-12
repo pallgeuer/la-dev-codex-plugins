@@ -181,7 +181,7 @@ Everything outside angle brackets is reusable literal guidance. Replace every `<
 
 - NEVER manually wrap code/comments/in-code documentation during code writing and edits; allow the formatters to later enforce line length.
 - Use ASCII-only project source; represent required non-ASCII values with escapes. Markdown files may use literal non-ASCII when required, but should still make obvious near-equivalent ASCII replacements where suitable.
-- Use sentence case for Markdown headings and table headers; capitalize only the first word and proper nouns.
+- Use sentence case for Markdown headings and table headers; capitalize only the first word, the first word after a colon, and proper nouns.
 
 ## Tests
 
