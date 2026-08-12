@@ -24,167 +24,213 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
-- **Release guidance:**
-  - Required release preparation and generated release runbooks to consolidate changelog entries into compact, external-facing notes about final shipped outcomes.
+#### Release guidance
+
+- Required release preparation and generated release runbooks to consolidate changelog entries into compact, external-facing notes about final shipped outcomes.
+- Standardized changelog categories as non-bulleted level-four headings above their outcome lists.
 
 ## 0.5.0 (2026-08-12)
 
 ### Added
 
-- **Project development:**
-  - Added recommended project-setup guides and provenance-grouped Perform action catalogues.
-  - Added this retrospective changelog and made it part of the release workflow.
+#### Project development
+
+- Added recommended project-setup guides and provenance-grouped Perform action catalogues.
+- Added this retrospective changelog and made it part of the release workflow.
 
 ### Changed
 
-- **Project checks:**
-  - Enabled parallel pytest execution by default and strengthened ty exclusion handling.
-  - Added baseline editor, swap-file, and tool-cache ignores.
-- **Release safety:**
-  - Added explicit version and publication approvals, protected-environment handoff, prepublication checksums, checksum release assets, and a user-confirmed pydocformatter `main` fallback for coordinated releases.
-- **Codex workflows:**
-  - Refined repository instructions, action prompts, audit notes, local Perform testing guidance, and GitHub CLI cache access.
-- **Maintenance:**
-  - Simplified project code and documentation.
+#### Project checks
+
+- Enabled parallel pytest execution by default and strengthened ty exclusion handling.
+- Added baseline editor, swap-file, and tool-cache ignores.
+
+#### Release safety
+
+- Added explicit version and publication approvals, protected-environment handoff, prepublication checksums, checksum release assets, and a user-confirmed pydocformatter `main` fallback for coordinated releases.
+
+#### Codex workflows
+
+- Refined repository instructions, action prompts, audit notes, local Perform testing guidance, and GitHub CLI cache access.
+
+#### Maintenance
+
+- Simplified project code and documentation.
 
 ### Removed
 
-- **Markdown tables:**
-  - Removed the redundant public `tracked_markdown_paths()` API; callers can use `select_markdown_paths(use_config=False)` for the same tracked-file selection.
+#### Markdown tables
+
+- Removed the redundant public `tracked_markdown_paths()` API; callers can use `select_markdown_paths(use_config=False)` for the same tracked-file selection.
 
 ### Fixed
 
-- **Release safety:**
-  - Corrected the recommended Python artifact layout, GitHub Release upload context, protected-environment handoff, and changelog comparison instructions.
+#### Release safety
+
+- Corrected the recommended Python artifact layout, GitHub Release upload context, protected-environment handoff, and changelog comparison instructions.
 
 ## 0.4.4 (2026-08-10)
 
 ### Added
 
-- **Pytest isolation:**
-  - Added the pytest-retained cleanup lifecycle for interpreter-owned resources.
-- **Perform actions:**
-  - Added Python-distribution compatibility auditing.
+#### Pytest isolation
+
+- Added the pytest-retained cleanup lifecycle for interpreter-owned resources.
+
+#### Perform actions
+
+- Added Python-distribution compatibility auditing.
 
 ## 0.4.3 (2026-08-05)
 
 ### Added
 
-- **Pytest isolation:**
-  - Added session-shared guarded working-directory isolation.
+#### Pytest isolation
+
+- Added session-shared guarded working-directory isolation.
 
 ### Changed
 
-- **Documentation:**
-  - Reorganized project documentation around the expanded isolation workflow.
+#### Documentation
+
+- Reorganized project documentation around the expanded isolation workflow.
 
 ## 0.4.2 (2026-08-04)
 
 ### Added
 
-- **Development workflow:**
-  - Added guidance for AI-supported repository development.
+#### Development workflow
+
+- Added guidance for AI-supported repository development.
 
 ## 0.4.1 (2026-08-02)
 
 ### Fixed
 
-- **Python distribution:**
-  - Made the Python 3.6 package smoke test trust its mounted source checkout.
+#### Python distribution
+
+- Made the Python 3.6 package smoke test trust its mounted source checkout.
 
 ## 0.4.0 (2026-08-02)
 
 ### Added
 
-- **Development tools:**
-  - Added Markdown table formatting, release checksum generation, and pytest working-directory isolation.
-- **Markdown tables:**
-  - Added configurable Git-aware path selection and exclusions.
+#### Development tools
+
+- Added Markdown table formatting, release checksum generation, and pytest working-directory isolation.
+
+#### Markdown tables
+
+- Added configurable Git-aware path selection and exclusions.
 
 ### Changed
 
-- **Codex Perform:**
-  - Reorganized launcher packaging, tests, and documentation.
-- **Platform support:**
-  - Clarified operating-system support and expanded macOS wheel testing.
-- **Loupe:**
-  - Added recovery of truncated reviewer output from Claude session logs.
+#### Codex Perform
+
+- Reorganized launcher packaging, tests, and documentation.
+
+#### Platform support
+
+- Clarified operating-system support and expanded macOS wheel testing.
+
+#### Loupe
+
+- Added recovery of truncated reviewer output from Claude session logs.
 
 ## 0.3.0 (2026-07-28)
 
 ### Added
 
-- **Python distribution:**
-  - Added the installable `la-dev-codex-plugins` package and PyPI release workflow.
+#### Python distribution
+
+- Added the installable `la-dev-codex-plugins` package and PyPI release workflow.
 
 ## 0.2.0 (2026-07-28)
 
 ### Added
 
-- **Codex Perform:**
-  - Added the dependency-free source launcher, runtime API, executable help, question support, and cross-platform audit actions.
-- **Repository guidance:**
-  - Added reusable user-level Codex instructions and setup guidance.
+#### Codex Perform
+
+- Added the dependency-free source launcher, runtime API, executable help, question support, and cross-platform audit actions.
+
+#### Repository guidance
+
+- Added reusable user-level Codex instructions and setup guidance.
 
 ### Changed
 
-- **Codex Perform:**
-  - Made interactive execution the default, improved noninteractive output and standard-error handling, and added the `--ni` alias.
-- **Project quality:**
-  - Added ASCII enforcement and simplified unnecessary re-exports and thin wrappers.
+#### Codex Perform
+
+- Made interactive execution the default, improved noninteractive output and standard-error handling, and added the `--ni` alias.
+
+#### Project quality
+
+- Added ASCII enforcement and simplified unnecessary re-exports and thin wrappers.
 
 ## 0.1.6 (2026-07-23)
 
 ### Changed
 
-- **Loupe:**
-  - Improved polling guidance and related user documentation.
+#### Loupe
+
+- Improved polling guidance and related user documentation.
 
 ## 0.1.5 (2026-07-21)
 
 ### Added
 
-- **Action Toolkit:**
-  - Added the Toolkit plugin and the initial JSON-configured Perform skill.
+#### Action Toolkit
+
+- Added the Toolkit plugin and the initial JSON-configured Perform skill.
 
 ### Changed
 
-- **Codex Perform:**
-  - Adopted compact direct-argument JSON protocols and expanded action configuration.
-- **Repository quality:**
-  - Hardened pre-commit, CI, release versioning, and code-style guidance.
-- **Loupe:**
-  - Improved polling and temporary-artifact cleanup behavior.
+#### Codex Perform
+
+- Adopted compact direct-argument JSON protocols and expanded action configuration.
+
+#### Repository quality
+
+- Hardened pre-commit, CI, release versioning, and code-style guidance.
+
+#### Loupe
+
+- Improved polling and temporary-artifact cleanup behavior.
 
 ## 0.1.3 (2026-07-03)
 
 ### Changed
 
-- **Loupe:**
-  - Improved timeout handling and reviewer instructions.
+#### Loupe
+
+- Improved timeout handling and reviewer instructions.
 
 ## 0.1.2 (2026-06-30)
 
 ### Changed
 
-- **Documentation:**
-  - Improved repository usage documentation and agent instructions.
+#### Documentation
+
+- Improved repository usage documentation and agent instructions.
 
 ## 0.1.1 (2026-06-30)
 
 ### Added
 
-- **Codex configuration:**
-  - Added repository-local Codex defaults.
+#### Codex configuration
+
+- Added repository-local Codex defaults.
 
 ### Changed
 
-- **Loupe:**
-  - Namespaced skill invocation and refined marker handling.
+#### Loupe
+
+- Namespaced skill invocation and refined marker handling.
 
 ## 0.1.0 (2026-06-30)
 
 ### Added
 
-- **Initial release:**
-  - Added the Language-Agnostic Review marketplace plugin, Loupe skill, baseline project checks, and documentation.
+#### Initial release
+
+- Added the Language-Agnostic Review marketplace plugin, Loupe skill, baseline project checks, and documentation.

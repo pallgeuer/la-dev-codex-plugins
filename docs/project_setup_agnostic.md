@@ -54,7 +54,7 @@ None.
 
 Replace `None.` with `Added`, `Changed`, `Fixed`, or `Removed` sections when noteworthy work lands. Add comparison links when the first release is prepared. Keep entries about shipped outcomes, not intermediate implementation churn.
 
-For example, a minimal complete changelog with two releases can use bold category subheadings within the standard change-type sections:
+For example, a minimal complete changelog with two releases can use level-four category headings within the standard change-type sections:
 
 ```markdown
 # Changelog
@@ -71,30 +71,35 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
-- **Configuration:**
-  - Changed default value of `foo` config from 20 to 30
+#### Configuration
+
+- Changed default value of `foo` config from 20 to 30.
 
 ## 0.2.0 (2026-08-12)
 
 ### Added
 
-- **Command-line interface:**
-  - Added `--check` for non-mutating validation.
+#### Command-line interface
 
-- **Configuration:**
-  - Added config `foo` to control the maximum number of bars
+- Added `--check` for non-mutating validation.
+
+#### Configuration
+
+- Added config `foo` to control the maximum number of bars.
 
 ### Fixed
 
-- **Configuration:**
-  - Fixed relative paths being resolved from the process working directory instead of the configuration file.
+#### Configuration
+
+- Fixed relative paths being resolved from the process working directory instead of the configuration file.
 
 ## 0.1.0 (2026-07-01)
 
 ### Added
 
-- **Initial release:**
-  - Added the documented public API and command-line interface.
+#### Initial release
+
+- Added the documented public API and command-line interface.
 ```
 
 Replace the repository, versions, dates, categories, and outcomes with the project facts. Preserve the `Unreleased` section even when it is empty.
@@ -194,7 +199,7 @@ Everything outside angle brackets is reusable literal guidance. Replace every `<
 - Do not change project versions during ordinary development; update them only when the user explicitly requests a version bump or release.
 - Interview me for relevant details when making plans, unless the details are quite clear already from the provided information.
 - When changing a public interface, update its tests, documentation, examples, and changelog entry in the same change.
-- Concisely document significant completed work in CHANGELOG.md under the Unreleased section, using Added/Changed/Fixed/Removed headings and nested bullets beneath short, general bold categories.
+- Concisely document significant completed work in CHANGELOG.md under the Unreleased section, using Added/Changed/Fixed/Removed headings, short general level-four category headings, and outcome bullets beneath those category headings.
 ```
 
 Replace the angle-bracketed placeholders and add exact commands as tools are configured. The ASCII-only line is a deliberate portability policy; omit it if the project intentionally uses Unicode source. Keep judgment-heavy details in focused `docs/devel/` files and link them from `AGENTS.md` with a clear trigger. Do not restate formatter or linter configuration in prose. See [AI-supported repository development](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/ai_supported_development.md) for deciding whether a convention belongs in a tool, test, specification, instruction, or Perform action.

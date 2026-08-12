@@ -85,4 +85,4 @@ Refer to `TESTING.md` for more details on linting, formatting, type checking, un
 
 - Interview me for relevant details when making plans, unless the details are quite clear already from the provided information.
 - When changing function signatures or class attributes, update all affected docstrings in the same change.
-- Update `CHANGELOG.md` under `Unreleased` when significant user-facing or development-workflow outcomes change.
+- Update `CHANGELOG.md` under `Unreleased` when significant user-facing or development-workflow outcomes change, using `Added`/`Changed`/`Fixed`/`Removed` headings, short general level-four category headings, and outcome bullets beneath those category headings.
