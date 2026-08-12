@@ -4,7 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Release diffs
 
-- **Unreleased:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.4.4...HEAD
+- **Unreleased:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.0...HEAD
+- **v0.5.0:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.4.4...v0.5.0
 - **v0.4.4:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.4.3...v0.4.4
 - **v0.4.3:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.4.2...v0.4.3
 - **v0.4.2:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.4.1...v0.4.2
@@ -21,6 +22,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
+## 0.5.0 (2026-08-12)
+
 ### Added
 
 - **Project development:**
@@ -33,11 +36,16 @@ All notable changes to this project are documented here. The format follows [Kee
   - Enabled parallel pytest execution by default and strengthened ty exclusion handling.
   - Added baseline editor, swap-file, and tool-cache ignores.
 - **Release safety:**
-  - Added explicit version and publication approvals, protected-environment handoff, prepublication checksums, and checksum release assets.
+  - Added explicit version and publication approvals, protected-environment handoff, prepublication checksums, checksum release assets, and a user-confirmed pydocformatter `main` fallback for coordinated releases.
 - **Codex workflows:**
   - Refined repository instructions, action prompts, audit notes, local Perform testing guidance, and GitHub CLI cache access.
 - **Maintenance:**
-  - Simplified project code and documentation without changing supported runtime behavior.
+  - Simplified project code and documentation.
+
+### Removed
+
+- **Markdown tables:**
+  - Removed the redundant public `tracked_markdown_paths()` API; callers can use `select_markdown_paths(use_config=False)` for the same tracked-file selection.
 
 ### Fixed
 
