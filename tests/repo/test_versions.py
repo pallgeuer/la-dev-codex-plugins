@@ -41,3 +41,12 @@ def test_plugin_versions_use_semver():
     for manifest_path in manifest_paths:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         _assert_semver(manifest_path.parent.parent.name, manifest.get("version"))
+
+
+def test_changelog_tracks_current_repository_version():
+    version = _setup_version()
+    changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+
+    assert changelog.count("## Unreleased\n") == 1
+    assert "## {} (".format(version) in changelog
+    assert "- **v{}:** https://github.com/pallgeuer/la-dev-codex-plugins/".format(version) in changelog

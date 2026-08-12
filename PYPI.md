@@ -46,6 +46,7 @@ Detailed documentation:
 - [Markdown tables](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/markdown_tables.md)
 - [Pytest working-directory isolation](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/pytest_isolation.md)
 - [Release checksums](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/release_checksums.md)
+- [Changelog](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/CHANGELOG.md)
 
 ## Install the Toolkit plugin separately
 

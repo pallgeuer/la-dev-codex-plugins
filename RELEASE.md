@@ -2,6 +2,8 @@
 
 This runbook describes how to make a stable release of the repository, its Codex plugin marketplace, and its dependency-free Python distribution. A release consists of version updates committed to `main`, an unsigned annotated Git tag named `vX.Y.Z`, a validated Python-package preflight, and a published GitHub Release. Publishing the GitHub Release triggers trusted publication of the matching minimal sdist and universal wheel to PyPI.
 
+Run `$toolkit:perform publish-release` to execute this runbook. The action must stop for the exact-version confirmation, the final publication confirmation, and any protected-environment approval required below.
+
 Run all commands from the repository root. Replace example values such as `X.Y.Z` before executing them. Stop whenever a command fails and resolve the failure before continuing.
 
 ## 1. Check the prerequisites
@@ -178,6 +180,8 @@ NEW_REPO_VERSION=X.Y.Z
 TAG="v${NEW_REPO_VERSION}"
 ```
 
+Summarize the exact repository version, every changed plugin version, every component classification, and the evidence for those choices. Stop and obtain explicit user confirmation of those exact versions before editing any version declaration or other release metadata. Do not treat approval of a classification, general release request, or earlier plan as approval of the exact versions.
+
 Ensure the new tag does not already exist locally or remotely:
 
 ```bash
@@ -192,6 +196,8 @@ Update the repository version in all three locations:
 - `setup.cfg`, in `metadata.version`.
 - `src/la_dev_codex_plugins/__init__.py`, in `__version__`.
 - The opening sentence of `README.md`.
+
+Move the completed `CHANGELOG.md` `Unreleased` outcomes into a dated `NEW_REPO_VERSION` section, restore an empty `Unreleased` section, add the new comparison link, and update the previous release link to compare against the new tag. Verify that the release notes describe shipped outcomes rather than intermediate implementation work.
 
 Update the `"version"` in `plugins/PLUGIN_NAME/.codex-plugin/plugin.json` for every changed existing plugin. Leave unchanged plugins at their current versions. No release version is stored in `.agents/plugins/marketplace.json`.
 
@@ -279,10 +285,10 @@ uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run --all-files --hook-sta
 The manual-stage suite validates JSON, TOML, YAML, linting, formatting, typing, tests, and Python 3.6 compatibility. Run the focused release-validator and version-declaration tests as an explicit release check:
 
 ```bash
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/scripts/test_validate_release.py tests/repo/test_versions.py
+uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 pytest tests/scripts/test_validate_release.py tests/repo/test_versions.py
 ```
 
-The Python distribution is built only during release preflight and publication. Its workflow builds the wheel from the sdist, validates exact archive contents and metadata, and installs the wheel without package-index access on Python 3.6, Python 3.8, and the newest stable Python.
+The Python distribution is built only during release preflight and publication. Its workflow first runs this repository's complete non-mutating manual-stage checks, builds the wheel from the sdist, validates exact archive contents and metadata, and installs the wheel without package-index access on Python 3.6, Python 3.8, and the newest stable Python. Only after every smoke job succeeds does it generate `SHA256SUMS` and upload the finalized wheel, sdist, and checksum manifest as one workflow artifact.
 
 Run the dependency-free supported-platform smoke checks with the active Python interpreter. CI repeats these checks on Ubuntu 18.04 with Python 3.6, the oldest non-deprecated hosted macOS Intel runner with Python 3.8, and the current `macos-latest` Arm64 runner with the newest stable Python 3.x:
 
@@ -416,9 +422,27 @@ fi
 
 The manual workflow never publishes. If it fails, keep the immutable remote tag but do not publish the GitHub Release. A code or packaging defect requires a new corrective repository release because the pushed tag must not be moved; an infrastructure-only failure may be retried against the same tag.
 
+Download and inspect the finalized preflight artifact, including its already-generated checksum manifest:
+
+```bash
+PREFLIGHT_ARTIFACT_DIRECTORY="$(mktemp -d)"
+gh run download "$PACKAGE_PREFLIGHT_ID" --repo "$EXPECTED_REPOSITORY" --name python-package-distributions --dir "$PREFLIGHT_ARTIFACT_DIRECTORY"
+PREFLIGHT_PACKAGES="$PREFLIGHT_ARTIFACT_DIRECTORY/packages"
+PREFLIGHT_WHEEL="$PREFLIGHT_PACKAGES/la_dev_codex_plugins-$NEW_REPO_VERSION-py3-none-any.whl"
+PREFLIGHT_SDIST="$PREFLIGHT_PACKAGES/la_dev_codex_plugins-$NEW_REPO_VERSION.tar.gz"
+PREFLIGHT_CHECKSUMS="$PREFLIGHT_ARTIFACT_DIRECTORY/SHA256SUMS"
+test -f "$PREFLIGHT_WHEEL"
+test -f "$PREFLIGHT_SDIST"
+test -f "$PREFLIGHT_CHECKSUMS"
+PREFLIGHT_CHECKSUM_STDOUT="$(PYTHONPATH=src python3 -c 'import sys; import la_dev_codex_plugins.release_checksums.core as core; sys.stdout.write(core.generate_sha256_manifest(sys.argv[1:]))' "$PREFLIGHT_WHEEL" "$PREFLIGHT_SDIST")"
+printf '%s\n' "$PREFLIGHT_CHECKSUM_STDOUT" | cmp - "$PREFLIGHT_CHECKSUMS"
+```
+
+Summarize the exact repository and plugin versions, tag, verified commit, wheel, sdist, checksum manifest, GitHub Release destination, and PyPI trusted-publishing pipeline. Stop and obtain explicit user approval before running `gh release create` or any other publication-triggering operation. This is a second approval distinct from the exact-version confirmation.
+
 ## 8. Publish the GitHub Release and Python distribution
 
-Create and immediately publish a stable GitHub Release. Explicitly starting the generated notes at `LAST_TAG` makes the comparison correct even if earlier tags do not have corresponding GitHub Releases:
+Only after the second explicit approval, create and immediately publish a stable GitHub Release. Explicitly starting the generated notes at `LAST_TAG` makes the comparison correct even if earlier tags do not have corresponding GitHub Releases:
 
 ```bash
 PACKAGE_PUBLISH_PREVIOUS_ID="$(gh run list --repo "$EXPECTED_REPOSITORY" --workflow "Python package release" --event release --limit 1 --json databaseId --jq '.[0].databaseId // 0')"
@@ -441,7 +465,7 @@ gh release view "$TAG" --repo "$EXPECTED_REPOSITORY" --json name,tagName,isDraft
 
 Open the URL printed by the final command and check that the title, generated notes, comparison range, tag, and Latest status are correct. Correct wording or categorization mistakes by editing the GitHub Release notes; do not change the tag.
 
-Wait for the publication workflow run and require success:
+Wait only for GitHub to register the publication workflow run:
 
 ```bash
 PACKAGE_PUBLISH_ID=""
@@ -455,32 +479,37 @@ if test -z "$PACKAGE_PUBLISH_ID"; then
     gh run list --repo "$EXPECTED_REPOSITORY" --workflow "Python package release" --limit 10
     false
 else
-    gh run watch "$PACKAGE_PUBLISH_ID" --repo "$EXPECTED_REPOSITORY" --exit-status
+    PACKAGE_PUBLISH_URL="$(gh run view "$PACKAGE_PUBLISH_ID" --repo "$EXPECTED_REPOSITORY" --json url --jq .url)"
+    printf 'Approve the pypi environment deployment for run %s: %s\n' "$PACKAGE_PUBLISH_ID" "$PACKAGE_PUBLISH_URL"
 fi
 ```
 
-After the workflow has successfully built, checked, smoke-tested, and published its exact artifacts, download that run's validated archives and create their checksum manifest. Preserve the explicit wheel-then-sdist order:
+The workflow must complete its checks, builds, and smoke tests before its `publish` job requests approval for the protected `pypi` environment. Identify the exact run URL and deployment to the user, then immediately end the turn without polling. The user must approve that deployment on GitHub and send new input before release execution resumes.
+
+After new user input confirms the environment approval, require the complete workflow, including PyPI publication and checksum asset upload, to succeed:
+
+```bash
+gh run watch "$PACKAGE_PUBLISH_ID" --repo "$EXPECTED_REPOSITORY" --exit-status
+```
+
+Download the workflow's finalized artifact and verify its checksum manifest without regenerating or modifying it:
 
 ```bash
 RELEASE_ARTIFACT_DIRECTORY="$(mktemp -d)"
 gh run download "$PACKAGE_PUBLISH_ID" --repo "$EXPECTED_REPOSITORY" --name python-package-distributions --dir "$RELEASE_ARTIFACT_DIRECTORY"
-WHEEL="$RELEASE_ARTIFACT_DIRECTORY/la_dev_codex_plugins-$NEW_REPO_VERSION-py3-none-any.whl"
-SDIST="$RELEASE_ARTIFACT_DIRECTORY/la_dev_codex_plugins-$NEW_REPO_VERSION.tar.gz"
+RELEASE_PACKAGES="$RELEASE_ARTIFACT_DIRECTORY/packages"
+WHEEL="$RELEASE_PACKAGES/la_dev_codex_plugins-$NEW_REPO_VERSION-py3-none-any.whl"
+SDIST="$RELEASE_PACKAGES/la_dev_codex_plugins-$NEW_REPO_VERSION.tar.gz"
 CHECKSUMS="$RELEASE_ARTIFACT_DIRECTORY/SHA256SUMS"
 test -f "$WHEEL"
 test -f "$SDIST"
-CHECKSUM_STDOUT="$(PYTHONPATH=src python3 -m la_dev_codex_plugins.release_checksums.cli --output "$CHECKSUMS" "$WHEEL" "$SDIST")"
+test -f "$CHECKSUMS"
+CHECKSUM_STDOUT="$(PYTHONPATH=src python3 -c 'import sys; import la_dev_codex_plugins.release_checksums.core as core; sys.stdout.write(core.generate_sha256_manifest(sys.argv[1:]))' "$WHEEL" "$SDIST")"
 printf '%s\n' "$CHECKSUM_STDOUT" | cmp - "$CHECKSUMS"
-```
-
-The command writes the complete manifest atomically and prints the same bytes. If generation fails after establishing that the output target is safe, it deliberately removes any older regular `SHA256SUMS`; treat the absent file as invalidation of stale checksums and diagnose the failure instead of restoring an older manifest.
-
-Upload `SHA256SUMS` as a GitHub Release asset and verify its presence. The wheel and sdist themselves remain distributed through PyPI; the GitHub Release carries the checksum manifest only:
-
-```bash
-gh release upload "$TAG" "$CHECKSUMS" --repo "$EXPECTED_REPOSITORY"
 test "$(gh release view "$TAG" --repo "$EXPECTED_REPOSITORY" --json assets --jq '[.assets[] | select(.name == "SHA256SUMS")] | length')" = 1
 ```
+
+The wheel and sdist remain distributed through PyPI; the GitHub Release carries the exact prepublication checksum manifest generated after smoke validation. Never regenerate that manifest after publication.
 
 Open `https://pypi.org/project/la-dev-codex-plugins/$NEW_REPO_VERSION/` and verify that it shows one source distribution and one `py3-none-any` wheel with the expected description, Python requirement, and trusted-publishing provenance.
 
@@ -495,7 +524,8 @@ No local Codex marketplace or plugin installation needs to be modified as part o
 - If the package preflight fails before GitHub Release publication, do not publish that release. Retry infrastructure failures against the same tag; fix package defects in a new release without moving the existing tag.
 - If trusted publication fails before any file reaches PyPI, correct the environment, publisher, permission, or transient service problem and rerun the failed workflow job against the unchanged release.
 - If only part of a Python distribution reaches PyPI, stop and inspect the immutable uploaded files before taking further action. Do not enable `skip-existing` or replace an uploaded filename; complete recovery manually only when the remaining artifact is byte-for-byte from the validated release workflow.
-- If checksum generation fails, do not upload or restore an older manifest. Regenerate only from the successful publication workflow's downloaded artifacts. If the checksum asset upload response is lost, inspect the release assets before retrying and never replace an existing `SHA256SUMS` without first proving its bytes differ from the newly verified manifest for an understood reason.
+- If checksum generation or finalized-artifact upload fails, do not publish. Retry an infrastructure failure against the unchanged tag; a code or artifact defect requires a new release. Never generate a replacement manifest after any package file has reached PyPI.
+- If checksum asset upload fails after PyPI publication, retain the finalized workflow artifact and upload its existing `SHA256SUMS`; do not regenerate it. If the response is lost, inspect release assets before retrying and never replace an existing checksum asset without first comparing its bytes with the finalized artifact.
 - If a published release contains a functional problem, fix it and make a new release using this complete procedure. Classify the corrective changes normally; a backward-compatible bug fix is usually a patch, but a feature or incompatible correction requires its corresponding bump.
 - Generated release notes may be edited after publication without changing the release tag or source snapshot.
 
@@ -503,6 +533,8 @@ No local Codex marketplace or plugin installation needs to be modified as part o
 
 Most of the recipe is command-driven, but the maintainer must make and verify these decisions:
 
-1. Before version editing, inspect all commits and diffs since `LAST_TAG`, classify each changed existing plugin and the independent repository changes, and choose the plugin and repository bumps.
-2. Before committing, run the release validator, review its component summary and the complete staged snapshot, and confirm every version declaration.
-3. After publication, inspect the GitHub Release, successful package workflow, and PyPI project version. No local plugin reinstall or manual package upload is required.
+1. Before version editing, inspect all commits and diffs since `LAST_TAG`, classify each changed existing plugin and the independent repository changes, choose the exact plugin and repository versions, and obtain explicit confirmation of those versions.
+2. Before committing, run the release validator, review its component summary and the complete staged snapshot, and confirm every version declaration and changelog entry.
+3. After tagging and the nonpublishing preflight, summarize the exact release identity, artifacts, destinations, and pipeline, then obtain a second explicit approval before creating the GitHub Release.
+4. When the protected `pypi` deployment is requested, show the exact run and stop without polling until the user approves it and sends new input.
+5. After publication, inspect the GitHub Release, checksum asset, successful package workflow, and PyPI project version. No local plugin reinstall, checksum regeneration, or manual package upload is required.

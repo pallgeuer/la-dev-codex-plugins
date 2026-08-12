@@ -88,3 +88,39 @@ def test_python36_release_smoke_trusts_mounted_checkout():
     step = workflow[step_start:step_end]
 
     assert "git config --global --add safe.directory /workspace" in step
+
+
+def test_release_workflow_finalizes_artifacts_after_smoke_tests():
+    workflow = RELEASE_WORKFLOW.read_text(encoding="ascii")
+    finalize_start = workflow.index("  finalize:\n")
+    publish_start = workflow.index("  publish:\n")
+    finalize = workflow[finalize_start:publish_start]
+
+    assert "needs: [build, test-modern, test-python-36, test-macos-wheel]" in finalize
+    assert "name: python-package-candidates" in finalize
+    assert "--output release/SHA256SUMS release/packages/*.whl release/packages/*.tar.gz" in finalize
+    assert "(cd release/packages && sha256sum --check ../SHA256SUMS)" in finalize
+    assert "name: python-package-distributions" in finalize
+
+
+def test_release_workflow_publishes_only_finalized_packages_and_checksum():
+    workflow = RELEASE_WORKFLOW.read_text(encoding="ascii")
+    publish_start = workflow.index("  publish:\n")
+    release_assets_start = workflow.index("  release-assets:\n")
+    publish = workflow[publish_start:release_assets_start]
+    release_assets = workflow[release_assets_start:]
+
+    assert "needs: finalize" in publish
+    assert "name: python-package-distributions" in publish
+    assert "packages-dir: release/packages/" in publish
+    assert "SHA256SUMS" not in publish
+    assert "needs: publish" in release_assets
+    assert 'gh release upload "${{ github.event.release.tag_name }}" release/SHA256SUMS' in release_assets
+
+
+def test_release_workflow_runs_complete_checks_before_building():
+    workflow = RELEASE_WORKFLOW.read_text(encoding="ascii")
+    checks = workflow.index("pre-commit run --all-files --hook-stage manual --show-diff-on-failure")
+    build = workflow.index("python -m build")
+
+    assert checks < build

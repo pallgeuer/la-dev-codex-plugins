@@ -21,6 +21,16 @@ Tests must not be placed inside `plugins/<plugin-name>/` unless a test fixture i
 Do not write or generate test assertions that lock in exact wording or wording components of `actions.json` entries.
 Do not lock incidental text into test assertions. If tests fail only because wording changed, determine whether the wording is a public contract and ask when unclear; do not blindly revert the wording.
 
+## Commands
+
+- Use the fixed-version `uvx` commands documented in `TESTING.md`; do not introduce a project lock or development environment without an explicit decision to change this policy.
+- Run the complete non-mutating check with `uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run --all-files --hook-stage manual`.
+
+## Tests
+
+- Write tests as module-level pytest functions using plain `assert`, fixtures, `pytest.raises`, and `@pytest.mark.parametrize` where appropriate.
+- Pytest uses pytest-xdist multiprocessing by default; pass `-n 0` for serial debugging or focused runs where worker startup is slower.
+
 ## Release versioning
 
 Do not change repository or plugin versions during ordinary development; update them only when the user explicitly requests a version bump or release. The rules below govern those explicit versioning and release tasks; they do not authorize automatic development-time bumps.
@@ -75,3 +85,4 @@ Refer to `TESTING.md` for more details on linting, formatting, type checking, un
 
 - Interview me for relevant details when making plans, unless the details are quite clear already from the provided information.
 - When changing function signatures or class attributes, update all affected docstrings in the same change.
+- Update `CHANGELOG.md` under `Unreleased` when significant user-facing or development-workflow outcomes change.

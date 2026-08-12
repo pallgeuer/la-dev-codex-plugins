@@ -8,6 +8,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
+addopts = ["-n", "auto"]
 filterwarnings = ["error"]
 testpaths = ["tests"]
 markers = [
@@ -21,6 +22,8 @@ target-version = "py38"
 src = ["package_scripts", "plugins", "source_launcher", "src", "tests"]
 
 [tool.ruff.lint]
+explicit-preview-rules = true
+preview = true
 select = [
     "ARG",
     "B",
@@ -40,10 +43,13 @@ select = [
     "SIM",
     "W",
 ]
-ignore = ["E501"]
+ignore = ["line-too-long"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["la_dev_codex_plugins", "toolkit_perform_runtime"]
 
 [tool.ty.environment]
 python-version = "3.8"
+
+[tool.ty.src]
+respect-ignore-files = true

@@ -129,9 +129,9 @@ dev = [
     {include-group = "test"},
     "pre-commit==4.6.1",
     "pydocformatter==1.1.0",
-    "ruff==0.16.1",
+    "ruff==0.16.2",
     "twine==7.0.0",
-    "ty==0.0.66",
+    "ty==0.0.70",
 ]
 
 [build-system]

@@ -57,7 +57,7 @@ uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run ty --all-files --hook-
 
 ## Run tests
 
-Run all tests with Python 3.8:
+Run all tests with Python 3.8. Pytest uses pytest-xdist multiprocessing by default; pass `-n 0` to any pytest command for serial debugging or focused runs where worker startup is slower:
 
 ```bash
 uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run pytest --all-files --hook-stage manual
@@ -66,7 +66,7 @@ uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run pytest --all-files --h
 Run Codex Perform tests:
 
 ```bash
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/codex_perform/
+uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 pytest tests/codex_perform/
 ```
 
 ### Manually test `codex-perform` from this checkout
@@ -86,50 +86,50 @@ Source activation selects the checkout's launcher, while `--plugin-root` selects
 Run shared behavioral contracts:
 
 ```bash
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/contracts/
+uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 pytest tests/contracts/
 ```
 
 Run all plugin tests, or one existing plugin test family:
 
 ```bash
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/plugins/
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/plugins/la-review/skills/loupe/
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/plugins/toolkit/skills/perform/
+uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 pytest tests/plugins/
+uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 pytest tests/plugins/la-review/skills/loupe/
+uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 pytest tests/plugins/toolkit/skills/perform/
 ```
 
 Run the Python-distribution contract:
 
 ```bash
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/python_distribution/test_contract.py
+uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 pytest tests/python_distribution/test_contract.py
 ```
 
 Run the focused reusable-tool suites:
 
 ```bash
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/markdown_tables/
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/release_checksums/
+uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 pytest tests/markdown_tables/
+uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 pytest tests/release_checksums/
 ```
 
 The release-checksum suite covers exact UTF-8/LF bytes, POSIX permissions, symlink and hard-link identity, stale-output invalidation, atomic replacement, file `fsync`, and failure cleanup. Run individual files when localizing library or CLI failures:
 
 ```bash
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/release_checksums/test_core.py
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/release_checksums/test_cli.py
+uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 pytest tests/release_checksums/test_core.py
+uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 pytest tests/release_checksums/test_cli.py
 ```
 
 Run the exhaustive pytest-isolation behavior suite with the repository baseline and current pytest:
 
 ```bash
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/pytest_isolation/
-uvx --python 3.10 --from pytest==9.1.1 pytest tests/pytest_isolation/
-uvx --python 3.14 --from pytest==9.1.1 pytest tests/pytest_isolation/
+uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 pytest tests/pytest_isolation/
+uvx --python 3.10 --from pytest==9.1.1 --with pytest-xdist==3.8.0 pytest tests/pytest_isolation/
+uvx --python 3.14 --from pytest==9.1.1 --with pytest-xdist==3.8.0 pytest tests/pytest_isolation/
 ```
 
 Run repository contracts and repository-script tests:
 
 ```bash
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/repo/
-uvx --python 3.8 --from pytest==8.3.5 pytest tests/scripts/
+uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 pytest tests/repo/
+uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 pytest tests/scripts/
 ```
 
 Run the dependency-free supported-platform smoke checks with the active Python interpreter:

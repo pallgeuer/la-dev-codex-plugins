@@ -6,6 +6,9 @@ on:
     branches:
       - "**"
 
+permissions:
+  contents: read
+
 jobs:
   pre-commit:
     runs-on: ubuntu-latest
@@ -52,7 +55,7 @@ jobs:
           version: "0.11.29"
 
       - name: Run focused tests with current pytest
-        run: uvx --python 3.10 --from pytest==9.1.1 pytest tests/pytest_isolation
+        run: uvx --python 3.10 --from pytest==9.1.1 --with pytest-xdist==3.8.0 pytest tests/pytest_isolation
 
   pytest-isolation-python-314:
     runs-on: ubuntu-latest
@@ -66,7 +69,7 @@ jobs:
           version: "0.11.29"
 
       - name: Run focused tests with Python 3.14 and current pytest
-        run: uvx --python 3.14 --from pytest==9.1.1 pytest tests/pytest_isolation
+        run: uvx --python 3.14 --from pytest==9.1.1 --with pytest-xdist==3.8.0 pytest tests/pytest_isolation
 
   ubuntu-18-04:
     runs-on: ubuntu-latest

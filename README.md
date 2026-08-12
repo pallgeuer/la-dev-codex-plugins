@@ -169,9 +169,14 @@ Use these guides as the entry points for repository development:
 - [Codex Perform](docs/codex_perform.md) documents reusable development actions available in chat and through the standalone launcher.
 - [Markdown table formatting](docs/markdown_tables.md), [pytest working-directory isolation](docs/pytest_isolation.md), and [release checksum manifests](docs/release_checksums.md) document the reusable development tools maintained in this repository.
 - [Releasing](RELEASE.md) covers release preparation, validation, and publication.
+- [Changelog](CHANGELOG.md) records released outcomes and current unreleased work.
 
 The [documentation index](docs/README.md) provides the complete grouped list.
 
 For a fresh environment and repository, follow [Marketplace plugin installation](docs/installation.md), [Recommended Codex setup](docs/recommended_setup.md), [Language-agnostic project setup](docs/project_setup_agnostic.md), and any applicable language-specific setup in that order.
 
 Shipped plugin scripts and package source support Python 3.6+. The base runtime uses only the Python standard library; only the explicitly loaded pytest-isolation plugin may import its declared optional pytest dependency.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
