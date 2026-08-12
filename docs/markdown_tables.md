@@ -38,7 +38,7 @@ Blank lines are added only where the recognized boundary is safe. Existing blank
 
 An excess delimiter or body cell is unsafe because repairing it could discard or reassign content. The complete affected table remains byte-for-byte equivalent at the text level, a `malformed` issue is reported, and independently safe tables elsewhere in the document can still be formatted. Invalid delimiter-like prose that does not consist entirely of delimiter cells is ordinary Markdown rather than a malformed candidate.
 
-These policies intentionally differ from pydocformatter's earlier repository helper: this package repairs conservative border variations, preserves non-ASCII edge whitespace, enforces three delimiter dashes and equal source slots, rejects ambiguous container indentation, protects HTML/front matter, supports explicit quote/list containers, isolates failures per table, and uses bounded Git discovery plus atomic file replacement.
+This package repairs conservative border variations, preserves non-ASCII edge whitespace, enforces three delimiter dashes and equal source slots, rejects ambiguous container indentation, protects HTML/front matter, supports explicit quote/list containers, isolates failures per table, and uses bounded Git discovery plus atomic file replacement.
 
 ## Library API
 
