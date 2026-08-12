@@ -19,10 +19,11 @@ This repository is a Codex plugin marketplace.
 
 Tests must not be placed inside `plugins/<plugin-name>/` unless a test fixture is intentionally part of the runtime plugin payload.
 Do not write or generate test assertions that lock in exact wording or wording components of `actions.json` entries.
+Do not lock incidental text into test assertions. If tests fail only because wording changed, determine whether the wording is a public contract and ask when unclear; do not blindly revert the wording.
 
 ## Release versioning
 
-Do not bump the repository version or any plugin version during ordinary development or implementation work. Change versions only when the user explicitly requests a version bump or asks to prepare/make an actual release. The rules below govern those explicit versioning and release tasks; they do not authorize automatic development-time bumps.
+Do not change repository or plugin versions during ordinary development; update them only when the user explicitly requests a version bump or release. The rules below govern those explicit versioning and release tasks; they do not authorize automatic development-time bumps.
 
 The repository and every plugin have independent semantic versions. The repository version is declared in `setup.cfg` and `src/la_dev_codex_plugins/__init__.py` and displayed in the opening sentence of `README.md`; all three values must match. Each plugin version is declared in its own `plugins/<plugin-name>/.codex-plugin/plugin.json` manifest and does not need to match the repository or any other plugin.
 
@@ -58,14 +59,15 @@ After changing any file under `plugins/*/skills/*/scripts/`, run:
 uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run --all-files
 ```
 
-As part of the pre-commit hooks, Vermin checks minimum Python-version compatibility, but this does not replace functional tests.
+As part of the pre-commit hooks, Vermin checks minimum Python-version compatibility. After changing behavior, run applicable functional tests in addition to formatting, linting, type checking, and compatibility checks.
 
 Refer to `TESTING.md` for more details on linting, formatting, type checking, unit testing, and version compatibility check commands. [Recommended pre-commit check](TESTING.md#recommended-pre-commit-check) also lists example commands to check JSON files.
 
-## Code Style
+## Code style
 
-- NEVER manually wrap code/comments/docstrings during code writing and edits; allow the formatters to later enforce line length.
-- Use ASCII-only project source; represent required non-ASCII values with escapes. Markdown files may use literal non-ASCII when required (e.g. do keep the literal middle-dot separators in the final Loupe review).
+- NEVER manually wrap code/comments/in-code documentation during code writing and edits; allow the formatters to later enforce line length.
+- Use ASCII-only project source; represent required non-ASCII values with escapes. Markdown files may use literal non-ASCII when required, but should still make obvious near-equivalent ASCII replacements where suitable (e.g. do keep the literal middle-dot separators in the final Loupe review).
+- Use sentence case for Markdown headings and table headers; capitalize only the first word and proper nouns.
 - Do not import functions directly into the local namespace; import the containing module and call functions through it (for example, `from X import Y` followed by `Y.func()`, or `import X.Y` followed by `X.Y.func()`, or `import X.Y as Z` followed by `Z.func()`). Classes, exceptions, types, and constants may be imported directly. Direct function imports are allowed in `__init__.py` files (or other clearly sole-purpose public API files) solely to re-export functions as part of the package's public API.
 - Write concise, meaningful docstrings. Module docstrings should identify what the file/package is, not say that it "provides support" or "implements" something. Attribute documentation must explain the role, semantics, units, source, or downstream use of the attribute; never restate the identifier with filler like "The foo value" or "The FOO enum member."
 

@@ -1,5 +1,7 @@
 # AI-supported repository development
 
+For a new repository, first complete [Language-agnostic project setup](project_setup_agnostic.md) and any applicable language-specific setup such as [Python project setup](project_setup_python.md).
+
 AI-supported development works best when the repository carries its own durable feedback. A correction made only in one conversation is easily lost; a correction encoded in a tool, test, or concise instruction improves every later change.
 
 The general rule is to express each requirement at the strongest practical enforcement level. Prefer deterministic, fast, and reusable checks over prose, and prefer prose over relying on someone to remember a prompt.

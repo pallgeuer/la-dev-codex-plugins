@@ -4,6 +4,9 @@
 
 - [Marketplace plugin installation](installation.md) covers marketplace refs, plugin installation and verification, Loupe permissions, and updates.
 - [Recommended Codex setup](recommended_setup.md) collects optional user-level instructions and configuration that complement the plugins.
+- [Language-agnostic project setup](project_setup_agnostic.md) is an ordered repository setup recipe with ready-to-copy files and checks.
+- [Python project setup](project_setup_python.md) extends that recipe with uv, packaging, pytest, Ruff, pydocformatter, ty, CI, and PyPI releases.
+- [AI-supported repository development](ai_supported_development.md) describes the development loop to use after repository setup.
 
 ## Plugin guides
 
@@ -19,6 +22,5 @@
 
 ## Repository development
 
-- [AI-supported repository development](ai_supported_development.md) describes the enforcement ladder and repeatable development loop used by this repository.
 - [Testing](../TESTING.md) lists focused and complete validation commands.
 - [Releasing](../RELEASE.md) defines release preparation, validation, and publication.

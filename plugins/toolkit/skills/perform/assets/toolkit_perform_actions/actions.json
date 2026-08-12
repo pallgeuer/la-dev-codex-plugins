@@ -34,6 +34,26 @@
         "notes": ""
       }
     },
+    "audit-project-setup": {
+      "agnostic": {
+        "gloss": "Audit language-agnostic project setup",
+        "model": "default",
+        "reasoning_effort": "high",
+        "goal_mode": false,
+        "plan_mode": false,
+        "plan_reasoning_effort": "high",
+        "no_edits": true,
+        "prompt_vars": {},
+        "prompt": "Locate the active installed Toolkit Perform skill that supplied this action and read its complete references/project_setup_agnostic.md file before auditing. When running from the la-dev-codex-plugins source checkout, the fallback path is plugins/toolkit/skills/perform/references/project_setup_agnostic.md. Do not substitute remembered advice or a same-named file from the repository being audited; if the bundled reference cannot be resolved, stop and report that blocker. Audit the entire current repository against the guide, determining the applicability of every instruction from repository evidence before judging it. Treat baseline repository hygiene, AGENTS.md, appropriate formatter and linter enforcement, pre-commit, and applicable tests and CI as expected setup. Treat CONTRIBUTING.md, release machinery, GitHub-specific workflows, Zensical, and other explicitly conditional features as conditional: do not report an absent conditional feature as a defect when its trigger is absent, although you may make one clearly optional recommendation when the feature would plausibly help. Produce an enumerated list containing only actionable findings. For each finding, state whether it is required, conditional, or optional; cite exact current files and lines or the precise missing location; explain the evidence and applicability; and give a concrete correction with the relevant file, structure, or command. If no actionable findings exist, state that explicitly and summarize the evidence checked.",
+        "requires_interactive": false,
+        "custom_codex_args": [],
+        "notes": ""
+      },
+      "python": {
+        "gloss": "Audit language-agnostic and Python project setup",
+        "prompt": "Locate the active installed Toolkit Perform skill that supplied this action and read its complete references/project_setup_agnostic.md and references/project_setup_python.md files before auditing. When running from the la-dev-codex-plugins source checkout, the fallback paths are plugins/toolkit/skills/perform/references/project_setup_agnostic.md and plugins/toolkit/skills/perform/references/project_setup_python.md. Do not substitute remembered advice or same-named files from the repository being audited; if either bundled reference cannot be resolved, stop and report that blocker. Audit the entire current repository against both guides, determining the applicability of every instruction from repository evidence before judging it. Treat baseline repository hygiene, AGENTS.md, uv locking, suitable Python packaging metadata, Ruff, pydocformatter, ty, pytest, pre-commit, and applicable tests and CI as expected setup. Decide from the test behavior whether shared guarded-CWD isolation is useful; do not report its absence when tests intentionally use the checkout, already select explicit temporary working directories, or have no relevant filesystem or configuration-discovery behavior. Treat CONTRIBUTING.md, PyPI publication, PYPI.md, release machinery, GitHub-specific workflows, Zensical, and other explicitly conditional features as conditional: do not report an absent conditional feature as a defect when its trigger is absent, although you may make one clearly optional recommendation when the feature would plausibly help. Produce one combined enumerated list containing only actionable findings across both guides. For each finding, state whether it is required, conditional, or optional; cite exact current files and lines or the precise missing location; explain the evidence and applicability; and give a concrete correction with the relevant file, structure, or command. Avoid duplicating one underlying problem between the agnostic and Python criteria. If no actionable findings exist, state that explicitly and summarize the evidence checked."
+      }
+    },
     "audit-test-organization": {
       "agnostic": {
         "gloss": "Audit test suite organization and quality",
@@ -224,7 +244,7 @@
         "plan_reasoning_effort": "high",
         "no_edits": false,
         "prompt_vars": {},
-        "prompt": "Carefully read and follow `RELEASE.md` in order to fully release the current state of code as a new version. Be meticulous in following all required steps, and check that you have done everything required at the end of each section. If anything is unclear (e.g. the user has not explicitly confirmed the chosen new version numbers) or requires user decisions or user input, immediately end your turn after stating what clarifications or actions you need from the user.",
+        "prompt": "Carefully read and follow `RELEASE.md` in order to fully release the current state of code as a new version. Treat that file as the project-specific release authority and be meticulous in following all required steps and checking completion at the end of every section. Analyze the changes and propose the exact release version or component versions, but do not edit release metadata until the user has explicitly confirmed those exact versions. After preparation, CI, tagging, and any nonpublishing preflight have succeeded, stop again before any irreversible or publication-triggering operation, summarize the exact versions, tag, commit, artifacts, destinations, and publishing pipeline, and obtain explicit user approval to publish. If a protected GitHub environment or another deployment gate then requires manual approval, visibly identify the exact run or deployment the user must approve and immediately end the turn without polling; resume only after new user input. If anything else is unclear or requires a user decision, credential, destructive operation, or manual action, immediately end the turn after stating the exact clarification or action needed.",
         "requires_interactive": true,
         "custom_codex_args": [],
         "notes": ""

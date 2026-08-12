@@ -65,4 +65,4 @@ status_line = ["project-name", "git-branch", "model-with-reasoning", "run-state"
 terminal_title = ["activity", "project-name"]
 ```
 
-See [Marketplace plugin installation](installation.md) if the `la-review` and `toolkit` plugins are not installed yet.
+See [Marketplace plugin installation](installation.md) if the `la-review` and `toolkit` plugins are not installed yet. After completing the user-level setup, continue with [Language-agnostic project setup](project_setup_agnostic.md) for each repository and then [Python project setup](project_setup_python.md) when applicable.

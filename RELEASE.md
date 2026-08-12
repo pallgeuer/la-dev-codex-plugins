@@ -195,6 +195,20 @@ Update the repository version in all three locations:
 
 Update the `"version"` in `plugins/PLUGIN_NAME/.codex-plugin/plugin.json` for every changed existing plugin. Leave unchanged plugins at their current versions. No release version is stored in `.agents/plugins/marketplace.json`.
 
+Refresh the dependency snapshot in the example `pyproject.toml` in `docs/project_setup_python.md` as part of every release:
+
+- Set both the base and `[pytest]` `la-dev-codex-plugins` pins to `NEW_REPO_VERSION`.
+- Set the `pydocformatter` pin to the latest released pydocformatter version and verify that exact version is available from PyPI and has a corresponding `vVERSION` Git tag in `pallgeuer/pydocformatter`.
+- Read `pyproject.toml` from that exact pydocformatter release tag, treating the released file as the source of truth for the remaining direct `docs`, `test`, and `dev` dependency pins and include-group structure. Add, remove, and update those example entries to match it, while retaining the separately required `pydocformatter` pin and substituting `NEW_REPO_VERSION` for that file's `la-dev-codex-plugins` pins. Do not use pydocformatter's moving `main` branch for this snapshot.
+- Apply the completed public-guide change byte-for-byte to `plugins/toolkit/skills/perform/references/project_setup_python.md`; do not edit the bundled reference independently.
+
+Inspect the resulting dependency block and mirror before continuing:
+
+```bash
+rg -n 'dependency-groups|==|include-group' docs/project_setup_python.md
+cmp docs/project_setup_python.md plugins/toolkit/skills/perform/references/project_setup_python.md
+```
+
 Validate the exact release versions against the committed development changes and the classifications selected above:
 
 ```bash
