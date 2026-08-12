@@ -129,7 +129,7 @@ test = [
 dev = [
     {include-group = "test"},
     "pre-commit==4.6.2",
-    "pydocformatter==1.1.0",
+    "pydocformatter==1.2.0",
     "ruff==0.16.2",
     "twine==7.0.0",
     "ty==0.0.70",
