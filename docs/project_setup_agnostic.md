@@ -47,12 +47,14 @@ For a versioned project, create `CHANGELOG.md`:
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+---
+
 ## Unreleased
 
 None.
 ```
 
-Replace `None.` with `Added`, `Changed`, `Fixed`, or `Removed` sections when noteworthy work lands. Add comparison links when the first release is prepared. Keep entries about shipped outcomes, not intermediate implementation churn.
+Replace `None.` with `Added`, `Changed`, `Fixed`, or `Removed` sections when noteworthy work lands. Add comparison links when the first release is prepared. Keep entries about shipped outcomes, not intermediate implementation churn. Separate the introduction, release diffs, `Unreleased`, and every released-version section with horizontal rules.
 
 For example, a minimal complete changelog with two releases can use level-four category headings within the standard change-type sections:
 
@@ -61,11 +63,15 @@ For example, a minimal complete changelog with two releases can use level-four c
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+---
+
 ## Release diffs
 
 - **Unreleased:** https://github.com/YOUR-ORG/YOUR-REPOSITORY/compare/v0.2.0...HEAD
 - **v0.2.0:** https://github.com/YOUR-ORG/YOUR-REPOSITORY/compare/v0.1.0...v0.2.0
 - **v0.1.0:** https://github.com/YOUR-ORG/YOUR-REPOSITORY/releases/tag/v0.1.0
+
+---
 
 ## Unreleased
 
@@ -74,6 +80,8 @@ All notable changes to this project are documented here. The format follows [Kee
 #### Configuration
 
 - Changed default value of `foo` config from 20 to 30.
+
+---
 
 ## 0.2.0 (2026-08-12)
 
@@ -92,6 +100,8 @@ All notable changes to this project are documented here. The format follows [Kee
 #### Configuration
 
 - Fixed relative paths being resolved from the process working directory instead of the configuration file.
+
+---
 
 ## 0.1.0 (2026-07-01)
 
@@ -199,7 +209,7 @@ Everything outside angle brackets is reusable literal guidance. Replace every `<
 - Do not change project versions during ordinary development; update them only when the user explicitly requests a version bump or release.
 - Interview me for relevant details when making plans, unless the details are quite clear already from the provided information.
 - When changing a public interface, update its tests, documentation, examples, and changelog entry in the same change.
-- Concisely document significant completed work in CHANGELOG.md under the Unreleased section, using Added/Changed/Fixed/Removed headings, short general level-four category headings, and outcome bullets beneath those category headings.
+- Concisely document significant completed work in CHANGELOG.md under the Unreleased section, using Added/Changed/Fixed/Removed headings, short general level-four category headings, outcome bullets beneath those category headings, and horizontal rules between top-level changelog sections.
 ```
 
 Replace the angle-bracketed placeholders and add exact commands as tools are configured. The ASCII-only line is a deliberate portability policy; omit it if the project intentionally uses Unicode source. Keep judgment-heavy details in focused `docs/devel/` files and link them from `AGENTS.md` with a clear trigger. Do not restate formatter or linter configuration in prose. See [AI-supported repository development](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/ai_supported_development.md) for deciding whether a convention belongs in a tool, test, specification, instruction, or Perform action.
@@ -340,7 +350,7 @@ Write commands for the actual repository; do not leave a generic checklist that 
 1. **Release model and sources of truth:** Version file, tag format, changelog, build configuration, release destinations, and whether publication is automated.
 2. **Prerequisites:** Required branch, clean-worktree rule, credentials, CLI authentication, and protected-environment access.
 3. **Inspect changes and choose the version:** Compare with the previous tag. Codex or the releaser proposes the exact semantic version, then obtains explicit user confirmation before editing version metadata.
-4. **Prepare release metadata:** Update every version declaration, finalize `CHANGELOG.md`, review user documentation, and regenerate any tracked derived files. Require the releaser to rewrite the version's changelog entries compactly for external users, consolidate overlapping entries around final shipped outcomes, retain all material features, fixes, compatibility changes, and migrations, and omit implementation churn, superseded intermediate behavior, test-only work, and stale changes to code that no longer exists. Remove empty change categories and make the version section suitable for use as release notes.
+4. **Prepare release metadata:** Update every version declaration, finalize `CHANGELOG.md`, review user documentation, and regenerate any tracked derived files. Make rewriting and compacting the completed `Unreleased` changelog a mandatory, explicit checkpoint rather than an incidental part of moving its entries into the new version section. Require the releaser to rewrite the version's changelog entries compactly for external users, consolidate overlapping entries around final shipped outcomes, retain all material features, fixes, compatibility changes, and migrations, and omit implementation churn, superseded intermediate behavior, test-only work, and stale changes to code that no longer exists. Remove empty change categories, preserve horizontal rules between top-level changelog sections, and make the version section suitable for use as release notes. Instruct the releaser to review the rewritten section against the complete release diff, explicitly verify that this compaction is complete and accurate, and stop without continuing to checks, commits, tags, or publication until that verification succeeds.
 5. **Run checks and build artifacts:** Use the same locked full checks as CI, inspect artifact contents, and smoke-test installed artifacts.
 6. **Commit, push, and wait for CI:** Record the exact release commit and require the corresponding CI run to succeed.
 7. **Create the immutable tag:** Create and push an annotated tag on the verified commit. Never move a published tag.

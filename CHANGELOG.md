@@ -2,6 +2,8 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+---
+
 ## Release diffs
 
 - **Unreleased:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.0...HEAD
@@ -20,14 +22,18 @@ All notable changes to this project are documented here. The format follows [Kee
 - **v0.1.1:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.1.0...v0.1.1
 - **v0.1.0:** https://github.com/pallgeuer/la-dev-codex-plugins/releases/tag/v0.1.0
 
+---
+
 ## Unreleased
 
 ### Changed
 
 #### Release guidance
 
-- Required release preparation and generated release runbooks to consolidate changelog entries into compact, external-facing notes about final shipped outcomes.
-- Standardized changelog categories as non-bulleted level-four headings above their outcome lists.
+- Made changelog consolidation a mandatory release checkpoint that must be reviewed against the complete release diff and verified before checks, commits, tags, or publication continue.
+- Standardized changelog categories as non-bulleted level-four headings above their outcome lists and horizontal rules between top-level changelog sections.
+
+---
 
 ## 0.5.0 (2026-08-12)
 
@@ -69,6 +75,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - Corrected the recommended Python artifact layout, GitHub Release upload context, protected-environment handoff, and changelog comparison instructions.
 
+---
+
 ## 0.4.4 (2026-08-10)
 
 ### Added
@@ -80,6 +88,8 @@ All notable changes to this project are documented here. The format follows [Kee
 #### Perform actions
 
 - Added Python-distribution compatibility auditing.
+
+---
 
 ## 0.4.3 (2026-08-05)
 
@@ -95,6 +105,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - Reorganized project documentation around the expanded isolation workflow.
 
+---
+
 ## 0.4.2 (2026-08-04)
 
 ### Added
@@ -103,6 +115,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - Added guidance for AI-supported repository development.
 
+---
+
 ## 0.4.1 (2026-08-02)
 
 ### Fixed
@@ -110,6 +124,8 @@ All notable changes to this project are documented here. The format follows [Kee
 #### Python distribution
 
 - Made the Python 3.6 package smoke test trust its mounted source checkout.
+
+---
 
 ## 0.4.0 (2026-08-02)
 
@@ -137,6 +153,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - Added recovery of truncated reviewer output from Claude session logs.
 
+---
+
 ## 0.3.0 (2026-07-28)
 
 ### Added
@@ -144,6 +162,8 @@ All notable changes to this project are documented here. The format follows [Kee
 #### Python distribution
 
 - Added the installable `la-dev-codex-plugins` package and PyPI release workflow.
+
+---
 
 ## 0.2.0 (2026-07-28)
 
@@ -167,6 +187,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - Added ASCII enforcement and simplified unnecessary re-exports and thin wrappers.
 
+---
+
 ## 0.1.6 (2026-07-23)
 
 ### Changed
@@ -174,6 +196,8 @@ All notable changes to this project are documented here. The format follows [Kee
 #### Loupe
 
 - Improved polling guidance and related user documentation.
+
+---
 
 ## 0.1.5 (2026-07-21)
 
@@ -197,6 +221,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - Improved polling and temporary-artifact cleanup behavior.
 
+---
+
 ## 0.1.3 (2026-07-03)
 
 ### Changed
@@ -205,6 +231,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - Improved timeout handling and reviewer instructions.
 
+---
+
 ## 0.1.2 (2026-06-30)
 
 ### Changed
@@ -212,6 +240,8 @@ All notable changes to this project are documented here. The format follows [Kee
 #### Documentation
 
 - Improved repository usage documentation and agent instructions.
+
+---
 
 ## 0.1.1 (2026-06-30)
 
@@ -226,6 +256,8 @@ All notable changes to this project are documented here. The format follows [Kee
 #### Loupe
 
 - Namespaced skill invocation and refined marker handling.
+
+---
 
 ## 0.1.0 (2026-06-30)
 
