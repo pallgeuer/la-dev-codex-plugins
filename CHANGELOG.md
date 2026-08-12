@@ -6,7 +6,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Release diffs
 
-- **Unreleased:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.0...HEAD
+- **Unreleased:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.1...HEAD
+- **v0.5.1:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.0...v0.5.1
 - **v0.5.0:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.4.4...v0.5.0
 - **v0.4.4:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.4.3...v0.4.4
 - **v0.4.3:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.4.2...v0.4.3
@@ -26,12 +27,24 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
+None.
+
+---
+
+## 0.5.1 (2026-08-13)
+
 ### Changed
 
-#### Release guidance
+#### Project setup
 
-- Made changelog consolidation a mandatory release checkpoint that must be reviewed against the complete release diff and verified before checks, commits, tags, or publication continue.
-- Standardized changelog categories as non-bulleted level-four headings above their outcome lists and horizontal rules between top-level changelog sections.
+- Standardized changelog structure and release-note consolidation guidance across the repository and reusable project templates.
+- Updated the Python setup snapshot to `pydocformatter==1.2.0` and corrected formatter-scope guidance.
+
+### Fixed
+
+#### Documentation
+
+- Removed an outdated implementation comparison from the Markdown table formatter documentation.
 
 ---
 
