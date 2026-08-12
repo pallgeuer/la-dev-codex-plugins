@@ -335,7 +335,7 @@ Write commands for the actual repository; do not leave a generic checklist that 
 1. **Release model and sources of truth:** Version file, tag format, changelog, build configuration, release destinations, and whether publication is automated.
 2. **Prerequisites:** Required branch, clean-worktree rule, credentials, CLI authentication, and protected-environment access.
 3. **Inspect changes and choose the version:** Compare with the previous tag. Codex or the releaser proposes the exact semantic version, then obtains explicit user confirmation before editing version metadata.
-4. **Prepare release metadata:** Update every version declaration, finalize `CHANGELOG.md`, review user documentation, and regenerate any tracked derived files.
+4. **Prepare release metadata:** Update every version declaration, finalize `CHANGELOG.md`, review user documentation, and regenerate any tracked derived files. Require the releaser to rewrite the version's changelog entries compactly for external users, consolidate overlapping entries around final shipped outcomes, retain all material features, fixes, compatibility changes, and migrations, and omit implementation churn, superseded intermediate behavior, test-only work, and stale changes to code that no longer exists. Remove empty change categories and make the version section suitable for use as release notes.
 5. **Run checks and build artifacts:** Use the same locked full checks as CI, inspect artifact contents, and smoke-test installed artifacts.
 6. **Commit, push, and wait for CI:** Record the exact release commit and require the corresponding CI run to succeed.
 7. **Create the immutable tag:** Create and push an annotated tag on the verified commit. Never move a published tag.

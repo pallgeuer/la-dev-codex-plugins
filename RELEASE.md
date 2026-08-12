@@ -197,7 +197,9 @@ Update the repository version in all three locations:
 - `src/la_dev_codex_plugins/__init__.py`, in `__version__`.
 - The opening sentence of `README.md`.
 
-Move the completed `CHANGELOG.md` `Unreleased` outcomes into a dated `NEW_REPO_VERSION` section and restore an empty `Unreleased` section. Add the new release comparison from `LAST_TAG` through `TAG`, update the `Unreleased` comparison to `TAG...HEAD`, and leave every historical release comparison unchanged. Verify that the release notes describe shipped outcomes rather than intermediate implementation work.
+Move the completed `CHANGELOG.md` `Unreleased` outcomes into a dated `NEW_REPO_VERSION` section and restore an empty `Unreleased` section. Add the new release comparison from `LAST_TAG` through `TAG`, update the `Unreleased` comparison to `TAG...HEAD`, and leave every historical release comparison unchanged.
+
+Rewrite the release notes compactly for external users rather than preserving the development diary. Consolidate overlapping entries around the final shipped outcomes, retain all material features, fixes, compatibility changes, and migrations, and omit implementation churn, superseded intermediate behavior, test-only work, and stale changes to code that no longer exists. Remove empty change categories and make the version section suitable for use as release notes.
 
 Update the `"version"` in `plugins/PLUGIN_NAME/.codex-plugin/plugin.json` for every changed existing plugin. Leave unchanged plugins at their current versions. No release version is stored in `.agents/plugins/marketplace.json`.
 

@@ -22,6 +22,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
+### Changed
+
+- **Release guidance:**
+  - Required release preparation and generated release runbooks to consolidate changelog entries into compact, external-facing notes about final shipped outcomes.
+
 ## 0.5.0 (2026-08-12)
 
 ### Added
