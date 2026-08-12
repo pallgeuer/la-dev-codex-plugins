@@ -729,15 +729,15 @@ jobs:
       - name: Smoke-test source distribution
         run: uvx --isolated --from ./dist/*.tar.gz YOUR-CLI --version
       - name: Generate release checksums
-        run: uv run --no-sync la-dev-release-checksums --output dist/SHA256SUMS dist/*.whl dist/*.tar.gz
+        run: |
+          mkdir -p release/packages
+          mv dist/*.whl dist/*.tar.gz release/packages/
+          uv run --no-sync la-dev-release-checksums --output release/SHA256SUMS release/packages/*.whl release/packages/*.tar.gz
       - name: Upload validated artifacts
         uses: actions/upload-artifact@v6
         with:
           name: python-package-distributions
-          path: |
-            dist/*.whl
-            dist/*.tar.gz
-            dist/SHA256SUMS
+          path: release/
           if-no-files-found: error
           retention-days: 7
 
@@ -755,9 +755,11 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: python-package-distributions
-          path: dist
+          path: release/
       - name: Publish distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: release/packages/
 
   release-assets:
     if: github.event_name == 'release' && !github.event.release.prerelease
@@ -770,11 +772,11 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: python-package-distributions
-          path: dist
+          path: release/
       - name: Upload distributions and checksums to the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" dist/*.whl dist/*.tar.gz dist/SHA256SUMS
+        run: gh release upload "${{ github.event.release.tag_name }}" release/packages/*.whl release/packages/*.tar.gz release/SHA256SUMS --repo "${{ github.repository }}"
 ```
 
 Replace CLI smoke checks with installed-import checks when the package has no CLI. Preserve artifact order when generating checksums. The manual `workflow_dispatch` path builds and tests but cannot enter either publishing job. For stronger supply-chain control, pin third-party actions to reviewed commit SHAs and let Dependabot propose updates.

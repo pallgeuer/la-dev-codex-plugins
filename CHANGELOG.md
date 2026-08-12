@@ -39,6 +39,11 @@ All notable changes to this project are documented here. The format follows [Kee
 - **Maintenance:**
   - Simplified project code and documentation without changing supported runtime behavior.
 
+### Fixed
+
+- **Release safety:**
+  - Corrected the recommended Python artifact layout, GitHub Release upload context, protected-environment handoff, and changelog comparison instructions.
+
 ## 0.4.4 (2026-08-10)
 
 ### Added

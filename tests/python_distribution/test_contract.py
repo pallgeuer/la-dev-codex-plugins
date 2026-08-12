@@ -13,6 +13,31 @@ VALIDATOR = REPOSITORY_ROOT / "scripts" / "validate_python_distribution.py"
 RELEASE_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "python-package-release.yml"
 
 
+def _yaml_block(contents, header):
+    """Extract one indentation-delimited YAML block without comment lines."""
+    lines = contents.splitlines(keepends=True)
+    start = lines.index(header)
+    indentation = len(header) - len(header.lstrip())
+    block = []
+    for line in lines[start:]:
+        line_indentation = len(line) - len(line.lstrip())
+        if block and line.strip() and line_indentation <= indentation:
+            break
+        if not line.lstrip().startswith("#"):
+            block.append(line)
+    return "".join(block)
+
+
+def _workflow_job(workflow, name):
+    """Extract a named workflow job."""
+    return _yaml_block(workflow, "  {}:\n".format(name))
+
+
+def _workflow_step(job, name):
+    """Extract a named step from a workflow job."""
+    return _yaml_block(job, "      - name: {}\n".format(name))
+
+
 def load_validator():
     """Load the distribution validator as an importable module."""
     spec = importlib.util.spec_from_file_location("validate_python_distribution", VALIDATOR)
@@ -83,44 +108,46 @@ def test_sdist_package_inventory_is_derived_from_wheel_package_files():
 
 def test_python36_release_smoke_trusts_mounted_checkout():
     workflow = RELEASE_WORKFLOW.read_text(encoding="ascii")
-    step_start = workflow.index("      - name: Install and test with Ubuntu 18.04 system Python\n")
-    step_end = workflow.index("\n      - name:", step_start + 1)
-    step = workflow[step_start:step_end]
+    job = _workflow_job(workflow, "test-python-36")
+    step = _workflow_step(job, "Install and test with Ubuntu 18.04 system Python")
 
     assert "git config --global --add safe.directory /workspace" in step
 
 
 def test_release_workflow_finalizes_artifacts_after_smoke_tests():
     workflow = RELEASE_WORKFLOW.read_text(encoding="ascii")
-    finalize_start = workflow.index("  finalize:\n")
-    publish_start = workflow.index("  publish:\n")
-    finalize = workflow[finalize_start:publish_start]
+    finalize = _workflow_job(workflow, "finalize")
+    download = _workflow_step(finalize, "Download validated distribution candidates")
+    checksums = _workflow_step(finalize, "Generate and verify release checksums")
+    upload = _workflow_step(finalize, "Upload finalized release artifacts")
 
     assert "needs: [build, test-modern, test-python-36, test-macos-wheel]" in finalize
-    assert "name: python-package-candidates" in finalize
-    assert "--output release/SHA256SUMS release/packages/*.whl release/packages/*.tar.gz" in finalize
-    assert "(cd release/packages && sha256sum --check ../SHA256SUMS)" in finalize
-    assert "name: python-package-distributions" in finalize
+    assert "name: python-package-candidates" in download
+    assert "--output release/SHA256SUMS release/packages/*.whl release/packages/*.tar.gz" in checksums
+    assert "(cd release/packages && sha256sum --check ../SHA256SUMS)" in checksums
+    assert "name: python-package-distributions" in upload
 
 
 def test_release_workflow_publishes_only_finalized_packages_and_checksum():
     workflow = RELEASE_WORKFLOW.read_text(encoding="ascii")
-    publish_start = workflow.index("  publish:\n")
-    release_assets_start = workflow.index("  release-assets:\n")
-    publish = workflow[publish_start:release_assets_start]
-    release_assets = workflow[release_assets_start:]
+    publish = _workflow_job(workflow, "publish")
+    publish_download = _workflow_step(publish, "Download validated distributions")
+    pypi_publish = _workflow_step(publish, "Publish distributions to PyPI")
+    release_assets = _workflow_job(workflow, "release-assets")
+    release_upload = _workflow_step(release_assets, "Upload checksum manifest to the GitHub Release")
 
     assert "needs: finalize" in publish
-    assert "name: python-package-distributions" in publish
-    assert "packages-dir: release/packages/" in publish
+    assert "name: python-package-distributions" in publish_download
+    assert "packages-dir: release/packages/" in pypi_publish
     assert "SHA256SUMS" not in publish
     assert "needs: publish" in release_assets
-    assert 'gh release upload "${{ github.event.release.tag_name }}" release/SHA256SUMS' in release_assets
+    assert 'gh release upload "${{ github.event.release.tag_name }}" release/SHA256SUMS --repo "${{ github.repository }}"' in release_upload
 
 
 def test_release_workflow_runs_complete_checks_before_building():
     workflow = RELEASE_WORKFLOW.read_text(encoding="ascii")
-    checks = workflow.index("pre-commit run --all-files --hook-stage manual --show-diff-on-failure")
-    build = workflow.index("python -m build")
+    build_job = _workflow_job(workflow, "build")
+    checks = build_job.index("      - name: Run non-mutating project checks\n")
+    build = build_job.index("      - name: Build source and wheel distributions\n")
 
     assert checks < build

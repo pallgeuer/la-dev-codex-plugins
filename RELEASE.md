@@ -197,7 +197,7 @@ Update the repository version in all three locations:
 - `src/la_dev_codex_plugins/__init__.py`, in `__version__`.
 - The opening sentence of `README.md`.
 
-Move the completed `CHANGELOG.md` `Unreleased` outcomes into a dated `NEW_REPO_VERSION` section, restore an empty `Unreleased` section, add the new comparison link, and update the previous release link to compare against the new tag. Verify that the release notes describe shipped outcomes rather than intermediate implementation work.
+Move the completed `CHANGELOG.md` `Unreleased` outcomes into a dated `NEW_REPO_VERSION` section and restore an empty `Unreleased` section. Add the new release comparison from `LAST_TAG` through `TAG`, update the `Unreleased` comparison to `TAG...HEAD`, and leave every historical release comparison unchanged. Verify that the release notes describe shipped outcomes rather than intermediate implementation work.
 
 Update the `"version"` in `plugins/PLUGIN_NAME/.codex-plugin/plugin.json` for every changed existing plugin. Leave unchanged plugins at their current versions. No release version is stored in `.agents/plugins/marketplace.json`.
 
@@ -465,7 +465,7 @@ gh release view "$TAG" --repo "$EXPECTED_REPOSITORY" --json name,tagName,isDraft
 
 Open the URL printed by the final command and check that the title, generated notes, comparison range, tag, and Latest status are correct. Correct wording or categorization mistakes by editing the GitHub Release notes; do not change the tag.
 
-Wait only for GitHub to register the publication workflow run:
+Wait for GitHub to register the publication workflow run, then wait until its protected `pypi` deployment is ready for approval:
 
 ```bash
 PACKAGE_PUBLISH_ID=""
@@ -480,11 +480,48 @@ if test -z "$PACKAGE_PUBLISH_ID"; then
     false
 else
     PACKAGE_PUBLISH_URL="$(gh run view "$PACKAGE_PUBLISH_ID" --repo "$EXPECTED_REPOSITORY" --json url --jq .url)"
-    printf 'Approve the pypi environment deployment for run %s: %s\n' "$PACKAGE_PUBLISH_ID" "$PACKAGE_PUBLISH_URL"
+
+    PACKAGE_PUBLISH_DEPLOYMENT=""
+    PACKAGE_PUBLISH_DEPLOYMENT_ERROR=""
+    PACKAGE_PUBLISH_DEPLOYMENT_DEADLINE=$((SECONDS + 1800))
+    while test -z "$PACKAGE_PUBLISH_DEPLOYMENT" && test "$SECONDS" -lt "$PACKAGE_PUBLISH_DEPLOYMENT_DEADLINE"; do
+        if ! PACKAGE_PUBLISH_DEPLOYMENT="$(gh api --method GET "repos/$EXPECTED_REPOSITORY/actions/runs/$PACKAGE_PUBLISH_ID/pending_deployments" --jq '([.[] | select(.environment.name == "pypi")][0].environment // empty) | [.id, .name, .html_url] | @tsv')"; then
+            PACKAGE_PUBLISH_DEPLOYMENT_ERROR="Could not inspect pending deployments for workflow run $PACKAGE_PUBLISH_ID."
+            break
+        fi
+        test -z "$PACKAGE_PUBLISH_DEPLOYMENT" || break
+        if ! PACKAGE_PUBLISH_STATE="$(gh run view "$PACKAGE_PUBLISH_ID" --repo "$EXPECTED_REPOSITORY" --json status,conclusion,jobs --jq '[.status, (.conclusion // ""), ([.jobs[] | select(.conclusion != null and .conclusion != "" and .conclusion != "success" and .conclusion != "skipped") | "\(.name)=\(.conclusion)"] | join(", "))] | @tsv')"; then
+            PACKAGE_PUBLISH_DEPLOYMENT_ERROR="Could not inspect workflow run $PACKAGE_PUBLISH_ID."
+            break
+        fi
+        IFS=$'\t' read -r PACKAGE_PUBLISH_STATUS PACKAGE_PUBLISH_CONCLUSION PACKAGE_PUBLISH_FAILED_JOBS <<< "$PACKAGE_PUBLISH_STATE"
+        if test -n "$PACKAGE_PUBLISH_FAILED_JOBS"; then
+            PACKAGE_PUBLISH_DEPLOYMENT_ERROR="Workflow run $PACKAGE_PUBLISH_ID had failed jobs before requesting pypi approval: $PACKAGE_PUBLISH_FAILED_JOBS."
+            break
+        elif test "$PACKAGE_PUBLISH_STATUS" = completed; then
+            PACKAGE_PUBLISH_DEPLOYMENT_ERROR="Workflow run $PACKAGE_PUBLISH_ID completed with conclusion $PACKAGE_PUBLISH_CONCLUSION before requesting pypi approval."
+            break
+        fi
+        sleep 10
+    done
+    if test -z "$PACKAGE_PUBLISH_DEPLOYMENT"; then
+        if test -n "$PACKAGE_PUBLISH_DEPLOYMENT_ERROR"; then
+            printf '%s\n' "$PACKAGE_PUBLISH_DEPLOYMENT_ERROR" >&2
+        else
+            echo "Workflow run $PACKAGE_PUBLISH_ID did not request pypi approval within 30 minutes." >&2
+        fi
+        gh run view "$PACKAGE_PUBLISH_ID" --repo "$EXPECTED_REPOSITORY" --json status,conclusion,url,jobs
+        false
+    else
+        IFS=$'\t' read -r PACKAGE_PUBLISH_ENVIRONMENT_ID PACKAGE_PUBLISH_ENVIRONMENT_NAME PACKAGE_PUBLISH_ENVIRONMENT_URL <<< "$PACKAGE_PUBLISH_DEPLOYMENT"
+        printf 'Pending deployment: environment %s (ID %s)\n' "$PACKAGE_PUBLISH_ENVIRONMENT_NAME" "$PACKAGE_PUBLISH_ENVIRONMENT_ID"
+        printf 'Approve it from workflow run %s: %s\n' "$PACKAGE_PUBLISH_ID" "$PACKAGE_PUBLISH_URL"
+        printf 'Environment details: %s\n' "$PACKAGE_PUBLISH_ENVIRONMENT_URL"
+    fi
 fi
 ```
 
-The workflow must complete its checks, builds, and smoke tests before its `publish` job requests approval for the protected `pypi` environment. Identify the exact run URL and deployment to the user, then immediately end the turn without polling. The user must approve that deployment on GitHub and send new input before release execution resumes.
+The workflow must complete its checks, builds, and smoke tests before its `publish` job requests approval for the protected `pypi` environment. The commands wait up to 30 minutes for that request while detecting an early workflow completion or failure. After identifying the exact run and deployment to the user, immediately end the turn. The user must approve that deployment on GitHub and send new input before release execution resumes.
 
 After new user input confirms the environment approval, require the complete workflow, including PyPI publication and checksum asset upload, to succeed:
 
