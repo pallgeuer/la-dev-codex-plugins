@@ -6,7 +6,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Release diffs
 
-- **Unreleased:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.1...HEAD
+- **Unreleased:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.2...HEAD
+- **v0.5.2:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.1...v0.5.2
 - **v0.5.1:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.0...v0.5.1
 - **v0.5.0:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.4.4...v0.5.0
 - **v0.4.4:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.4.3...v0.4.4
@@ -27,11 +28,17 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
+None.
+
+---
+
+## 0.5.2 (2026-08-14)
+
 ### Changed
 
 #### Project setup
 
-- Updated pydocformatter setup guidance and pre-commit examples for Markdown fenced Python support, automatic language-aware fragment defaults, custom extension-to-language mappings, narrow case-insensitive built-in hook filename filters, and split class/module attribute-order rules.
+- Expanded the pydocformatter 1.2.0 setup guidance and pre-commit examples for fenced Python in Markdown, language-aware fragment defaults, custom source extensions, case-insensitive built-in filename filters, and split class/module attribute-order rules.
 
 ---
 
