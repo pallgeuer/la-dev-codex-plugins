@@ -280,7 +280,17 @@ task-marker-mode = "hanging"
 
 [tool.pydocfmt.per-file-settings]
 "tests/**/test_*.py" = { docstring-missing-documentation = "has-section" }
-"*.md" = { source-context = "fragment", docstring-missing-documentation = "has-section" }
+```
+
+Do not add custom extensions to the baseline without a project need. If the project genuinely uses `.rpy` Python files and `.mdx` Markdown files, merge this optional example into the tables above:
+
+```toml
+[tool.pydocfmt]
+extend-include = ["*.rpy", "*.mdx"]
+
+[tool.pydocfmt.extension]
+rpy = "python"
+mdx = "markdown"
 ```
 
 Before adopting it:
@@ -292,7 +302,8 @@ Before adopting it:
 - Select one suppression-comment identity policy through the applicable rules in `extend-select` and `require-explicit` under `[tool.pydocfmt]`.
 - Set `indent-style` and `indent-width` under `[tool.pydocfmt]`, and keep them consistent with Ruff and the existing source. The example uses four spaces.
 - Decide whether `join-standalone-lines` in `[tool.pydocfmt.comment]` should combine adjacent ordinary prose comments into paragraphs before wrapping. Keep it enabled when manually wrapped comment lines should be reflowed as prose; disable it when adjacent comment lines must remain separate semantic lines.
-- Keep the recommended `*.md` per-file settings for general fenced examples. `source-context = "fragment"` disables rules that assume a complete importable module or require docstrings for illustrative definitions, while `docstring-missing-documentation = "has-section"` retains completeness checks for documentation sections an example actually contains. Use a more specific later per-file entry with `source-context = "module"` for documentation paths whose Python fences intentionally represent complete modules, and add the standalone `pydocfmt-skip` fence token only for intentionally malformed or deliberately nonconforming examples.
+- Sources assigned to Markdown automatically use `source-context = "fragment"` and `docstring-missing-documentation = "has-section"`. These language-aware defaults disable rules that assume a complete importable module or require docstrings for illustrative definitions while retaining completeness checks for documentation sections an example actually contains. Use a per-file entry with `source-context = "module"` and the desired missing-documentation policy only for documentation paths whose Python fences intentionally represent complete modules, and add the standalone `pydocfmt-skip` fence token only for intentionally malformed or deliberately nonconforming examples.
+- Keep the default source-language assignments unless the project genuinely uses custom filename extensions: `.py`, `.pyi`, and `.pyw` are Python, while `.md` is Markdown. For a custom extension, add a separate `[tool.pydocfmt.extension]` table such as `rpy = "python"` or `mdx = "markdown"`. The mapping does not change directory discovery, so add matching `extend-include` patterns when direct directory checks should find those files. Every custom extension assigned to Markdown receives the same automatic language-aware defaults without a matching per-file pattern.
 - Confirm that `[tool.pydocfmt.per-file-ignores]` and `[tool.pydocfmt.per-file-settings]` fit the project's test style and paths.
 - Remove a rule from `ignore` under `[tool.pydocfmt]` only after resolving its incompatibility with the chosen attachment policy.
 
@@ -501,7 +512,7 @@ Add these sections to the root `AGENTS.md`. If a same-named section already exis
 - Never run uv with a custom/temporary cache dir (e.g. UV_CACHE_DIR or --cache-dir); if cache-related uv failures occur then abort and notify the user.
 - The venv has no pip; use `uv pip`, `uv tree`, or similar.
 - Use pytest for running tests. Pytest uses pytest-xdist multiprocessing by default; pass `-n 0` for serial debugging or focused runs where worker startup is slower.
-- Use `uv run ty check` for type checking, `uv run ruff ...` for code formatting/linting, and `uv run pydocfmt check --fix` to format docstrings/comments in Python and supported fenced Python blocks in `.md` files.
+- Use `uv run ty check` for type checking, `uv run ruff ...` for code formatting/linting, and `uv run pydocfmt check --fix` to format docstrings/comments in Python and supported fenced Python blocks in Markdown.
 - Use `uv run la-dev-markdown-tables` to fix Markdown table formatting and `uv run la-dev-markdown-tables --check` to verify it.
 
 ## Code style
@@ -588,7 +599,17 @@ Append this local repository to the `repos` list created by the agnostic guide:
         stages: [pre-commit, pre-push, manual]
 ```
 
-The hooks are declared in nominal execution order. Commit-time hooks apply Ruff lint fixes, pydocformatter fixes, and then final Ruff formatting before running ty and pytest. Pre-push/manual runs the corresponding non-mutating checks in the same order before ty and pytest.
+The hooks are declared in nominal execution order. Commit-time hooks apply Ruff lint fixes, pydocformatter fixes, and then final Ruff formatting before running ty and pytest. Pre-push/manual runs the corresponding non-mutating checks in the same order before ty and pytest. The pydocformatter filters select the built-in `.py`, `.pyi`, `.pyw`, and `.md` filename forms; `types_or` requires pre-commit 2.9.0 or newer.
+
+If a project configures extra pydocformatter extensions, override the hook's `files` regex to include them. When pre-commit's identify library already recognizes every added extension as Python or Markdown, changing `files` is sufficient. Otherwise, also use an appropriate broader type filter such as `types_or: [file]`, and let `files` be the actual extension filter. These hook overrides control the explicit paths passed by pre-commit; configure `[tool.pydocfmt.extension]` separately to assign each custom suffix to `python` or `markdown`. Add `extend-include` only when direct directory discovery must find the same suffixes.
+
+For example, use only the widened `files` line when identify recognizes both extensions; otherwise override both fields as follows:
+
+```yaml
+- id: pydocfmt-check
+  types_or: [file]
+  files: \.(?:py|pyi|pyw|md|rpy|mdx)$
+```
 
 Keep the ty hook as bare `uv run ty check`: `pass_filenames: false` prevents pre-commit from appending explicit paths, so normal ty discovery honors configured exclusions and ignore files without `--force-exclude`. Add the flag only if the hook later names or receives explicit targets that must still be excluded.
 

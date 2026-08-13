@@ -31,7 +31,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 #### Project setup
 
-- Updated pydocformatter setup guidance and pre-commit examples for `.md` fenced Python support, fragment-oriented per-file settings, and the split class/module attribute-order rules.
+- Updated pydocformatter setup guidance and pre-commit examples for Markdown fenced Python support, automatic language-aware fragment defaults, custom extension-to-language mappings, narrow built-in hook filename filters, and split class/module attribute-order rules.
 
 ---
 
