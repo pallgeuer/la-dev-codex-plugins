@@ -552,7 +552,7 @@ Append this local repository to the `repos` list created by the agnostic guide:
         entry: uv run pydocfmt check --fix
         language: system
         types_or: [python, pyi, markdown]
-        files: \.(?:py|pyi|pyw|md)$
+        files: (?i)\.(?:py|pyi|pyw|md)$
         stages: [pre-commit]
 
       - id: ruff-format-fix
@@ -574,7 +574,7 @@ Append this local repository to the `repos` list created by the agnostic guide:
         entry: uv run pydocfmt check
         language: system
         types_or: [python, pyi, markdown]
-        files: \.(?:py|pyi|pyw|md)$
+        files: (?i)\.(?:py|pyi|pyw|md)$
         stages: [pre-push, manual]
 
       - id: ruff-format-check
@@ -599,7 +599,7 @@ Append this local repository to the `repos` list created by the agnostic guide:
         stages: [pre-commit, pre-push, manual]
 ```
 
-The hooks are declared in nominal execution order. Commit-time hooks apply Ruff lint fixes, pydocformatter fixes, and then final Ruff formatting before running ty and pytest. Pre-push/manual runs the corresponding non-mutating checks in the same order before ty and pytest. The pydocformatter filters select the built-in `.py`, `.pyi`, `.pyw`, and `.md` filename forms; `types_or` requires pre-commit 2.9.0 or newer.
+The hooks are declared in nominal execution order. Commit-time hooks apply Ruff lint fixes, pydocformatter fixes, and then final Ruff formatting before running ty and pytest. Pre-push/manual runs the corresponding non-mutating checks in the same order before ty and pytest. The pydocformatter filters select the built-in `.py`, `.pyi`, `.pyw`, and `.md` filename forms case-insensitively; `types_or` requires pre-commit 2.9.0 or newer.
 
 If a project configures extra pydocformatter extensions, override the hook's `files` regex to include them. When pre-commit's identify library already recognizes every added extension as Python or Markdown, changing `files` is sufficient. Otherwise, also use an appropriate broader type filter such as `types_or: [file]`, and let `files` be the actual extension filter. These hook overrides control the explicit paths passed by pre-commit; configure `[tool.pydocfmt.extension]` separately to assign each custom suffix to `python` or `markdown`. Add `extend-include` only when direct directory discovery must find the same suffixes.
 
@@ -608,7 +608,7 @@ For example, use only the widened `files` line when identify recognizes both ext
 ```yaml
 - id: pydocfmt-check
   types_or: [file]
-  files: \.(?:py|pyi|pyw|md|rpy|mdx)$
+  files: (?i)\.(?:py|pyi|pyw|md|rpy|mdx)$
 ```
 
 Keep the ty hook as bare `uv run ty check`: `pass_filenames: false` prevents pre-commit from appending explicit paths, so normal ty discovery honors configured exclusions and ignore files without `--force-exclude`. Add the flag only if the hook later names or receives explicit targets that must still be excluded.

@@ -13,6 +13,15 @@ def test_project_setup_guidance_mirrors_are_current():
         assert (SKILL_ROOT / "references" / filename).read_bytes() == (REPOSITORY_ROOT / "docs" / filename).read_bytes()
 
 
+def test_python_setup_uses_case_insensitive_pydocformatter_hook_filters():
+    """Keep built-in and custom pydocformatter extension filters case-insensitive."""
+    guidance = (REPOSITORY_ROOT / "docs" / "project_setup_python.md").read_text(encoding="utf-8")
+
+    assert guidance.count(r"files: (?i)\.(?:py|pyi|pyw|md)$") == 2
+    assert r"files: (?i)\.(?:py|pyi|pyw|md|rpy|mdx)$" in guidance
+    assert r"files: \.(?:py|pyi|pyw|md" not in guidance
+
+
 def test_project_setup_audit_variants_are_bundled_and_nonmutating(load_catalog):
     """Expose both high-effort setup audits without edit permission."""
     catalog = load_catalog(BUNDLED_ACTIONS)
