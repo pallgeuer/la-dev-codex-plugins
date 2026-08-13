@@ -27,7 +27,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
-None.
+### Changed
+
+#### Project setup
+
+- Updated pydocformatter setup guidance and pre-commit examples for `.md` fenced Python support, fragment-oriented per-file settings, and the split class/module attribute-order rules.
 
 ---
 

@@ -244,7 +244,8 @@ extend-select = [
     "non-imperative-summary",
     "summary-starts-with-this",
     "missing-public-module-attribute-documentation",
-    "attribute-documentation-order",
+    "class-attribute-documentation-order",
+    "module-attribute-documentation-order",
     "parameter-type-required",
     "return-type-required",
     "yield-type-required",
@@ -279,6 +280,7 @@ task-marker-mode = "hanging"
 
 [tool.pydocfmt.per-file-settings]
 "tests/**/test_*.py" = { docstring-missing-documentation = "has-section" }
+"*.md" = { source-context = "fragment", docstring-missing-documentation = "has-section" }
 ```
 
 Before adopting it:
@@ -290,6 +292,7 @@ Before adopting it:
 - Select one suppression-comment identity policy through the applicable rules in `extend-select` and `require-explicit` under `[tool.pydocfmt]`.
 - Set `indent-style` and `indent-width` under `[tool.pydocfmt]`, and keep them consistent with Ruff and the existing source. The example uses four spaces.
 - Decide whether `join-standalone-lines` in `[tool.pydocfmt.comment]` should combine adjacent ordinary prose comments into paragraphs before wrapping. Keep it enabled when manually wrapped comment lines should be reflowed as prose; disable it when adjacent comment lines must remain separate semantic lines.
+- Keep the recommended `*.md` per-file settings for general fenced examples. `source-context = "fragment"` disables rules that assume a complete importable module or require docstrings for illustrative definitions, while `docstring-missing-documentation = "has-section"` retains completeness checks for documentation sections an example actually contains. Use a more specific later per-file entry with `source-context = "module"` for documentation paths whose Python fences intentionally represent complete modules, and add the standalone `pydocfmt-skip` fence token only for intentionally malformed or deliberately nonconforming examples.
 - Confirm that `[tool.pydocfmt.per-file-ignores]` and `[tool.pydocfmt.per-file-settings]` fit the project's test style and paths.
 - Remove a rule from `ignore` under `[tool.pydocfmt]` only after resolving its incompatibility with the chosen attachment policy.
 
@@ -498,7 +501,7 @@ Add these sections to the root `AGENTS.md`. If a same-named section already exis
 - Never run uv with a custom/temporary cache dir (e.g. UV_CACHE_DIR or --cache-dir); if cache-related uv failures occur then abort and notify the user.
 - The venv has no pip; use `uv pip`, `uv tree`, or similar.
 - Use pytest for running tests. Pytest uses pytest-xdist multiprocessing by default; pass `-n 0` for serial debugging or focused runs where worker startup is slower.
-- Use `uv run ty check` for type checking, `uv run ruff ...` for code formatting/linting, and `uv run pydocfmt check --fix` to format docstrings/comments.
+- Use `uv run ty check` for type checking, `uv run ruff ...` for code formatting/linting, and `uv run pydocfmt check --fix` to format docstrings/comments in Python and supported fenced Python blocks in `.md` files.
 - Use `uv run la-dev-markdown-tables` to fix Markdown table formatting and `uv run la-dev-markdown-tables --check` to verify it.
 
 ## Code style
@@ -537,7 +540,8 @@ Append this local repository to the `repos` list created by the agnostic guide:
         name: pydocfmt (fix)
         entry: uv run pydocfmt check --fix
         language: system
-        types: [python]
+        types_or: [python, pyi, markdown]
+        files: \.(?:py|pyi|pyw|md)$
         stages: [pre-commit]
 
       - id: ruff-format-fix
@@ -558,7 +562,8 @@ Append this local repository to the `repos` list created by the agnostic guide:
         name: pydocfmt (check)
         entry: uv run pydocfmt check
         language: system
-        types: [python]
+        types_or: [python, pyi, markdown]
+        files: \.(?:py|pyi|pyw|md)$
         stages: [pre-push, manual]
 
       - id: ruff-format-check
