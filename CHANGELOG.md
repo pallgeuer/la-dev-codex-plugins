@@ -6,7 +6,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Release diffs
 
-- **Unreleased:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.2...HEAD
+- **Unreleased:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.3...HEAD
+- **v0.5.3:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.2...v0.5.3
 - **v0.5.2:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.1...v0.5.2
 - **v0.5.1:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.0...v0.5.1
 - **v0.5.0:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.4.4...v0.5.0
@@ -28,6 +29,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
+None.
+
+---
+
+## 0.5.3 (2026-09-23)
+
 ### Added
 
 #### Documentation
@@ -36,17 +43,17 @@ All notable changes to this project are documented here. The format follows [Kee
 
 #### Repository quality
 
-- Added a dependency-free plugin-manifest validator with focused regression tests and automatic pre-commit, pre-push, and CI enforcement.
+- Added a dependency-free plugin-manifest validator with automatic pre-commit, pre-push, and CI enforcement covering supported metadata, canonical ownership, marketplace registration, component paths, malformed URLs, and unsafe symlinks.
 
 ### Changed
 
 #### Loupe
 
-- Reframed marketplace metadata around Loupe Code Review, verified multi-reviewer findings, and a direct product-guide link.
+- Reframed marketplace metadata around Loupe Code Review and expanded its product guide with an end-to-end verification example plus reviewer-context, privacy, cost, latency, degradation, installation, and troubleshooting guidance.
 
 #### Perform
 
-- Reframed marketplace metadata around the Perform Action Toolkit, reusable development actions, and a direct product-guide link.
+- Reframed marketplace metadata around the Perform Action Toolkit and expanded its product guide with reusable-action examples, requirements, installation, and smoke-test guidance.
 
 #### Python distribution
 
@@ -54,21 +61,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 #### Documentation
 
-- Reframed the repository around developer tasks with an early plugin catalog, quick-start examples, a cross-distribution tool finder, and explicit team-readiness guidance for Loupe and Perform.
-- Made the Loupe guide a self-contained product page with an end-to-end verification example and explicit reviewer-context, privacy, cost, latency, and degradation guidance.
-- Added a canonical install-to-smoke-test path with per-plugin requirements, focused troubleshooting, and independent update and removal guidance.
-- Established stable Codex CLI 0.137.0 as the minimum supported version and documented stable-release tracking and prerelease support expectations.
-- Clarified that plugin homepages intentionally track the latest product guides while pinned marketplace users can select documentation from the matching repository tag.
+- Reorganized the repository around developer tasks with a plugin catalog, quick-start examples, a cross-distribution tool finder, team-readiness guidance, independent plugin update and removal procedures, and focused troubleshooting.
+- Established stable Codex CLI 0.137.0 as the minimum supported version, documented stable-release and prerelease support expectations, and clarified documentation selection for pinned marketplace releases.
 
 #### Release safety
 
 - Required product-specific changelog headings and explicit migration guidance for incompatible Loupe and Perform interface changes.
-
-### Fixed
-
-#### Repository quality
-
-- Hardened plugin-manifest validation for malformed URLs and component files, unsafe symlinks, unsupported marketplace products, and focused non-cascading diagnostics.
 
 ---
 

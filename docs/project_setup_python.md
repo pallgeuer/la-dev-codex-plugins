@@ -115,12 +115,12 @@ YOUR-CLI = "YOUR_IMPORT_PACKAGE.cli:main"
 
 [dependency-groups]
 docs = [
-    "la-dev-codex-plugins==0.5.2",
-    "zensical==0.0.53",
+    "la-dev-codex-plugins==0.5.3",
+    "zensical==0.0.54",
 ]
 test = [
     {include-group = "docs"},
-    "la-dev-codex-plugins[pytest]==0.5.2",
+    "la-dev-codex-plugins[pytest]==0.5.3",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "pytest-mock==3.15.1",
@@ -130,9 +130,9 @@ dev = [
     {include-group = "test"},
     "pre-commit==4.6.2",
     "pydocformatter==1.2.0",
-    "ruff==0.16.2",
+    "ruff==0.16.3",
     "twine==7.0.0",
-    "ty==0.0.70",
+    "ty==0.0.71",
 ]
 
 [build-system]

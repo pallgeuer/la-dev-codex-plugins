@@ -1,6 +1,6 @@
 {
   "name": "la-review",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Independent multi-reviewer code review with verification and consolidation for Codex.",
   "author": {
     "name": "pallgeuer",
