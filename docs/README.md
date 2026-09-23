@@ -1,8 +1,10 @@
-# Documentation
+# Documentation for Loupe, Perform, and development tools
 
 ## Getting started
 
 - [Marketplace plugin installation](installation.md) covers marketplace refs, plugin installation and verification, Loupe permissions, and updates.
+- [Plugin FAQ](faq.md) answers common questions about choosing, installing, configuring, and trusting Loupe and Perform.
+- [Plugin compatibility and stability](compatibility.md) defines public plugin interfaces, independent versioning, and breaking-change documentation.
 - [Recommended Codex setup](recommended_setup.md) collects optional user-level instructions and configuration that complement the plugins.
 - [Language-agnostic project setup](project_setup_agnostic.md) is an ordered repository setup recipe with ready-to-copy files and checks.
 - [Python project setup](project_setup_python.md) extends that recipe with uv, packaging, pytest, Ruff, pydocformatter, ty, CI, and PyPI releases.
@@ -11,7 +13,7 @@
 ## Plugin guides
 
 - [Loupe code review](loupe.md) explains review scopes, reviewer roles, effort configuration, output, failure handling, and its place in the development workflow.
-- [Codex Perform](codex_perform.md) covers reusable action discovery and overrides, inheritance, catalogues, the in-chat skill, and the standalone launcher.
+- [Codex Perform reusable actions](codex_perform.md) covers reusable action discovery and overrides, inheritance, catalogues, the in-chat skill, and the standalone launcher.
 - [Test-performance audit action](actions/audit_test_performance.md) documents the bundled evidence-based test-suite performance audit.
 
 ## Reusable development tools

@@ -1,6 +1,6 @@
 # Test-performance audit action
 
-`audit-test-performance[agnostic]` inventories and measures a repository's complete runnable test suite, then creates or updates one evidence-based Markdown audit. It is a language-agnostic Toolkit Perform action that runs in goal mode with high reasoning effort.
+`audit-test-performance[agnostic]` inventories and measures a repository's complete runnable test suite, then creates or updates one evidence-based Markdown audit. It is a language-agnostic [Toolkit Perform action](../codex_perform.md) that runs in goal mode with high reasoning effort.
 
 The audit is observational. It may inspect the repository and run safe bounded test collection and timing commands, but it does not weaken or delete tests, edit application code, change test infrastructure or CI, or implement performance fixes. The selected audit document is its only permitted edit.
 

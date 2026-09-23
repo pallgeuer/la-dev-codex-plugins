@@ -55,6 +55,22 @@ Run ty with Python 3.8 semantics:
 uvx --python 3.10 --from pre-commit==4.6.0 pre-commit run ty --all-files --hook-stage manual
 ```
 
+## Validate plugin manifests
+
+Validate every plugin manifest, its component paths and product documentation, and its one-to-one marketplace registration:
+
+```bash
+python3 scripts/validate_plugin_manifests.py
+```
+
+The `plugin-manifests` pre-commit hook runs this command during pre-commit, pre-push, and manual stages, so the main CI job enforces the same contract. Run its focused tests with:
+
+```bash
+uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 pytest tests/scripts/test_validate_plugin_manifests.py
+```
+
+The validator accepts only supported manifest and marketplace fields, requires stable plugin SemVer and canonical ownership, checks direct product-documentation links, rejects symlinked payload paths, validates referenced component files and asset paths, and requires every plugin to have exactly one matching marketplace entry. The plugin schema has no dependency field; component paths and marketplace sources are its machine-readable dependencies, while plugin runtime requirements remain in the linked product guides.
+
 ## Run tests
 
 Run all tests with Python 3.8. Pytest uses pytest-xdist multiprocessing by default; pass `-n 0` to any pytest command for serial debugging or focused runs where worker startup is slower:

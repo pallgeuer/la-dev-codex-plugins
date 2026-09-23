@@ -1,4 +1,4 @@
-# Codex Perform
+# Codex Perform: Reusable development actions
 
 Codex Perform runs reusable actions configured by the Toolkit plugin. The same action catalogue is available through two interfaces:
 
@@ -7,7 +7,37 @@ Codex Perform runs reusable actions configured by the Toolkit plugin. The same a
 
 The Python distribution contains only the launcher. It does not install Codex, the marketplace, any plugin, or the Toolkit runtime and action assets. The launcher discovers an installed and enabled `toolkit@la-dev-codex-plugins` plugin and checks its launcher API compatibility. The Python distribution and plugin versions do not need to match when that API version is compatible.
 
-See [Marketplace plugin installation](installation.md) to install and verify the required `toolkit` plugin separately.
+See [Marketplace plugin installation](installation.md) to install and verify the required `toolkit` plugin separately. The [plugin FAQ](faq.md) answers common adoption and configuration questions, and the [compatibility policy](compatibility.md) defines the stability of Perform's documented names and commands.
+
+## Requirements and plugin installation
+
+The Perform skill and standalone launcher require stable Codex CLI 0.137.0+ and Python 3.6+ with the standard library. Git improves repository-root discovery, but Perform falls back to walking for supported version-control markers when Git is unavailable. Individual actions can require tools belonging to the project they operate on. See the [Codex CLI compatibility policy](compatibility.md#codex-cli-compatibility) for later stable releases and prerelease builds.
+
+Install only the independent **Perform Action Toolkit** (`toolkit`) plugin:
+
+```bash
+codex plugin marketplace add pallgeuer/la-dev-codex-plugins --ref main
+codex plugin add toolkit@la-dev-codex-plugins
+codex plugin list --marketplace la-dev-codex-plugins
+```
+
+Confirm that `toolkit` reports `installed, enabled`, restart Codex, then use the no-argument invocation in the next section as the smoke test. It lists actions without executing one. The in-chat skill needs neither the `la-review` plugin nor the Python distribution. The standalone `codex-perform` interface additionally requires either the installed Python distribution or an activated source checkout, plus an installed and enabled compatible Toolkit plugin.
+
+## 30-second example
+
+Open Codex in a repository and list the actions available from the layered catalog:
+
+```text
+$toolkit:perform
+```
+
+Then run one action:
+
+```text
+$toolkit:perform find-todos
+```
+
+Perform previews the selected `find-todos[agnostic]` action and resolved scope before execution. A representative result is an enumerated inventory of unfinished or cleanup-related work with file and line references, or an explicit conclusion that no matching work was found. Exact result wording depends on the repository and selected action.
 
 ## Use the Perform skill in Codex
 
@@ -46,6 +76,8 @@ $toolkit:perform help How can I define custom repo-specific actions?
 The in-chat skill accepts strict `ACTION[LANGUAGE]` selectors, bare action names, and compatible natural-language selection. It binds declared prompt variables from explicit invocation text and asks for missing values. Text remaining after selection is used only when it is one short compatible scope or detail qualification; it cannot add another task, change the action's purpose, weaken constraints, or replace a missing variable.
 
 For the complete in-chat workflow, see the [Codex Perform skill guide](../plugins/toolkit/skills/perform/references/codex_skill.md).
+
+Action definitions determine whether a run is observational or can edit files. After an action changes a non-trivial codebase, run the repository's deterministic checks and use [Loupe](loupe.md#use-loupe-during-development) for the final independent review when appropriate.
 
 ## Discover and customize actions
 

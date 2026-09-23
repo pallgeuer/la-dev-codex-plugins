@@ -1,35 +1,37 @@
 {
   "name": "toolkit",
   "version": "0.4.2",
-  "description": "Configurable Codex action toolkit.",
+  "description": "Reusable, configurable development actions for Codex.",
   "author": {
     "name": "pallgeuer",
     "url": "https://github.com/pallgeuer"
   },
+  "homepage": "https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/codex_perform.md",
   "repository": "https://github.com/pallgeuer/la-dev-codex-plugins",
   "license": "MIT",
   "keywords": [
-    "actions",
-    "automation",
-    "toolkit",
-    "swiss army knife",
-    "perform"
+    "codex actions",
+    "development workflows",
+    "repository automation",
+    "perform",
+    "language-agnostic"
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "Action Toolkit",
-    "shortDescription": "Configurable canned action workflows for Codex.",
-    "longDescription": "Provides Perform, a configuration-driven toolkit skill for running canned Codex actions.",
+    "displayName": "Perform Action Toolkit",
+    "shortDescription": "Run reusable, configurable Codex actions.",
+    "longDescription": "Provides Perform for discovering and running layered, reusable development actions in Codex or through the standalone launcher.",
     "developerName": "pallgeuer",
     "category": "Productivity",
     "capabilities": [
       "Read",
       "Write"
     ],
+    "websiteURL": "https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/codex_perform.md",
     "defaultPrompt": [
       "$toolkit:perform",
-      "$toolkit:perform my-action",
-      "$toolkit:perform do action foo on the file bar"
+      "$toolkit:perform find-todos",
+      "$toolkit:perform audit-test-performance"
     ]
   }
 }

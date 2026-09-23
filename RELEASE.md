@@ -201,6 +201,8 @@ Move the completed `CHANGELOG.md` `Unreleased` outcomes into a dated `NEW_REPO_V
 
 Rewrite the release notes compactly for external users rather than preserving the development diary. Consolidate overlapping entries around the final shipped outcomes, retain all material features, fixes, compatibility changes, and migrations, and omit implementation churn, superseded intermediate behavior, test-only work, and stale changes to code that no longer exists. Remove empty change categories and make the version section suitable for use as release notes.
 
+Place plugin-facing entries under the canonical product-specific level-four heading `#### Loupe` or `#### Perform` within the applicable Keep a Changelog change-type section. An incompatible plugin change must name the previous public interface, its replacement, and the required migration. Keep repository-only implementation, infrastructure, and documentation outcomes under descriptive non-plugin headings so they are not presented as plugin API changes.
+
 Update the `"version"` in `plugins/PLUGIN_NAME/.codex-plugin/plugin.json` for every changed existing plugin. Leave unchanged plugins at their current versions. No release version is stored in `.agents/plugins/marketplace.json`.
 
 Refresh the dependency snapshot in the example `pyproject.toml` in `docs/project_setup_python.md` as part of every release:
@@ -239,15 +241,10 @@ rg -n '^(version =|__version__ =)|marketplace, version |"version":' setup.cfg sr
 Validate every plugin manifest:
 
 ```bash
-MANIFESTS_VALID=true
-for manifest in plugins/*/.codex-plugin/plugin.json; do
-    python3 -m json.tool "$manifest" >/dev/null || {
-        MANIFESTS_VALID=false
-        break
-    }
-done
-test "$MANIFESTS_VALID" = true
+python3 scripts/validate_plugin_manifests.py
 ```
+
+The validator checks supported metadata, canonical ownership and product documentation, component paths, stable plugin versions, and exact marketplace registration before release validation continues.
 
 Review the complete release diff before running tools that may apply fixes:
 

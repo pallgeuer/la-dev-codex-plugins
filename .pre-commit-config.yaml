@@ -16,6 +16,13 @@ repos:
 
   - repo: local
     hooks:
+      - id: plugin-manifests
+        name: Validate Codex plugin manifests
+        entry: python3 scripts/validate_plugin_manifests.py
+        language: system
+        pass_filenames: false
+        stages: [pre-commit, pre-push, manual]
+
       - id: markdown-tables-fix
         name: Format Markdown tables
         entry: env PYTHONPATH=src python3 -m la_dev_codex_plugins.markdown_tables.cli

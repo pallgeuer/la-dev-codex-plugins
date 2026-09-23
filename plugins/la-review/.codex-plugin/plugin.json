@@ -1,31 +1,33 @@
 {
   "name": "la-review",
   "version": "0.2.2",
-  "description": "Language-agnostic review workflows for Codex.",
+  "description": "Independent multi-reviewer code review with verification and consolidation for Codex.",
   "author": {
     "name": "pallgeuer",
     "url": "https://github.com/pallgeuer"
   },
+  "homepage": "https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/loupe.md",
   "repository": "https://github.com/pallgeuer/la-dev-codex-plugins",
   "license": "MIT",
   "keywords": [
-    "code review",
-    "review",
+    "codex code review",
+    "multi-agent code review",
     "verification",
-    "language-agnostic",
-    "parallel review"
+    "false positives",
+    "language-agnostic"
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "Language-Agnostic Review",
-    "shortDescription": "Language-agnostic code review workflows.",
-    "longDescription": "Provides Loupe, a direct-invocation skill for running multiple parallel external code reviews, independently verifying the findings, and organizing them into one final review.",
+    "displayName": "Loupe Code Review",
+    "shortDescription": "Independent code review with verified findings.",
+    "longDescription": "Runs available Codex and Claude reviewers independently, then verifies and consolidates their candidate findings into one structured review.",
     "developerName": "pallgeuer",
     "category": "Productivity",
     "capabilities": [
       "Read",
       "Write"
     ],
+    "websiteURL": "https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/loupe.md",
     "defaultPrompt": [
       "$la-review:loupe",
       "$la-review:loupe last commit",

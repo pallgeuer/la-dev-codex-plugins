@@ -28,7 +28,47 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
-None.
+### Added
+
+#### Documentation
+
+- Added a central plugin FAQ and compatibility policy with direct navigation between the marketplace, Loupe, Perform, and their public stability guarantees.
+
+#### Repository quality
+
+- Added a dependency-free plugin-manifest validator with focused regression tests and automatic pre-commit, pre-push, and CI enforcement.
+
+### Changed
+
+#### Loupe
+
+- Reframed marketplace metadata around Loupe Code Review, verified multi-reviewer findings, and a direct product-guide link.
+
+#### Perform
+
+- Reframed marketplace metadata around the Perform Action Toolkit, reusable development actions, and a direct product-guide link.
+
+#### Python distribution
+
+- Clarified that the separately installed package supplies dependency-free Codex development tools rather than marketplace plugin payloads.
+
+#### Documentation
+
+- Reframed the repository around developer tasks with an early plugin catalog, quick-start examples, a cross-distribution tool finder, and explicit team-readiness guidance for Loupe and Perform.
+- Made the Loupe guide a self-contained product page with an end-to-end verification example and explicit reviewer-context, privacy, cost, latency, and degradation guidance.
+- Added a canonical install-to-smoke-test path with per-plugin requirements, focused troubleshooting, and independent update and removal guidance.
+- Established stable Codex CLI 0.137.0 as the minimum supported version and documented stable-release tracking and prerelease support expectations.
+- Clarified that plugin homepages intentionally track the latest product guides while pinned marketplace users can select documentation from the matching repository tag.
+
+#### Release safety
+
+- Required product-specific changelog headings and explicit migration guidance for incompatible Loupe and Perform interface changes.
+
+### Fixed
+
+#### Repository quality
+
+- Hardened plugin-manifest validation for malformed URLs and component files, unsafe symlinks, unsupported marketplace products, and focused non-cascading diagnostics.
 
 ---
 
