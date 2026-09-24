@@ -22,6 +22,8 @@ The reviewer subprocesses inherit their launch environment and use normal user-l
 
 Codex asks for escalated sandbox permission before launching the external CLIs because they need their normal user-level state. The child Codex commands use their own workspace-write sandbox, and Claude uses its own automatic permission mode, but approving the runner is not equivalent to confining every child process to the review diff. See the [optional Loupe allow rule](installation.md#optional-auto-allow-the-loupe-review-script) before deciding whether repeated automatic approval is appropriate for your environment.
 
+Loupe itself does not provide a hosted service, developer authentication flow, telemetry collector, or external data store. Its subagents and tools operate under the user's active Codex session, local provider configuration, and granted permissions. See the shared [privacy policy](../PRIVACY.md), [terms of use](../TERMS.md), and [security policy](../SECURITY.md); use [GitHub Issues](https://github.com/pallgeuer/la-dev-codex-plugins/issues) for support.
+
 ## Install and run in 30 seconds
 
 Loupe requires stable Codex CLI 0.137.0+, Python 3.6+ with the standard library, Bash, Git, `jq`, and at least one authenticated supported reviewer executable. `claude` enables Claude Code Review; `codex` enables Codex Review, Codex Correctness, and Codex Design. Install and authenticate both reviewer CLIs when you want provider diversity. See the [Codex CLI compatibility policy](compatibility.md#codex-cli-compatibility) for later stable releases and prerelease builds.

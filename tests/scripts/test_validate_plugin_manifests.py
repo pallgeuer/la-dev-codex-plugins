@@ -11,6 +11,10 @@ REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 VALIDATOR = REPOSITORY_ROOT / "scripts" / "validate_plugin_manifests.py"
 REPOSITORY_URL = "https://github.com/pallgeuer/la-dev-codex-plugins"
 LATEST_DOCUMENTATION_URL_PREFIX = REPOSITORY_URL + "/blob/main/"
+PRIVACY_POLICY_URL = REPOSITORY_URL + "/blob/main/PRIVACY.md"
+TERMS_OF_SERVICE_URL = REPOSITORY_URL + "/blob/main/TERMS.md"
+SUPPORT_URL = REPOSITORY_URL + "/issues"
+SQUARE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M0 0h64v64H0z"/></svg>\n'
 
 
 def plugin_manifest(name="alpha", guide="docs/alpha.md"):
@@ -19,7 +23,7 @@ def plugin_manifest(name="alpha", guide="docs/alpha.md"):
         "name": name,
         "version": "0.1.0",
         "description": "Reusable repository analysis for Codex.",
-        "author": {"name": "pallgeuer", "url": "https://github.com/pallgeuer"},
+        "author": {"name": "Philipp Allgeuer", "url": "https://github.com/pallgeuer"},
         "homepage": homepage,
         "repository": REPOSITORY_URL,
         "license": "MIT",
@@ -29,10 +33,18 @@ def plugin_manifest(name="alpha", guide="docs/alpha.md"):
             "displayName": "Alpha Analysis",
             "shortDescription": "Analyze a repository.",
             "longDescription": "Runs reusable repository analysis workflows in Codex.",
-            "developerName": "pallgeuer",
+            "developerName": "Philipp Allgeuer",
             "category": "Productivity",
             "capabilities": ["Read"],
             "websiteURL": homepage,
+            "privacyPolicyURL": PRIVACY_POLICY_URL,
+            "termsOfServiceURL": TERMS_OF_SERVICE_URL,
+            "supportURL": SUPPORT_URL,
+            "brandColor": "#005A80",
+            "brandColorDark": "#60D0C0",
+            "composerIcon": "./assets/composer-icon.svg",
+            "logo": "./assets/logo.svg",
+            "logoDark": "./assets/logo-dark.svg",
             "defaultPrompt": ["$alpha:analyze"],
         },
     }
@@ -54,6 +66,13 @@ def write_fixture(repository):
     skill_path = repository / "plugins" / "alpha" / "skills" / "analyze" / "SKILL.md"
     skill_path.parent.mkdir(parents=True)
     skill_path.write_text("---\nname: analyze\ndescription: Analyze a repository.\n---\n", encoding="utf-8")
+    plugin_root = manifest_path.parents[1]
+    for filename in ("README.md", "LICENSE", "SECURITY.md", ".codexignore"):
+        (plugin_root / filename).write_text("fixture\n", encoding="utf-8")
+    assets_path = plugin_root / "assets"
+    assets_path.mkdir()
+    for filename in ("composer-icon.svg", "logo.svg", "logo-dark.svg"):
+        (assets_path / filename).write_text(SQUARE_SVG, encoding="utf-8")
     guide_path = repository / "docs" / "alpha.md"
     guide_path.parent.mkdir(parents=True)
     guide_path.write_text("# Alpha analysis\n", encoding="utf-8")
@@ -118,6 +137,13 @@ def test_legacy_default_prompt_alias_remains_valid(tmp_path):
         (("skills",), "./../skills", "remain inside the plugin root"),
         (("skills",), "./missing/", "existing directory"),
         (("interface", "websiteURL"), "https://example.com/alpha", "must match the direct product homepage"),
+        (("interface", "privacyPolicyURL"), "https://example.com/privacy", "canonical repository page"),
+        (("interface", "displayName"), "x" * 31, "at most 30 characters"),
+        (("interface", "shortDescription"), "first\nsecond", "fit on one line"),
+        (("interface", "capabilities"), ["x" * 121], "must not exceed 120 characters"),
+        (("interface", "brandColor"), "#FFFFFF", "at least 2:1 contrast"),
+        (("interface", "brandColorDark"), "#212121", "at least 2:1 contrast"),
+        (("interface", "defaultPrompt"), ["first\nsecond"], "must fit on one line"),
         (("interface", "defaultPrompt"), ["one", "two", "three", "four"], "at most 3"),
     ],
 )
@@ -155,6 +181,32 @@ def test_manifest_contract_rejects_missing_documentation(tmp_path):
     completed = run_validator(tmp_path)
     assert completed.returncode == 1
     assert "missing local documentation" in completed.stderr
+
+
+def test_manifest_contract_rejects_missing_standalone_package_file(tmp_path):
+    manifest_path, _ = write_fixture(tmp_path)
+    (manifest_path.parents[1] / "SECURITY.md").unlink()
+    completed = run_validator(tmp_path)
+    assert completed.returncode == 1
+    assert "standalone plugin package file must be a regular file" in completed.stderr
+
+
+@pytest.mark.parametrize(
+    ("contents", "diagnostic"),
+    [
+        ("not xml\n", "readable SVG XML"),
+        ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"/>\n', "at least 48 by 48"),
+        ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 32"/>\n', "positive square SVG viewBox"),
+        ('<html xmlns="http://www.w3.org/1999/xhtml"/>\n', "SVG root element"),
+    ],
+)
+def test_manifest_contract_rejects_invalid_svg_assets(tmp_path, contents, diagnostic):
+    manifest_path, _ = write_fixture(tmp_path)
+    asset_path = manifest_path.parents[1] / "assets" / "logo.svg"
+    asset_path.write_text(contents, encoding="utf-8")
+    completed = run_validator(tmp_path)
+    assert completed.returncode == 1
+    assert diagnostic in completed.stderr
 
 
 def test_manifest_contract_rejects_component_symlink_outside_plugin(tmp_path):
@@ -232,13 +284,15 @@ def test_manifest_contract_rejects_malformed_https_urls_without_tracebacks(tmp_p
     assert "Traceback" not in completed.stderr
 
 
-def test_manifest_contract_accepts_https_url_with_valid_port(tmp_path):
+def test_manifest_contract_parses_https_url_with_valid_port(tmp_path):
     manifest_path, _ = write_fixture(tmp_path)
     manifest = read_json(manifest_path)
     manifest["interface"]["privacyPolicyURL"] = "https://example.com:443/privacy"
     write_json(manifest_path, manifest)
     completed = run_validator(tmp_path)
-    assert completed.returncode == 0, completed.stderr
+    assert completed.returncode == 1
+    assert "canonical repository page" in completed.stderr
+    assert "absolute HTTPS URL" not in completed.stderr
 
 
 @pytest.mark.parametrize(
@@ -406,7 +460,7 @@ def test_manifest_contract_rejects_symlinked_component_file(tmp_path):
 def test_manifest_contract_rejects_symlinked_asset(tmp_path):
     manifest_path, _ = write_fixture(tmp_path)
     asset_directory = manifest_path.parents[1] / "assets"
-    asset_directory.mkdir()
+    asset_directory.mkdir(exist_ok=True)
     real_logo_path = asset_directory / "real-logo.png"
     real_logo_path.write_bytes(b"png")
     (asset_directory / "logo.png").symlink_to(real_logo_path)

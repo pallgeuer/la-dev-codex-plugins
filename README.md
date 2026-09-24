@@ -15,6 +15,8 @@ Both plugins are maintained for team-wide adoption. Their current `0.x` versions
 
 See the [plugin FAQ](docs/faq.md) for common adoption questions and [plugin compatibility and stability](docs/compatibility.md) for the public interface and release guarantees.
 
+Both plugins execute locally through the user's Codex session and permissions; neither supplies a hosted service, developer authentication flow, telemetry collector, or external data store. Review the repository [privacy policy](PRIVACY.md), [terms of use](TERMS.md), and [security policy](SECURITY.md). Use [GitHub Issues](https://github.com/pallgeuer/la-dev-codex-plugins/issues) for support and non-security bugs.
+
 ## Find a tool by task
 
 | Task                                                                 | Tool                                                             | Delivery                                 | Start with                                                           |

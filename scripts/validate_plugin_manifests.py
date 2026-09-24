@@ -3,16 +3,21 @@
 
 import argparse
 import json
+import math
 import os
 import pathlib
 import re
 import sys
 import urllib.parse
+import xml.etree.ElementTree as ElementTree
 
 REPOSITORY_URL = "https://github.com/pallgeuer/la-dev-codex-plugins"
 LATEST_DOCUMENTATION_URL_PREFIX = REPOSITORY_URL + "/blob/main/"
-AUTHOR_NAME = "pallgeuer"
+AUTHOR_NAME = "Philipp Allgeuer"
 AUTHOR_URL = "https://github.com/pallgeuer"
+PRIVACY_POLICY_URL = REPOSITORY_URL + "/blob/main/PRIVACY.md"
+TERMS_OF_SERVICE_URL = REPOSITORY_URL + "/blob/main/TERMS.md"
+SUPPORT_URL = REPOSITORY_URL + "/issues"
 MARKETPLACE_NAME = "la-dev-codex-plugins"
 LICENSE = "MIT"
 HEX_COLOR_RE = re.compile(r"#[0-9A-Fa-f]{6}")
@@ -31,7 +36,9 @@ INTERFACE_FIELDS = {
     "websiteURL",
     "privacyPolicyURL",
     "termsOfServiceURL",
+    "supportURL",
     "brandColor",
+    "brandColorDark",
     "composerIcon",
     "logo",
     "logoDark",
@@ -47,6 +54,22 @@ MARKETPLACE_POLICY_FIELDS = {"installation", "authentication", "products"}
 INSTALLATION_POLICIES = {"NOT_AVAILABLE", "AVAILABLE", "INSTALLED_BY_DEFAULT"}
 AUTHENTICATION_POLICIES = {"ON_INSTALL", "ON_USE"}
 MARKETPLACE_PRODUCTS = {"ATLAS", "CHATGPT", "CODEX"}
+PLUGIN_CATEGORIES = {
+    "Productivity",
+    "Creativity",
+    "Developer Tools",
+    "Business & Operations",
+    "Data & Analytics",
+    "Communication",
+    "Education & Research",
+    "Security",
+    "Finance",
+    "Healthcare",
+    "Travel",
+    "Entertainment",
+    "Other",
+}
+REQUIRED_PLUGIN_FILES = ("README.md", "LICENSE", "SECURITY.md", ".codexignore")
 
 
 def parse_args(argv=None):
@@ -93,8 +116,19 @@ def require_string(value, field, location, errors):
     return child
 
 
-def validate_https_url(value, field, location, errors):
-    url = require_string(value, field, location, errors)
+def validate_string_length(value, field, location, errors, maximum, single_line=False):
+    child = require_string(value, field, location, errors)
+    if child is None:
+        return None
+    if len(child) > maximum:
+        add_error(errors, location, "field {!r} must contain at most {} characters".format(field, maximum))
+    if single_line and ("\n" in child or "\r" in child):
+        add_error(errors, location, "field {!r} must fit on one line".format(field))
+    return child
+
+
+def validate_https_url(value, field, location, errors, maximum=2048):
+    url = validate_string_length(value, field, location, errors, maximum)
     if url is None:
         return None
     try:
@@ -111,11 +145,6 @@ def validate_https_url(value, field, location, errors):
     return url
 
 
-def validate_optional_https_url(value, field, location, errors):
-    if field in value:
-        validate_https_url(value, field, location, errors)
-
-
 def validate_string_list(value, field, location, errors, minimum=0, maximum=None):
     child = value.get(field)
     if not isinstance(child, list) or not all(isinstance(item, str) and item.strip() for item in child):
@@ -126,6 +155,63 @@ def validate_string_list(value, field, location, errors, minimum=0, maximum=None
     if maximum is not None and len(child) > maximum:
         add_error(errors, location, "field {!r} must contain at most {} entries".format(field, maximum))
     return child
+
+
+def color_luminance(color):
+    channels = [int(color[index : index + 2], 16) / 255.0 for index in (1, 3, 5)]
+    linear_channels = [channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4 for channel in channels]
+    return 0.2126 * linear_channels[0] + 0.7152 * linear_channels[1] + 0.0722 * linear_channels[2]
+
+
+def contrast_ratio(first, second):
+    first_luminance = color_luminance(first)
+    second_luminance = color_luminance(second)
+    lighter = max(first_luminance, second_luminance)
+    darker = min(first_luminance, second_luminance)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def validate_brand_color(interface, field, background, location, errors):
+    color = validate_string_length(interface, field, location, errors, 7)
+    if color is None:
+        return
+    if HEX_COLOR_RE.fullmatch(color) is None:
+        add_error(errors, location, "field {!r} must use #RRGGBB notation".format(field))
+    elif contrast_ratio(color, background) < 2.0:
+        add_error(errors, location, "field {!r} must have at least 2:1 contrast against {}".format(field, background))
+
+
+def validate_svg_asset(path, location, errors):
+    if path.suffix.lower() != ".svg":
+        add_error(errors, location, "must reference an SVG asset")
+        return
+    try:
+        file_size = path.stat().st_size
+    except OSError as error:
+        add_error(errors, location, "must be a readable SVG asset: {}".format(error))
+        return
+    if file_size > 5 * 1024 * 1024:
+        add_error(errors, location, "must not exceed 5 MiB")
+    try:
+        root = ElementTree.parse(str(path)).getroot()
+    except (OSError, ElementTree.ParseError) as error:
+        add_error(errors, location, "must be readable SVG XML: {}".format(error))
+        return
+    if root.tag.rsplit("}", 1)[-1] != "svg":
+        add_error(errors, location, "must contain an SVG root element")
+        return
+    view_box = root.get("viewBox")
+    if view_box is None:
+        view_box_values = []
+    else:
+        try:
+            view_box_values = [float(value) for value in view_box.replace(",", " ").split()]
+        except ValueError:
+            view_box_values = []
+    if len(view_box_values) != 4 or not all(math.isfinite(value) for value in view_box_values) or view_box_values[2] <= 0 or view_box_values[3] <= 0 or view_box_values[2] != view_box_values[3]:
+        add_error(errors, location, "must declare a positive square SVG viewBox")
+    elif view_box_values[2] < 48:
+        add_error(errors, location, "must declare an SVG viewBox at least 48 by 48")
 
 
 def path_uses_symlink(base, path):
@@ -199,10 +285,10 @@ def validate_author(manifest, location, errors):
     if author is None:
         return
     reject_unknown_fields(author, AUTHOR_FIELDS, location + ".author", errors)
-    name = require_string(author, "name", location + ".author", errors)
+    name = validate_string_length(author, "name", location + ".author", errors, 120)
     url = validate_https_url(author, "url", location + ".author", errors)
     if "email" in author:
-        require_string(author, "email", location + ".author", errors)
+        validate_string_length(author, "email", location + ".author", errors, 320)
     if name is not None and name != AUTHOR_NAME:
         add_error(errors, location + ".author", "field 'name' must identify the canonical publisher {!r}".format(AUTHOR_NAME))
     if url is not None and url != AUTHOR_URL:
@@ -226,23 +312,36 @@ def validate_interface(plugin_root, manifest, homepage, location, errors):
         return None
     interface_location = location + ".interface"
     reject_unknown_fields(interface, INTERFACE_FIELDS, interface_location, errors)
-    for field in ("displayName", "shortDescription", "longDescription", "category"):
-        require_string(interface, field, interface_location, errors)
-    developer_name = require_string(interface, "developerName", interface_location, errors)
+    validate_string_length(interface, "displayName", interface_location, errors, 30)
+    validate_string_length(interface, "shortDescription", interface_location, errors, 30, single_line=True)
+    validate_string_length(interface, "longDescription", interface_location, errors, 4000)
+    category = require_string(interface, "category", interface_location, errors)
+    if category is not None and category not in PLUGIN_CATEGORIES:
+        add_error(errors, interface_location, "field 'category' uses an unsupported directory category")
+    developer_name = validate_string_length(interface, "developerName", interface_location, errors, 80)
     if developer_name is not None and developer_name != AUTHOR_NAME:
         add_error(errors, interface_location, "field 'developerName' must identify the canonical publisher {!r}".format(AUTHOR_NAME))
-    capabilities = validate_string_list(interface, "capabilities", interface_location, errors, minimum=1)
+    capabilities = validate_string_list(interface, "capabilities", interface_location, errors, minimum=1, maximum=20)
     if capabilities is not None and len(set(capabilities)) != len(capabilities):
         add_error(errors, interface_location, "field 'capabilities' entries must be unique")
-    website_url = validate_https_url(interface, "websiteURL", interface_location, errors)
+    if capabilities is not None:
+        for index, capability in enumerate(capabilities):
+            if len(capability) > 120:
+                add_error(errors, "{}.capabilities[{}]".format(interface_location, index), "must not exceed 120 characters")
+    website_url = validate_https_url(interface, "websiteURL", interface_location, errors, maximum=1024)
     if homepage is not None and website_url is not None and website_url != homepage:
         add_error(errors, interface_location, "field 'websiteURL' must match the direct product homepage")
-    for field in ("privacyPolicyURL", "termsOfServiceURL"):
-        validate_optional_https_url(interface, field, interface_location, errors)
-    if "brandColor" in interface:
-        brand_color = require_string(interface, "brandColor", interface_location, errors)
-        if brand_color is not None and HEX_COLOR_RE.fullmatch(brand_color) is None:
-            add_error(errors, interface_location, "field 'brandColor' must use #RRGGBB notation")
+    expected_urls = {
+        "privacyPolicyURL": PRIVACY_POLICY_URL,
+        "termsOfServiceURL": TERMS_OF_SERVICE_URL,
+        "supportURL": SUPPORT_URL,
+    }
+    for field in sorted(expected_urls):
+        url = validate_https_url(interface, field, interface_location, errors, maximum=1024)
+        if url is not None and url != expected_urls[field]:
+            add_error(errors, interface_location, "field {!r} must identify the canonical repository page".format(field))
+    validate_brand_color(interface, "brandColor", "#FFFFFF", interface_location, errors)
+    validate_brand_color(interface, "brandColorDark", "#212121", interface_location, errors)
     prompts_field = "defaultPrompt" if "defaultPrompt" in interface or "default_prompt" not in interface else "default_prompt"
     if "defaultPrompt" in interface and "default_prompt" in interface:
         add_error(errors, interface_location, "must not declare both 'defaultPrompt' and 'default_prompt'")
@@ -251,11 +350,16 @@ def validate_interface(plugin_root, manifest, homepage, location, errors):
         for index, prompt in enumerate(prompts):
             if len(prompt) > 128:
                 add_error(errors, "{}.{}[{}]".format(interface_location, prompts_field, index), "must not exceed 128 characters")
+            if "\n" in prompt or "\r" in prompt:
+                add_error(errors, "{}.{}[{}]".format(interface_location, prompts_field, index), "must fit on one line")
     for field in ("composerIcon", "logo", "logoDark"):
-        if field in interface:
-            path = validate_component_path(plugin_root, interface[field], "{}.{}".format(interface_location, field), errors, expected_kind="file")
-            if path is not None and pathlib.PurePosixPath(interface[field]).parts[:1] != ("assets",):
-                add_error(errors, "{}.{}".format(interface_location, field), "must remain below the plugin assets directory")
+        asset_location = "{}.{}".format(interface_location, field)
+        raw_path = require_string(interface, field, interface_location, errors)
+        path = validate_component_path(plugin_root, raw_path, asset_location, errors, expected_kind="file") if raw_path is not None else None
+        if path is not None and pathlib.PurePosixPath(raw_path).parts[:1] != ("assets",):
+            add_error(errors, asset_location, "must remain below the plugin assets directory")
+        elif path is not None:
+            validate_svg_asset(path, asset_location, errors)
     screenshots = interface.get("screenshots", [])
     if not isinstance(screenshots, list):
         add_error(errors, interface_location, "field 'screenshots' must be an array")
@@ -348,8 +452,8 @@ def validate_manifest(repo_root, plugin_root, errors):
     if "id" in manifest:
         require_string(manifest, "id", location, errors)
     name = require_string(manifest, "name", location, errors)
-    version = require_string(manifest, "version", location, errors)
-    require_string(manifest, "description", location, errors)
+    version = validate_string_length(manifest, "version", location, errors, 64)
+    validate_string_length(manifest, "description", location, errors, 1024)
     if name is not None:
         if PLUGIN_NAME_RE.fullmatch(name) is None:
             add_error(errors, location, "field 'name' must use lowercase hyphen-case and contain at most 64 characters")
@@ -357,6 +461,11 @@ def validate_manifest(repo_root, plugin_root, errors):
             add_error(errors, location, "field 'name' must match plugin directory {!r}".format(plugin_root.name))
     if version is not None and STABLE_VERSION_RE.fullmatch(version) is None:
         add_error(errors, location, "field 'version' must use stable X.Y.Z Semantic Versioning")
+    for filename in REQUIRED_PLUGIN_FILES:
+        package_path = plugin_root / filename
+        package_location = str(package_path.relative_to(repo_root))
+        if package_path.is_symlink() or not package_path.is_file():
+            add_error(errors, package_location, "standalone plugin package file must be a regular file")
     validate_author(manifest, location, errors)
     homepage = validate_homepage(repo_root, manifest, location, errors)
     repository = validate_https_url(manifest, "repository", location, errors)

@@ -29,7 +29,25 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
-None.
+### Added
+
+#### Plugin discovery
+
+- Added standalone Loupe and Perform package documents, directory-ready SVG branding, public submission dossiers, and shared privacy, terms, security, and support routes.
+
+### Changed
+
+#### Loupe
+
+- Prepared Loupe for independent public directory submission with verified-publisher metadata, developer-tool classification, supported listing fields, concise capability copy, and explicit local-execution disclosures.
+
+#### Perform
+
+- Prepared Perform for independent public directory submission with verified-publisher metadata, developer-tool classification, supported listing fields, concise capability copy, and a clear separation between the in-chat plugin and optional standalone launcher.
+
+#### Repository quality
+
+- Expanded plugin validation to enforce directory field limits, canonical publisher and policy metadata, accessible brand colors, standalone package documents, and valid square SVG assets.
 
 ---
 

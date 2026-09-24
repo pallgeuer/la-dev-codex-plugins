@@ -5,6 +5,7 @@
 - [Marketplace plugin installation](installation.md) covers marketplace refs, plugin installation and verification, Loupe permissions, and updates.
 - [Plugin FAQ](faq.md) answers common questions about choosing, installing, configuring, and trusting Loupe and Perform.
 - [Plugin compatibility and stability](compatibility.md) defines public plugin interfaces, independent versioning, and breaking-change documentation.
+- [Privacy policy](../PRIVACY.md), [terms of use](../TERMS.md), and [security policy](../SECURITY.md) document the plugins' local execution, data handling, user responsibilities, and private vulnerability-reporting process.
 - [Recommended Codex setup](recommended_setup.md) collects optional user-level instructions and configuration that complement the plugins.
 - [Language-agnostic project setup](project_setup_agnostic.md) is an ordered repository setup recipe with ready-to-copy files and checks.
 - [Python project setup](project_setup_python.md) extends that recipe with uv, packaging, pytest, Ruff, pydocformatter, ty, CI, and PyPI releases.
@@ -26,3 +27,4 @@
 
 - [Testing](../TESTING.md) lists focused and complete validation commands.
 - [Releasing](../RELEASE.md) defines release preparation, validation, and publication.
+- [Loupe public submission dossier](submissions/loupe.md) and [Perform public submission dossier](submissions/perform.md) record the exact directory fields, reviewer tests, release artifacts, and discovery-channel status.

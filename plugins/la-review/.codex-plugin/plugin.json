@@ -3,7 +3,7 @@
   "version": "0.2.3",
   "description": "Independent multi-reviewer code review with verification and consolidation for Codex.",
   "author": {
-    "name": "pallgeuer",
+    "name": "Philipp Allgeuer",
     "url": "https://github.com/pallgeuer"
   },
   "homepage": "https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/loupe.md",
@@ -19,15 +19,25 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Loupe Code Review",
-    "shortDescription": "Independent code review with verified findings.",
-    "longDescription": "Runs available Codex and Claude reviewers independently, then verifies and consolidates their candidate findings into one structured review.",
-    "developerName": "pallgeuer",
-    "category": "Productivity",
+    "shortDescription": "Verified multi-reviewer review",
+    "longDescription": "Run independent specialist reviewers on a working tree, branch, commit, range, or pull request, then verify and consolidate their evidence into one structured review. Use bounded parallel reviewer execution and configure reasoning effort while preserving reviewer attribution, duplicate relationships, rejected claims, and partial failures.",
+    "developerName": "Philipp Allgeuer",
+    "category": "Developer Tools",
     "capabilities": [
-      "Read",
-      "Write"
+      "Run independent specialist reviewers",
+      "Verify and consolidate review evidence",
+      "Review working trees, branches, commits, and pull requests",
+      "Use bounded parallel review and configurable reasoning effort"
     ],
     "websiteURL": "https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/loupe.md",
+    "privacyPolicyURL": "https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/PRIVACY.md",
+    "termsOfServiceURL": "https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/TERMS.md",
+    "supportURL": "https://github.com/pallgeuer/la-dev-codex-plugins/issues",
+    "brandColor": "#155B83",
+    "brandColorDark": "#59D2C0",
+    "composerIcon": "./assets/composer-icon.svg",
+    "logo": "./assets/logo.svg",
+    "logoDark": "./assets/logo-dark.svg",
     "defaultPrompt": [
       "$la-review:loupe",
       "$la-review:loupe last commit",

@@ -9,6 +9,12 @@ The Python distribution contains only the launcher. It does not install Codex, t
 
 See [Marketplace plugin installation](installation.md) to install and verify the required `toolkit` plugin separately. The [plugin FAQ](faq.md) answers common adoption and configuration questions, and the [compatibility policy](compatibility.md) defines the stability of Perform's documented names and commands.
 
+## Local execution and data handling
+
+Perform itself has no hosted service, developer authentication flow, telemetry collector, or external data store. It selects and renders action definitions, then executes the selected workflow through the user's active Codex session and permissions. An action may read or write files, invoke tools, or access networks only according to its displayed definition and the permissions the user grants. Repository content, prompts, command output, and credentials processed by Codex or another selected tool remain subject to that service's policies.
+
+The optional `codex-perform` companion launches the same displayed action prompt through a separately installed Python command. It does not change the selected action's permissions or add a developer-operated service. See the shared [privacy policy](../PRIVACY.md), [terms of use](../TERMS.md), and [security policy](../SECURITY.md); use [GitHub Issues](https://github.com/pallgeuer/la-dev-codex-plugins/issues) for support.
+
 ## Requirements and plugin installation
 
 The Perform skill and standalone launcher require stable Codex CLI 0.137.0+ and Python 3.6+ with the standard library. Git improves repository-root discovery, but Perform falls back to walking for supported version-control markers when Git is unavailable. Individual actions can require tools belonging to the project they operate on. See the [Codex CLI compatibility policy](compatibility.md#codex-cli-compatibility) for later stable releases and prerelease builds.
