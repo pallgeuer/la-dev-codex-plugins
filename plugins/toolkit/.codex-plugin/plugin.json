@@ -1,6 +1,6 @@
 {
   "name": "toolkit",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Reusable, configurable development actions for Codex.",
   "author": {
     "name": "Philipp Allgeuer",

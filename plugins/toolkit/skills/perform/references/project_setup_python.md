@@ -115,12 +115,12 @@ YOUR-CLI = "YOUR_IMPORT_PACKAGE.cli:main"
 
 [dependency-groups]
 docs = [
-    "la-dev-codex-plugins==0.5.3",
+    "la-dev-codex-plugins==0.5.4",
     "zensical==0.0.54",
 ]
 test = [
     {include-group = "docs"},
-    "la-dev-codex-plugins[pytest]==0.5.3",
+    "la-dev-codex-plugins[pytest]==0.5.4",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "pytest-mock==3.15.1",

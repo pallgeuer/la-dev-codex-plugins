@@ -1,6 +1,6 @@
 # Language-Agnostic Development Codex Plugins
 
-This repository is a Codex plugin marketplace, version 0.5.3.
+This repository is a Codex plugin marketplace, version 0.5.4.
 
 Use the marketplace plugins to get a second, independently verified perspective on a code change or to turn recurring development work into reusable Codex actions. Loupe and Perform are the collection's co-equal entry points: start with the problem you need to solve and install only the plugin that addresses it.
 
