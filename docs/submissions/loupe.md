@@ -4,18 +4,44 @@ This dossier is the source of truth for the independent Loupe Code Review public
 
 ## Release identity and artifact
 
-| Field                           | Value                                                                             |
-|---------------------------------|-----------------------------------------------------------------------------------|
-| Repository release              | `0.5.4` / tag `v0.5.4`                                                            |
-| Plugin ID and version           | `la-review` `0.2.4`                                                               |
-| Immutable source                | `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.4/plugins/la-review` |
-| Archive                         | `la-review-0.2.4.zip`                                                             |
-| Archive source                  | `git archive` of `v0.5.4:plugins/la-review` with top-level directory `la-review/` |
-| SHA-256                         | Record after building from the verified release tag                               |
-| File list and uncompressed size | Record after building from the verified release tag                               |
-| Submission type                 | Skills only                                                                       |
+| Field                           | Value                                                                                                   |
+|---------------------------------|---------------------------------------------------------------------------------------------------------|
+| Repository release              | `0.5.4` / tag `v0.5.4`                                                                                  |
+| Plugin ID and version           | `la-review` `0.2.4`                                                                                     |
+| Immutable source                | `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.4/plugins/la-review`                       |
+| Archive                         | `la-review-0.2.4.zip`                                                                                   |
+| Archive source                  | Deterministic sorted ZIP of `plugins/la-review` from tag `v0.5.4` with top-level directory `la-review/` |
+| SHA-256                         | `d1ada402268bae53014df044e8511bc5438fe90313d4ae7ab1d1f1ea5fb96193`                                      |
+| File list and uncompressed size | 19 entries; 56,496 bytes uncompressed; recorded below                                                   |
+| Submission type                 | Skills only                                                                                             |
 
 Do not upload an archive built from an uncommitted tree or replace an archive after recording its digest.
+
+Archive entries:
+
+```text
+la-review/
+la-review/.codex-plugin/
+la-review/.codex-plugin/plugin.json
+la-review/.codexignore
+la-review/LICENSE
+la-review/README.md
+la-review/SECURITY.md
+la-review/assets/
+la-review/assets/composer-icon.svg
+la-review/assets/logo-dark.svg
+la-review/assets/logo.svg
+la-review/skills/
+la-review/skills/loupe/
+la-review/skills/loupe/SKILL.md
+la-review/skills/loupe/agents/
+la-review/skills/loupe/agents/openai.yaml
+la-review/skills/loupe/scripts/
+la-review/skills/loupe/scripts/collect_review_diff.py
+la-review/skills/loupe/scripts/run_reviewers.py
+```
+
+Use `la-review-0.2.4.zip` as the complete plugin package for the documented `Skills only` submission path and package-level distribution. It contains the `.codex-plugin/plugin.json` manifest that declares `"skills": "./skills/"` and intentionally omits `mcpServers`.
 
 ## Public listing fields
 
@@ -35,7 +61,7 @@ Do not upload an archive built from an uncommitted tree or replace an archive af
 
 ### Long description
 
-Run independent specialist reviewers on a working tree, branch, commit, range, or pull request, then verify and consolidate their evidence into one structured review. Configure reasoning effort while Loupe keeps reviewer execution bounded and preserves reviewer attribution, duplicate relationships, rejected claims, and partial failures.
+Run independent specialist reviewers on a working tree, branch, commit, range, or pull request, then verify and consolidate their evidence into one structured review. Loupe uses bounded parallel Codex reviewers and can optionally add Claude reviewers when the user's authenticated Claude CLI is available, providing cross-provider diversity without requiring a separate Loupe account. Configure provider-specific reasoning effort while preserving reviewer attribution, duplicate relationships, rejected claims, and partial failures.
 
 Loupe runs locally under the user's Codex session and permissions. It has no hosted service, developer authentication flow, telemetry collector, or external data store. Reviewers may inspect repository content and send it to the user's configured Codex or Claude provider, so users must be authorized to disclose the review material.
 
@@ -131,21 +157,85 @@ Release notes: Initial public submission of Loupe Code Review 0.2.4 from reposit
 
 ## Validation record
 
-Record before draft creation:
+Completed before draft creation:
 
-- Release commit and annotated tag verification.
-- Archive SHA-256, file list, and uncompressed size.
-- Extracted-package validation and clean installation result.
-- Skill discovery and bounded working-tree smoke result.
-- Automated portal safety and security scan status; current official documentation says scans may take up to two hours, and every finding must be resolved before submission.
-- Anonymous HTTP checks for every listing and policy URL.
-- Light- and dark-interface inspection of the logo plus thumbnail inspection of the composer icon.
+- Release commit `5e6c30b27f4be9acccb1fa4cc8d104e2681b3b03`, remote annotated tag `v0.5.4`, and published GitHub Release verified.
+- The deterministic archive was reproduced byte-for-byte in two independent builds; its SHA-256, complete file list, and 56,496-byte uncompressed size are recorded above.
+- The clean extracted package exactly matched `plugins/la-review` at `v0.5.4`, passed manifest and package-boundary validation, and contained no symlinks, caches, generated reports, secrets, or local paths.
+- Skill discovery, a 197-byte bounded working-tree diff capture, and all four reviewer-launch paths passed in an isolated smoke fixture with local provider stubs.
+- Every listing, policy, support, and immutable source URL returned HTTP 200 without authenticated requests.
+- The logo and composer icon passed SVG validation and remained recognizable at directory and composer sizes on light and dark backgrounds.
 
-## Channel status
+## Published channel records
 
-| Channel                          | State                                     | External ID or URL                            | Last checked | Next action                                                              |
-|----------------------------------|-------------------------------------------|-----------------------------------------------|--------------|--------------------------------------------------------------------------|
-| Official OpenAI plugin directory | Local dossier prepared; draft not created | Pending                                       | 2026-09-24   | Build and verify the tag archive, then create a manual skills-only draft |
-| Codex Plugin Marketplace         | Not submitted                             | Pending                                       | 2026-09-24   | Re-check the current contribution mechanism after release                |
-| Hashgraph Awesome Codex Plugins  | Not submitted                             | Issue `#430` requires convention confirmation | 2026-09-24   | Prepare the approved maintainer question after release                   |
-| OpenAI Community Plugins         | Not submitted                             | Pending                                       | 2026-09-24   | Re-check the current contribution guide after release                    |
+The shared status and future-release procedures are in [Published discovery channels](published_channels.md).
+
+### Official OpenAI plugin directory
+
+No valid Loupe draft or submission ID exists. On 2026-09-29, the publisher portal exposed only the `With MCP` route, whose final validation required an MCP server, while OpenAI's documentation described a separate `Skills only` route. An OpenAI Support ticket was submitted. Preserve and use the verified complete `la-review-0.2.4.zip` only when a valid skills-only path becomes available; do not add dummy MCP configuration or substitute a partial standalone-skill ZIP.
+
+### Codex Plugin Marketplace
+
+- Submitted source: `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.4/plugins/la-review`
+- Submission ID: `18247881-7092-45da-921b-47841d9f0ee4`
+- Displayed submission time: 2026-09-29 15:36
+- Authentication: personal owner match
+- Automated result: repository and plugin approved, clean scan, no stored findings
+- Public listing: `https://www.codex-marketplace.com/plugins/la-review`
+- Verified public version: `0.2.4`
+- Install command: `npx codex-marketplace add pallgeuer/la-dev-codex-plugins/plugins/la-review --plugin`
+
+The direct public page was live on 2026-09-29 with the intended publisher, description, version, and install command. The general Browse response had not indexed the entry yet.
+
+### Hashgraph Awesome Codex Plugins
+
+Loupe is not submitted. HOL Plugin Scanner 3.9.0 reported 96/100, grade A, with policy and verification passing and no critical, high, medium, or low findings against the released package root. The channel still requires a repository-root entry even though this repository contains two independent plugin packages. Await maintainer guidance on `https://github.com/hashgraph-online/awesome-codex-plugins/issues/430#issuecomment-5891778025` before opening a pull request.
+
+### OpenAI Community Plugins
+
+- Prepared upstream base: `62844ca1cd865b76c7fed7180fc1ffef16e9167b`
+- Contributor fork: `https://github.com/pallgeuer/community-plugins`
+- Branch: `add-la-review`
+- Commit: `1c4e575d48b479c8240cf9d772af2555e9ab0949`
+- Pull request: `https://github.com/openai/community-plugins/pull/25`
+- CLA signature: `https://github.com/openai/community-plugins/pull/25#issuecomment-5892082519`
+- Current status on 2026-09-29: open, CLA passed, review required, no reviews
+
+The contribution contains the exact `v0.5.4` Loupe package plus its matching marketplace entry, root master test command, unit/integration/security tests, and single-job workflow. `npm run validate:marketplace`, `npm run test:la-review` with five tests, and `npm run validate` passed. The complete marketplace dispatcher reached a pre-existing Autodesk Fusion storage check that rejects the managed sandbox's service-owned `/` ancestry; clean-host CI remains authoritative for that upstream-wide gate.
+
+Submitted pull-request title: `Add Loupe Code Review plugin`
+
+Submitted pull-request body:
+
+```markdown
+## Summary
+
+Add Loupe Code Review 0.2.4 for developers who want independent specialist reviews of a working tree, branch, commit, range, or pull request with evidence verification and consolidated results.
+
+The installable package is copied from `pallgeuer/la-dev-codex-plugins` release `v0.5.4` without package-content changes.
+
+## Plugin impact
+
+Users explicitly invoke `$la-review:loupe`. The skill reads Git metadata and repository content for the requested scope. Its bundled Python helpers capture a bounded diff in a private temporary directory and launch the user's available `codex` and/or `claude` reviewer CLIs through Bash and `jq`; Loupe does not edit, stage, or commit repository files.
+
+An invoked reviewer may send repository diffs or related inspected content to the user's configured OpenAI or Anthropic provider under that user's existing authentication, account, quota, and provider policies. Loupe has no hosted service, plugin-owned account, telemetry collector, credential store, or external data store. Temporary diff and reviewer-result files are removed after an uncomplicated successful run and retained with their path reported when diagnostics are needed.
+
+Runtime prerequisites are Python 3.6+ using only the standard library, Bash, Git, `jq`, and at least one authenticated `codex` or `claude` executable. This contribution adds no npm or other third-party runtime dependency. The package is MIT licensed and includes its license and security policy.
+
+The contribution adds an offline cold-package test that uses a disposable local Git fixture and never launches external reviewers. Missing Git context, invalid scopes, unavailable reviewer tools, invalid effort values, reviewer failures, and timeouts fail explicitly rather than silently selecting another scope or fabricating a successful review.
+
+## Verification
+
+- `npm run validate:marketplace` - passed
+- `npm run test:la-review` - passed, 5 tests
+- `npm run validate` - passed
+- The complete marketplace dispatcher passed all suites reached in the local sandbox. Its pre-existing Autodesk Fusion storage test cannot run under the sandbox service-owned `/` ancestry; the authoritative clean-host CI run remains required.
+- The copied `plugins/la-review` tree exactly matches tag `v0.5.4`.
+- Source release archive SHA-256: `d1ada402268bae53014df044e8511bc5438fe90313d4ae7ab1d1f1ea5fb96193`
+
+No credentials, customer data, private URLs, personal paths, dependency changes, or third-party-notice changes are included.
+
+## Reviewer notes
+
+Please review the off-machine provider boundary carefully: repository material is disclosed only when the user explicitly invokes Loupe and only through the user's locally configured reviewer CLIs. The automated contribution tests do not contact either provider.
+```

@@ -30,7 +30,17 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
-None.
+### Added
+
+#### Plugin discovery
+
+- Added a durable cross-channel publication history and future-release update runbook, with current Loupe and Perform status plus plugin-specific submission evidence retained in their dossiers.
+
+### Changed
+
+#### Release safety
+
+- Made post-release updates to already-published plugin channels explicitly opt-in, with no external channel changes unless the user approves them after release verification.
 
 ---
 

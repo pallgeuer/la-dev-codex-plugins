@@ -2,7 +2,7 @@
 
 This runbook describes how to make a stable release of the repository, its Codex plugin marketplace, and its dependency-free Python distribution. A release consists of version updates committed to `main`, an unsigned annotated Git tag named `vX.Y.Z`, a validated Python-package preflight, and a published GitHub Release. Publishing the GitHub Release triggers trusted publication of the matching minimal sdist and universal wheel to PyPI.
 
-Run `$toolkit:perform publish-release` to execute this runbook. The action must stop for the exact-version confirmation, the final publication confirmation, and any protected-environment approval required below.
+Run `$toolkit:perform publish-release` to execute this runbook. The action must stop for the exact-version confirmation, the final publication confirmation, and any protected-environment approval required below. After the release is fully verified, it must also ask whether the user wants to update changed plugins in channels where they are already published; the default is not to update any external discovery channel.
 
 Run all commands from the repository root. Replace example values such as `X.Y.Z` before executing them. Stop whenever a command fails and resolve the failure before continuing.
 
@@ -551,7 +551,21 @@ Open `https://pypi.org/project/la-dev-codex-plugins/$NEW_REPO_VERSION/` and veri
 
 No local Codex marketplace or plugin installation needs to be modified as part of release verification.
 
-## 9. Recovery rules
+## 9. Ask about published-channel updates
+
+After the GitHub Release, Python publication, checksum asset, and public package page are verified, identify which plugins changed in this release and consult [Published discovery channels](docs/submissions/published_channels.md). For each changed plugin, list only the channels where that plugin has already been successfully published, meaning it has a live public listing or a merged installable catalogue entry. A draft, submission queue, open pull request, unresolved support ticket, or unanswered maintainer question is not a successfully published channel.
+
+Ask the user whether they want the changed plugins updated in those already-published channels. Name the exact plugin versions and eligible channels in the question. This is an opt-in follow-up and is not part of the release publication itself.
+
+- Do not infer consent from the request to make a release, version approval, permission to push the release, GitHub Release approval, PyPI environment approval, or approval given during an earlier release.
+- Unless the user explicitly says to perform the channel updates, take no discovery-channel action. Silence, an unrelated continuation prompt, or a general acknowledgement leaves the default unchanged.
+- Do not submit a plugin to a channel where it has never been successfully published under this step. Initial publication is separate work and requires its own explicit request.
+- When the user opts in, update only the plugins and channels they approved, follow the current per-channel procedure in `docs/submissions/published_channels.md`, and preserve each plugin's independent version and package boundary.
+- Re-read the external channel's current rules before acting. Record the new release version, source tag, external IDs or pull requests, review state, final public version, and verification date in the shared channel record and plugin dossier.
+
+If no changed plugin has an already-published channel, state that there are no eligible channel updates and finish without asking the user to authorize an empty action.
+
+## 10. Recovery rules
 
 - If an incorrect tag exists only locally, delete it with `git tag -d "$TAG"`, fix the release commit or variables, and recreate it.
 - If tag creation succeeds but the tag push fails, resolve the push or authentication problem and retry the same explicit tag push.
@@ -574,3 +588,4 @@ Most of the recipe is command-driven, but the maintainer must make and verify th
 3. After tagging and the nonpublishing preflight, summarize the exact release identity, artifacts, destinations, and pipeline, then obtain a second explicit approval before creating the GitHub Release.
 4. When the protected `pypi` deployment is requested, show the exact run and stop without polling until the user approves it and sends new input.
 5. After publication, inspect the GitHub Release, checksum asset, successful package workflow, and PyPI project version. No local plugin reinstall, checksum regeneration, or manual package upload is required.
+6. After release verification, list the changed plugins and their already-published channels, then ask whether the user wants those channel updates. Do nothing unless the user explicitly opts in.

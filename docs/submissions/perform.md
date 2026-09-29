@@ -4,18 +4,70 @@ This dossier is the source of truth for the independent Perform Action Toolkit p
 
 ## Release identity and artifact
 
-| Field                           | Value                                                                           |
-|---------------------------------|---------------------------------------------------------------------------------|
-| Repository release              | `0.5.4` / tag `v0.5.4`                                                          |
-| Plugin ID and version           | `toolkit` `0.4.4`                                                               |
-| Immutable source                | `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.4/plugins/toolkit` |
-| Archive                         | `toolkit-0.4.4.zip`                                                             |
-| Archive source                  | `git archive` of `v0.5.4:plugins/toolkit` with top-level directory `toolkit/`   |
-| SHA-256                         | Record after building from the verified release tag                             |
-| File list and uncompressed size | Record after building from the verified release tag                             |
-| Submission type                 | Skills only                                                                     |
+| Field                           | Value                                                                                               |
+|---------------------------------|-----------------------------------------------------------------------------------------------------|
+| Repository release              | `0.5.4` / tag `v0.5.4`                                                                              |
+| Plugin ID and version           | `toolkit` `0.4.4`                                                                                   |
+| Immutable source                | `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.4/plugins/toolkit`                     |
+| Archive                         | `toolkit-0.4.4.zip`                                                                                 |
+| Archive source                  | Deterministic sorted ZIP of `plugins/toolkit` from tag `v0.5.4` with top-level directory `toolkit/` |
+| SHA-256                         | `3f76504358c65c071dcdd873d55a7dc38a482cdebf2e9f03e66a77aaa484a704`                                  |
+| File list and uncompressed size | 45 entries; 300,723 bytes uncompressed; recorded below                                              |
+| Submission type                 | Skills only                                                                                         |
 
 Do not upload an archive built from an uncommitted tree or replace an archive after recording its digest.
+
+Archive entries:
+
+```text
+toolkit/
+toolkit/.codex-plugin/
+toolkit/.codex-plugin/plugin.json
+toolkit/.codexignore
+toolkit/LICENSE
+toolkit/README.md
+toolkit/SECURITY.md
+toolkit/assets/
+toolkit/assets/composer-icon.svg
+toolkit/assets/logo-dark.svg
+toolkit/assets/logo.svg
+toolkit/skills/
+toolkit/skills/perform/
+toolkit/skills/perform/SKILL.md
+toolkit/skills/perform/agents/
+toolkit/skills/perform/agents/openai.yaml
+toolkit/skills/perform/assets/
+toolkit/skills/perform/assets/toolkit_perform_actions/
+toolkit/skills/perform/assets/toolkit_perform_actions/actions.json
+toolkit/skills/perform/references/
+toolkit/skills/perform/references/action_files.md
+toolkit/skills/perform/references/codex_skill.md
+toolkit/skills/perform/references/project_setup_agnostic.md
+toolkit/skills/perform/references/project_setup_python.md
+toolkit/skills/perform/references/standalone_cli.md
+toolkit/skills/perform/scripts/
+toolkit/skills/perform/scripts/get_perform_action.py
+toolkit/skills/perform/scripts/list_perform_actions.py
+toolkit/skills/perform/scripts/toolkit_perform_runtime/
+toolkit/skills/perform/scripts/toolkit_perform_runtime/__init__.py
+toolkit/skills/perform/scripts/toolkit_perform_runtime/_launcher_version.py
+toolkit/skills/perform/scripts/toolkit_perform_runtime/_values.py
+toolkit/skills/perform/scripts/toolkit_perform_runtime/action_catalogue.py
+toolkit/skills/perform/scripts/toolkit_perform_runtime/api.py
+toolkit/skills/perform/scripts/toolkit_perform_runtime/catalog.py
+toolkit/skills/perform/scripts/toolkit_perform_runtime/cli.py
+toolkit/skills/perform/scripts/toolkit_perform_runtime/diagnostics.py
+toolkit/skills/perform/scripts/toolkit_perform_runtime/discovery.py
+toolkit/skills/perform/scripts/toolkit_perform_runtime/launcher_api.py
+toolkit/skills/perform/scripts/toolkit_perform_runtime/launching.py
+toolkit/skills/perform/scripts/toolkit_perform_runtime/paths.py
+toolkit/skills/perform/scripts/toolkit_perform_runtime/rendering.py
+toolkit/skills/perform/scripts/toolkit_perform_runtime/standalone.py
+toolkit/skills/perform/scripts/toolkit_perform_runtime/validation.py
+toolkit/skills/perform/scripts/write_perform_action_catalogue.py
+```
+
+Use `toolkit-0.4.4.zip` as the complete plugin package for the documented `Skills only` submission path and package-level distribution. It contains the `.codex-plugin/plugin.json` manifest that declares `"skills": "./skills/"` and intentionally omits `mcpServers`.
 
 ## Public listing fields
 
@@ -134,21 +186,84 @@ Release notes: Initial public submission of Perform Action Toolkit 0.4.4 from re
 
 ## Validation record
 
-Record before draft creation:
+Completed before draft creation:
 
-- Release commit and annotated tag verification.
-- Archive SHA-256, file list, and uncompressed size.
-- Extracted-package validation and clean installation result.
-- No-argument listing, strict-selector, and missing-variable smoke results.
-- Automated portal safety and security scan status; current official documentation says scans may take up to two hours, and every finding must be resolved before submission.
-- Anonymous HTTP checks for every listing and policy URL.
-- Light- and dark-interface inspection of the logo plus thumbnail inspection of the composer icon.
+- Release commit `5e6c30b27f4be9acccb1fa4cc8d104e2681b3b03`, remote annotated tag `v0.5.4`, and published GitHub Release verified.
+- The deterministic archive was reproduced byte-for-byte in two independent builds; its SHA-256, complete file list, and 300,723-byte uncompressed size are recorded above.
+- The clean extracted package exactly matched `plugins/toolkit` at `v0.5.4`, passed manifest and package-boundary validation, and contained no symlinks, caches, generated reports, secrets, or local paths.
+- No-argument action listing and strict `find-todos[agnostic]` inspection passed; rendering `check-cross-platform[agnostic]` without `OSList` produced the expected safe `missing_variables` failure.
+- Every listing, policy, support, and immutable source URL returned HTTP 200 without authenticated requests.
+- The logo and composer icon passed SVG validation and remained recognizable at directory and composer sizes on light and dark backgrounds.
 
-## Channel status
+## Published channel records
 
-| Channel                          | State                                     | External ID or URL                            | Last checked | Next action                                                              |
-|----------------------------------|-------------------------------------------|-----------------------------------------------|--------------|--------------------------------------------------------------------------|
-| Official OpenAI plugin directory | Local dossier prepared; draft not created | Pending                                       | 2026-09-24   | Build and verify the tag archive, then create a manual skills-only draft |
-| Codex Plugin Marketplace         | Not submitted                             | Pending                                       | 2026-09-24   | Re-check the current contribution mechanism after release                |
-| Hashgraph Awesome Codex Plugins  | Not submitted                             | Issue `#430` requires convention confirmation | 2026-09-24   | Prepare the approved maintainer question after release                   |
-| OpenAI Community Plugins         | Not submitted                             | Pending                                       | 2026-09-24   | Re-check the current contribution guide after release                    |
+The shared status and future-release procedures are in [Published discovery channels](published_channels.md).
+
+### Official OpenAI plugin directory
+
+No valid Perform draft or submission ID exists. On 2026-09-29, the publisher portal exposed only the `With MCP` route, whose final validation required an MCP server, while OpenAI's documentation described a separate `Skills only` route. An OpenAI Support ticket was submitted. Preserve and use the verified complete `toolkit-0.4.4.zip` only when a valid skills-only path becomes available; do not add dummy MCP configuration or substitute a partial standalone-skill ZIP.
+
+### Codex Plugin Marketplace
+
+- Submitted source: `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.4/plugins/toolkit`
+- Submission ID: `828e9134-a244-4a8a-bea2-dd5f3e6e6675`
+- Displayed submission time: 2026-09-29 15:43
+- Authentication: personal owner match
+- Automated result: repository and plugin approved, clean scan, no stored findings
+- Public listing: `https://www.codex-marketplace.com/plugins/toolkit`
+- Verified public version: `0.4.4`
+- Install command: `npx codex-marketplace add pallgeuer/la-dev-codex-plugins/plugins/toolkit --plugin`
+
+The direct public page was live on 2026-09-29 with the intended publisher, description, version, and install command. The general Browse response had not indexed the entry yet.
+
+### Hashgraph Awesome Codex Plugins
+
+Perform is not submitted. HOL Plugin Scanner 3.9.0 reported 96/100, grade A, with policy and verification passing and no critical, high, medium, or low findings against the released package root. The channel still requires a repository-root entry even though this repository contains two independent plugin packages. Await maintainer guidance on `https://github.com/hashgraph-online/awesome-codex-plugins/issues/430#issuecomment-5891778025` before opening a pull request.
+
+### OpenAI Community Plugins
+
+- Prepared upstream base: `62844ca1cd865b76c7fed7180fc1ffef16e9167b`
+- Contributor fork: `https://github.com/pallgeuer/community-plugins`
+- Branch: `add-perform-toolkit`
+- Commit: `bbab6f73a1215efcc03e53cdb69c59224cab3676`
+- Pull request: `https://github.com/openai/community-plugins/pull/26`
+- Current status on 2026-09-29: open, CLA passed, review required, no reviews
+
+The contribution contains the exact `v0.5.4` Perform package plus its matching marketplace entry, root master test command, unit/integration/security tests, and single-job workflow. `npm run validate:marketplace`, `npm run test:toolkit` with five tests, and `npm run validate` passed. The complete marketplace dispatcher reached a pre-existing Autodesk Fusion storage check that rejects the managed sandbox's service-owned `/` ancestry; clean-host CI remains authoritative for that upstream-wide gate. The existing repository-wide CLA signature from Loupe PR #25 was recognized automatically, so no duplicate signature comment was posted.
+
+Submitted pull-request title: `Add Perform Action Toolkit plugin`
+
+Submitted pull-request body:
+
+```markdown
+## Summary
+
+Add Perform Action Toolkit 0.4.4 for developers who want to discover reusable Codex actions, select an exact variant, bind required variables, preview the final workflow, and execute it with strict failure behavior.
+
+The installable package is copied from `pallgeuer/la-dev-codex-plugins` release `v0.5.4` without package-content changes.
+
+## Plugin impact
+
+Users explicitly invoke `$toolkit:perform`. Bundled Python scripts use only the standard library to discover bundled, system, user, and repository action catalogues; list variants; inspect exact selectors; and render prompts. The skill previews the canonical selector, notes, and exact prompt before Codex executes the chosen action. The scripts do not themselves execute an action.
+
+The selected action definition and the active Codex session determine which repository files, local tools, or network destinations a run may access. Perform itself has no hosted service, plugin-owned account, authentication flow, telemetry collector, credential store, or external data store. Direct prompt-variable values are nonsecret process arguments and may be visible to process or audit tooling; users are instructed to pass references to protected values rather than secrets.
+
+Runtime prerequisites are Python 3.6+ using only the standard library and Codex 0.137.0+; Git is an optional repository-discovery aid. This contribution adds no npm or other third-party runtime dependency. The package is MIT licensed and includes its license and security policy.
+
+The contribution adds offline cold-package tests for catalogue listing, strict selection, missing-variable failure, and rendering. Unknown strict selectors, missing variables, catalogue failures, incompatible qualifications, and unavailable goal mode stop without substituting or executing another workflow.
+
+## Verification
+
+- `npm run validate:marketplace` - passed
+- `npm run test:toolkit` - passed, 5 tests
+- `npm run validate` - passed
+- The complete marketplace dispatcher passed all suites reached in the local sandbox. Its pre-existing Autodesk Fusion storage test cannot run under the sandbox service-owned `/` ancestry; the authoritative clean-host CI run remains required.
+- The copied `plugins/toolkit` tree exactly matches tag `v0.5.4`.
+- Source release archive SHA-256: `3f76504358c65c071dcdd873d55a7dc38a482cdebf2e9f03e66a77aaa484a704`
+
+No credentials, customer data, private URLs, personal paths, dependency changes, or third-party-notice changes are included.
+
+## Reviewer notes
+
+Please review the per-action permission boundary carefully: Perform selects and previews actions, while each action definition and the active Codex permissions govern its eventual read, write, tool, and network behavior. The automated contribution tests do not execute configured actions or contact external services.
+```

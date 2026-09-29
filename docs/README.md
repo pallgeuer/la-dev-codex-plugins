@@ -27,4 +27,5 @@
 
 - [Testing](../TESTING.md) lists focused and complete validation commands.
 - [Releasing](../RELEASE.md) defines release preparation, validation, and publication.
-- [Loupe public submission dossier](submissions/loupe.md) and [Perform public submission dossier](submissions/perform.md) record the exact directory fields, reviewer tests, release artifacts, and discovery-channel status.
+- [Published discovery channels](submissions/published_channels.md) records the cross-channel status, completed publication steps, and update procedure for future plugin releases.
+- [Loupe public submission dossier](submissions/loupe.md) and [Perform public submission dossier](submissions/perform.md) retain plugin-specific artifacts, listing fields, review tests, validation evidence, and submitted contribution text.
