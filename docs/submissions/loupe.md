@@ -172,9 +172,15 @@ The shared status and future-release procedures are in [Published discovery chan
 
 ### Official OpenAI plugin directory
 
-No valid Loupe draft or submission ID exists. On 2026-09-29, the publisher portal exposed only the `With MCP` form and required an MCP server at final validation, so an OpenAI Support ticket was submitted and no invalid workaround was used. On 2026-09-30, the portal and official guide changed to a unified **Upload new or existing plugin** flow. Release `0.2.5` was then prepared specifically for that importer with the preferred long description and user-facing starter prompts.
+On 2026-09-29, the publisher portal exposed only the `With MCP` form and required an MCP server at final validation, so an OpenAI Support ticket was submitted and no invalid workaround was used. On 2026-09-30, the portal and official guide changed to a unified **Upload new or existing plugin** flow. Release `0.2.5` was then prepared specifically for that importer with the preferred long description and user-facing starter prompts.
 
-The verified `la-review-0.2.5.zip` is ready for initial upload as a skills-only package. The portal should import its complete read-only listing metadata and one `loupe` skill without creating an MCP setup task.
+The verified `la-review-0.2.5.zip` was uploaded as a skills-only package on 2026-09-30. The portal imported its listing metadata and one `loupe` skill without an MCP server. Automated checks reported one non-blocking warning: "The plugin's name or description references another AI assistant, model, or platform." This was reviewed and retained because the long description accurately discloses Loupe's optional use of the user's authenticated Claude CLI without comparison, disparagement, endorsement, or an unverifiable claim.
+
+- Portal identity: `plugins_6abd26efa26c8191bfe2f781bdde6ec2`
+- Publisher URL: `https://platform.openai.com/plugins/manage/plugins_6abd26efa26c8191bfe2f781bdde6ec2`
+- Submitted: 2026-09-30
+- Current status: **In review**
+- Next action: Wait for the portal or email review decision. After approval, explicitly publish the approved version and verify its public directory listing.
 
 ### Codex Plugin Marketplace
 
