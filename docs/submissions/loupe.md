@@ -13,7 +13,7 @@ This dossier is the source of truth for the independent Loupe Code Review public
 | Archive source                  | Deterministic sorted ZIP of `plugins/la-review` from tag `v0.5.4` with top-level directory `la-review/` |
 | SHA-256                         | `d1ada402268bae53014df044e8511bc5438fe90313d4ae7ab1d1f1ea5fb96193`                                      |
 | File list and uncompressed size | 19 entries; 56,496 bytes uncompressed; recorded below                                                   |
-| Submission type                 | Skills only                                                                                             |
+| Submission type                 | Skills only through complete plugin ZIP upload                                                          |
 
 Do not upload an archive built from an uncommitted tree or replace an archive after recording its digest.
 
@@ -41,7 +41,7 @@ la-review/skills/loupe/scripts/collect_review_diff.py
 la-review/skills/loupe/scripts/run_reviewers.py
 ```
 
-Use `la-review-0.2.4.zip` as the complete plugin package for the documented `Skills only` submission path and package-level distribution. It contains the `.codex-plugin/plugin.json` manifest that declares `"skills": "./skills/"` and intentionally omits `mcpServers`.
+Use `la-review-0.2.4.zip` as the complete plugin package for the ZIP-first submission flow and package-level distribution. It contains one `la-review/` plugin root, an accepted `.codex-plugin/plugin.json` compatibility manifest that declares `"skills": "./skills/"`, and no `mcpServers`, `mcp.json`, or `.mcp.json`. The current portal accepts this compatibility layout even though the newer portable layout with root `plugin.json` is recommended for newly authored packages. Do not replace this recorded release archive merely to change formats.
 
 ## Public listing fields
 
@@ -172,7 +172,9 @@ The shared status and future-release procedures are in [Published discovery chan
 
 ### Official OpenAI plugin directory
 
-No valid Loupe draft or submission ID exists. On 2026-09-29, the publisher portal exposed only the `With MCP` route, whose final validation required an MCP server, while OpenAI's documentation described a separate `Skills only` route. An OpenAI Support ticket was submitted. Preserve and use the verified complete `la-review-0.2.4.zip` only when a valid skills-only path becomes available; do not add dummy MCP configuration or substitute a partial standalone-skill ZIP.
+No valid Loupe draft or submission ID exists. On 2026-09-29, the publisher portal exposed only the `With MCP` form and required an MCP server at final validation, so an OpenAI Support ticket was submitted and no invalid workaround was used. On 2026-09-30, the portal and official guide changed to a unified **Upload new or existing plugin** flow that accepts the verified complete `la-review-0.2.4.zip` as a skills-only package.
+
+The released archive passes the documented structural requirements, but the new portal imports read-only listing metadata from its manifest. In particular, release `0.2.4` imports its command-style starter prompts and a long description that does not mention optional Claude reviewers, while the preferred dossier copy above does. Do not modify the immutable archive in place. Either submit release `0.2.4` exactly as packaged or make a new plugin release with the preferred metadata before creating the draft.
 
 ### Codex Plugin Marketplace
 

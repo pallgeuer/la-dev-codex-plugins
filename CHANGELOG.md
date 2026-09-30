@@ -38,6 +38,18 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
+#### Loupe
+
+- Expanded directory metadata with optional Claude reviewer diversity, local-execution and data-handling boundaries, and user-facing starter prompts.
+
+#### Perform
+
+- Expanded directory metadata with workflow safeguards, local-execution boundaries, companion-package clarification, and user-facing starter prompts.
+
+#### Plugin discovery
+
+- Updated the official OpenAI directory runbook and plugin dossiers for the unified complete-ZIP upload, automated-check, review, and explicit-publication workflow, including the reduced requirements for skills-only plugins.
+
 #### Release safety
 
 - Made post-release updates to already-published plugin channels explicitly opt-in, with no external channel changes unless the user approves them after release verification.

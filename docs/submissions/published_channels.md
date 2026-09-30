@@ -8,7 +8,7 @@ Channel rules and user interfaces can change. Re-read each channel's authoritati
 
 | Channel                          | Loupe                                                                                       | Perform                                                                                     | Waiting for                                                                                   | Last checked |
 |----------------------------------|---------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|--------------|
-| Official OpenAI plugin directory | Not submitted: documented `Skills only` route absent from publisher portal                  | Not submitted: documented `Skills only` route absent from publisher portal                  | OpenAI Support response or a working skills-only submission route                             | 2026-09-29   |
+| Official OpenAI plugin directory | Ready for ZIP-first draft creation; no draft or submission ID yet                           | Ready for ZIP-first draft creation; no draft or submission ID yet                           | Publisher decision on using the released metadata or preparing a new plugin release           | 2026-09-30   |
 | Codex Plugin Marketplace         | Published: `https://www.codex-marketplace.com/plugins/la-review`                            | Published: `https://www.codex-marketplace.com/plugins/toolkit`                              | Nothing                                                                                       | 2026-09-29   |
 | Hashgraph Awesome Codex Plugins  | Not submitted: multi-plugin repository convention unresolved                                | Not submitted: multi-plugin repository convention unresolved                                | Maintainer guidance in `https://github.com/hashgraph-online/awesome-codex-plugins/issues/430` | 2026-09-29   |
 | OpenAI Community Plugins         | PR open; CLA passed; review required: `https://github.com/openai/community-plugins/pull/25` | PR open; CLA passed; review required: `https://github.com/openai/community-plugins/pull/26` | CDE maintainer review, any upstream-requested checks, and merge decisions                     | 2026-09-29   |
@@ -30,18 +30,20 @@ Both release archives were reproduced byte-for-byte, extracted into clean direct
 
 ### Official OpenAI plugin directory
 
-The current [OpenAI submission guide](https://developers.openai.com/plugins/deploy/submission) documents skills-only, MCP-only, and combined submissions. It requires a verified developer identity, listing information, skills or MCP details, prompts, five positive and three negative tests, availability, release notes, review, and an explicit publication step after approval.
+The [OpenAI submission guide](https://developers.openai.com/plugins/deploy/submission) changed on 2026-09-30 to match a new ZIP-first publisher portal. **Upload new or existing plugin** now accepts a complete package, imports its manifest metadata and skills, runs automated checks, accepts the resulting draft for review, and leaves publication as an explicit action after approval. Skills-only packages do not require an MCP server, MCP test cases, or a demo recording. The five positive cases, three negative cases, video, MCP connection, domain verification, and tool scan documented by the portal apply to plugins with remote MCP connections.
 
-For both plugins:
+The initial preparation and blocked attempt on 2026-09-29 proceeded as follows for both plugins:
 
 1. Prepared and verified a complete skills-only plugin ZIP containing `.codex-plugin/plugin.json`, the declared `skills/` tree, package documentation, license, security policy, and branding.
-2. Prepared all portal fields, starter prompts, five positive tests, three negative tests, release notes, and public policy/support URLs in the plugin dossier.
+2. Prepared listing fields, starter prompts, optional skills-only test material, release notes, and public policy/support URLs in the plugin dossier.
 3. Opened the signed-in publisher portal under the verified individual identity `Philipp Allgeuer`.
 4. Found that **Create plugin** exposed only **With MCP**. That flow required an MCP server at final validation even when its Skills tab accepted uploaded skill bundles.
 5. Stopped rather than adding a dummy MCP server or uploading a partial standalone-skill package in place of the complete plugin.
 6. Submitted an OpenAI Support ticket describing the missing documented **Skills only** route.
 
-No official OpenAI directory draft or submission ID exists for either plugin. The next step is to resume only when Support provides a valid skills-only path or the portal exposes one.
+On 2026-09-30, the portal replaced that form with the documented complete-package upload flow, resolving the blocker. The existing `la-review-0.2.4.zip` and `toolkit-0.4.4.zip` each contain exactly one plugin root, an accepted `.codex-plugin/plugin.json` compatibility manifest, one declared skill tree, required square SVG branding, and no MCP configuration. Their recorded digests still match, so `dist/` does not need to be rebuilt merely for the portal change. The newer portable root `plugin.json` format is recommended for newly authored packages but is not required for these compatibility packages.
+
+No official OpenAI directory draft or submission ID exists for either plugin yet. Before upload, decide whether to submit the immutable `v0.5.4` packages exactly as released or make a new release whose manifest incorporates any revised directory copy. The new portal treats package metadata as read-only and requires a corrected ZIP when it changes, so do not patch either recorded archive in place.
 
 ### Codex Plugin Marketplace
 
@@ -126,19 +128,28 @@ Perform these steps separately for every plugin whose version changed. Do not up
 
 ### Official OpenAI plugin directory
 
-For a plugin that has not yet been accepted, use the documented **Skills only** path when it becomes available and follow the dossier as an initial submission.
+For a plugin that has not yet been accepted:
+
+1. Open `https://platform.openai.com/plugins`, select **Upload new or existing plugin**, and choose the verified developer identity.
+2. Upload the complete released plugin ZIP. Do not upload a standalone skill ZIP and do not add dummy MCP configuration.
+3. Confirm the imported plugin ID, semantic version, listing metadata, URLs, starter prompts, branding, and skill inventory in **Metadata & Skills**.
+4. Wait for metadata and skill safety checks to finish. Required skill scans can take up to two hours. Copy any findings into the development workflow; if a packaged field or skill must change, fix it in source, make a new release, and upload that complete ZIP rather than editing the released archive.
+5. Ignore MCP connection, domain verification, MCP test-case, and video-walkthrough instructions for these skills-only plugins. Complete only the review details and policy attestations the portal actually requires.
+6. Select the draft and **Submit for review**. Record the submission or draft identity, selected version, date, and review status in the plugin dossier and status table.
+7. After approval, open the approved package version and select **Publish plugin**. Verify the public directory listing, version, prompts, assets, links, and install behavior before recording it as published.
 
 For an existing official listing:
 
-1. Open the existing plugin in `https://platform.openai.com/plugins` and create a new draft version rather than a new plugin identity.
-2. Upload the newly verified complete skills-only bundle and confirm the manifest name matches the existing plugin while its version matches the new release.
-3. Update listing information, uploaded skills, starter prompts, five positive tests, three negative tests, availability, and release notes. Describe what changed since the published version.
-4. Review the entire draft and policy attestations, then submit the new version for review.
-5. Track portal status and email. Prepare any response locally and do not modify the released tag in response to review feedback.
-6. After approval, explicitly publish the approved replacement from the portal. Verify the directory page, exact version, prompts, assets, public links, and install behavior.
-7. Update this status table and the plugin dossier with the new version, submission ID, review result, publication date, and listing URL.
+1. Open the existing plugin in `https://platform.openai.com/plugins` and select **Upload plugin** rather than creating another plugin identity.
+2. Upload the newly verified complete ZIP, including every component that should remain. Confirm that its manifest name matches the existing plugin and its semantic version matches the new release.
+3. Check the selected version in **Metadata & Skills**, wait for automated checks, and resolve required findings through another source release and complete ZIP when necessary.
+4. Review the imported listing information, skills, starter prompts, availability, and release notes. Skills-only updates do not need MCP review cases or a demo recording.
+5. Complete applicable review details and policy attestations, then submit the package version for review. Only one review can be active for a plugin at a time.
+6. Track portal status and email. Prepare any response locally and do not modify the released tag in response to review feedback.
+7. After approval, explicitly publish the approved replacement from the portal. Verify the directory page, exact version, prompts, assets, public links, and install behavior.
+8. Update this status table and the plugin dossier with the new version, submission ID, review result, publication date, and listing URL.
 
-OpenAI's submission documentation states that changed plugin information or imported skills require a new version, review, and publication; skills do not update live from the source repository.
+OpenAI's submission documentation states that metadata, asset, bundled-skill, and packaged MCP-configuration changes require a new complete ZIP and package version. Adding or removing skills uses the existing plugin identity. Adding an MCP server to an existing skills-only plugin is not currently supported, so include an MCP server in the initial ZIP if that capability is planned. Hosted MCP tool changes follow a separate scan process and do not apply to Loupe or Perform.
 
 ### Codex Plugin Marketplace
 

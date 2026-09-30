@@ -20,7 +20,7 @@
   "interface": {
     "displayName": "Perform Action Toolkit",
     "shortDescription": "Run reusable Codex actions",
-    "longDescription": "Discover useful built-in actions and run the exact variant you select through Codex. Perform binds required variables from your request and layers system, user, and repository action definitions with defined precedence. A separately installed codex-perform companion can launch the same actions from a shell.",
+    "longDescription": "Discover useful built-in actions and run the exact variant you select through Codex. Perform binds required variables from your request and layers system, user, and repository action definitions with defined precedence. It previews the selected selector, notes, and exact prompt before execution and fails safely on unknown strict selectors, missing variables, or incompatible instructions.\n\nPerform runs locally under the user's Codex session and permissions. It has no hosted service, developer authentication flow, telemetry collector, or external data store. A separately installed codex-perform Python companion can launch the same actions from a shell, but it is not included in this plugin package and is secondary to the in-chat workflow.",
     "developerName": "Philipp Allgeuer",
     "category": "Developer Tools",
     "capabilities": [
@@ -39,9 +39,9 @@
     "logo": "./assets/logo.svg",
     "logoDark": "./assets/logo-dark.svg",
     "defaultPrompt": [
-      "$toolkit:perform",
-      "$toolkit:perform find-todos",
-      "$toolkit:perform audit-test-performance"
+      "List the reusable Perform actions available in this repository without running one.",
+      "Run the Perform action that finds TODOs in the current repository.",
+      "Use the Python project-setup audit action and show me the exact workflow before executing it."
     ]
   }
 }

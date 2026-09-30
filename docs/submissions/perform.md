@@ -13,7 +13,7 @@ This dossier is the source of truth for the independent Perform Action Toolkit p
 | Archive source                  | Deterministic sorted ZIP of `plugins/toolkit` from tag `v0.5.4` with top-level directory `toolkit/` |
 | SHA-256                         | `3f76504358c65c071dcdd873d55a7dc38a482cdebf2e9f03e66a77aaa484a704`                                  |
 | File list and uncompressed size | 45 entries; 300,723 bytes uncompressed; recorded below                                              |
-| Submission type                 | Skills only                                                                                         |
+| Submission type                 | Skills only through complete plugin ZIP upload                                                      |
 
 Do not upload an archive built from an uncommitted tree or replace an archive after recording its digest.
 
@@ -67,7 +67,7 @@ toolkit/skills/perform/scripts/toolkit_perform_runtime/validation.py
 toolkit/skills/perform/scripts/write_perform_action_catalogue.py
 ```
 
-Use `toolkit-0.4.4.zip` as the complete plugin package for the documented `Skills only` submission path and package-level distribution. It contains the `.codex-plugin/plugin.json` manifest that declares `"skills": "./skills/"` and intentionally omits `mcpServers`.
+Use `toolkit-0.4.4.zip` as the complete plugin package for the ZIP-first submission flow and package-level distribution. It contains one `toolkit/` plugin root, an accepted `.codex-plugin/plugin.json` compatibility manifest that declares `"skills": "./skills/"`, and no `mcpServers`, `mcp.json`, or `.mcp.json`. The current portal accepts this compatibility layout even though the newer portable layout with root `plugin.json` is recommended for newly authored packages. Do not replace this recorded release archive merely to change formats.
 
 ## Public listing fields
 
@@ -201,7 +201,9 @@ The shared status and future-release procedures are in [Published discovery chan
 
 ### Official OpenAI plugin directory
 
-No valid Perform draft or submission ID exists. On 2026-09-29, the publisher portal exposed only the `With MCP` route, whose final validation required an MCP server, while OpenAI's documentation described a separate `Skills only` route. An OpenAI Support ticket was submitted. Preserve and use the verified complete `toolkit-0.4.4.zip` only when a valid skills-only path becomes available; do not add dummy MCP configuration or substitute a partial standalone-skill ZIP.
+No valid Perform draft or submission ID exists. On 2026-09-29, the publisher portal exposed only the `With MCP` form and required an MCP server at final validation, so an OpenAI Support ticket was submitted and no invalid workaround was used. On 2026-09-30, the portal and official guide changed to a unified **Upload new or existing plugin** flow that accepts the verified complete `toolkit-0.4.4.zip` as a skills-only package.
+
+The released archive passes the documented structural requirements, but the new portal imports read-only listing metadata from its manifest. Release `0.4.4` therefore imports its command-style starter prompts and its packaged long description rather than the friendlier prompts and fuller explanatory copy in this dossier. Do not modify the immutable archive in place. Either submit release `0.4.4` exactly as packaged or make a new plugin release with the preferred metadata before creating the draft.
 
 ### Codex Plugin Marketplace
 
