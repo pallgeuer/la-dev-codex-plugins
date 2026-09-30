@@ -6,13 +6,13 @@ This dossier is the source of truth for the independent Loupe Code Review public
 
 | Field                           | Value                                                                                                   |
 |---------------------------------|---------------------------------------------------------------------------------------------------------|
-| Repository release              | `0.5.4` / tag `v0.5.4`                                                                                  |
-| Plugin ID and version           | `la-review` `0.2.4`                                                                                     |
-| Immutable source                | `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.4/plugins/la-review`                       |
-| Archive                         | `la-review-0.2.4.zip`                                                                                   |
-| Archive source                  | Deterministic sorted ZIP of `plugins/la-review` from tag `v0.5.4` with top-level directory `la-review/` |
-| SHA-256                         | `d1ada402268bae53014df044e8511bc5438fe90313d4ae7ab1d1f1ea5fb96193`                                      |
-| File list and uncompressed size | 19 entries; 56,496 bytes uncompressed; recorded below                                                   |
+| Repository release              | `0.5.5` / tag `v0.5.5`                                                                                  |
+| Plugin ID and version           | `la-review` `0.2.5`                                                                                     |
+| Immutable source                | `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.5/plugins/la-review`                       |
+| Archive                         | `la-review-0.2.5.zip`                                                                                   |
+| Archive source                  | Deterministic sorted ZIP of `plugins/la-review` from tag `v0.5.5` with top-level directory `la-review/` |
+| SHA-256                         | `a32dfe358b85c200b228e8013192b391cc86ad6b0a0939a62e99c32600a74bb8`                                      |
+| File list and uncompressed size | 19 entries; 57,182 bytes uncompressed; recorded below                                                   |
 | Submission type                 | Skills only through complete plugin ZIP upload                                                          |
 
 Do not upload an archive built from an uncommitted tree or replace an archive after recording its digest.
@@ -41,7 +41,7 @@ la-review/skills/loupe/scripts/collect_review_diff.py
 la-review/skills/loupe/scripts/run_reviewers.py
 ```
 
-Use `la-review-0.2.4.zip` as the complete plugin package for the ZIP-first submission flow and package-level distribution. It contains one `la-review/` plugin root, an accepted `.codex-plugin/plugin.json` compatibility manifest that declares `"skills": "./skills/"`, and no `mcpServers`, `mcp.json`, or `.mcp.json`. The current portal accepts this compatibility layout even though the newer portable layout with root `plugin.json` is recommended for newly authored packages. Do not replace this recorded release archive merely to change formats.
+Use `la-review-0.2.5.zip` as the complete plugin package for the ZIP-first submission flow and package-level distribution. It contains one `la-review/` plugin root, an accepted `.codex-plugin/plugin.json` compatibility manifest that declares `"skills": "./skills/"`, and no `mcpServers`, `mcp.json`, or `.mcp.json`. The current portal accepts this compatibility layout even though the newer portable layout with root `plugin.json` is recommended for newly authored packages. Do not replace this recorded release archive merely to change formats.
 
 ## Public listing fields
 
@@ -153,16 +153,16 @@ Loupe runs locally under the user's Codex session and permissions. It has no hos
 
 Loupe is a skills-only local developer tool with no MCP server, hosted backend, plugin-owned account, or plugin-owned data store. The active session creates a temporary diff and reviewer-output file, removes them after an uncomplicated successful review, and reports their local directory when diagnostic retention is necessary. Child reviewer CLIs use the user's existing authentication, configuration, quota, and provider policies. The skill never installs missing tools and runs successfully with reduced diversity when only one supported provider is available.
 
-Release notes: Initial public submission of Loupe Code Review 0.2.4 from repository release 0.5.4. The package preserves the existing `$la-review:loupe` workflow and adds directory listing metadata, standalone package documents, public policies, and distinct SVG branding; it does not add a hosted service or change runtime behavior.
+Release notes: Initial public submission of Loupe Code Review 0.2.5 from repository release 0.5.5. The package preserves the existing `$la-review:loupe` workflow and supplies complete directory metadata, user-facing starter prompts, optional Claude reviewer disclosure, standalone package documents, public policies, and distinct SVG branding; it does not add a hosted service or change runtime behavior.
 
 ## Validation record
 
 Completed before draft creation:
 
-- Release commit `5e6c30b27f4be9acccb1fa4cc8d104e2681b3b03`, remote annotated tag `v0.5.4`, and published GitHub Release verified.
-- The deterministic archive was reproduced byte-for-byte in two independent builds; its SHA-256, complete file list, and 56,496-byte uncompressed size are recorded above.
-- The clean extracted package exactly matched `plugins/la-review` at `v0.5.4`, passed manifest and package-boundary validation, and contained no symlinks, caches, generated reports, secrets, or local paths.
-- Skill discovery, a 197-byte bounded working-tree diff capture, and all four reviewer-launch paths passed in an isolated smoke fixture with local provider stubs.
+- Release commit `50186b266ec6eaade6a39e1cec120f0984216a3a`, remote annotated tag `v0.5.5`, published GitHub Release, and PyPI `0.5.5` distribution verified.
+- The deterministic archive was reproduced byte-for-byte in two independent builds; its SHA-256, complete file list, and 57,182-byte uncompressed size are recorded above.
+- The clean extracted package exactly matched `plugins/la-review` at `v0.5.5`, passed manifest and package-boundary validation, and contained no symlinks, caches, generated reports, secrets, or local paths.
+- The release changed Loupe's version and directory metadata only. Its previously smoke-tested review scripts are byte-for-byte unchanged, and the complete `v0.5.5` release CI passed on every supported runner.
 - Every listing, policy, support, and immutable source URL returned HTTP 200 without authenticated requests.
 - The logo and composer icon passed SVG validation and remained recognizable at directory and composer sizes on light and dark backgrounds.
 
@@ -172,9 +172,9 @@ The shared status and future-release procedures are in [Published discovery chan
 
 ### Official OpenAI plugin directory
 
-No valid Loupe draft or submission ID exists. On 2026-09-29, the publisher portal exposed only the `With MCP` form and required an MCP server at final validation, so an OpenAI Support ticket was submitted and no invalid workaround was used. On 2026-09-30, the portal and official guide changed to a unified **Upload new or existing plugin** flow that accepts the verified complete `la-review-0.2.4.zip` as a skills-only package.
+No valid Loupe draft or submission ID exists. On 2026-09-29, the publisher portal exposed only the `With MCP` form and required an MCP server at final validation, so an OpenAI Support ticket was submitted and no invalid workaround was used. On 2026-09-30, the portal and official guide changed to a unified **Upload new or existing plugin** flow. Release `0.2.5` was then prepared specifically for that importer with the preferred long description and user-facing starter prompts.
 
-The released archive passes the documented structural requirements, but the new portal imports read-only listing metadata from its manifest. In particular, release `0.2.4` imports its command-style starter prompts and a long description that does not mention optional Claude reviewers, while the preferred dossier copy above does. Do not modify the immutable archive in place. Either submit release `0.2.4` exactly as packaged or make a new plugin release with the preferred metadata before creating the draft.
+The verified `la-review-0.2.5.zip` is ready for initial upload as a skills-only package. The portal should import its complete read-only listing metadata and one `loupe` skill without creating an MCP setup task.
 
 ### Codex Plugin Marketplace
 

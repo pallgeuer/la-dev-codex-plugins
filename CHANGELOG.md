@@ -31,7 +31,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
-None.
+### Changed
+
+#### Plugin discovery
+
+- Recorded the verified `v0.5.5` Loupe and Perform directory archives and advanced both official-submission dossiers to the ZIPs prepared for the unified OpenAI portal.
 
 ---
 

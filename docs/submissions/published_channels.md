@@ -8,7 +8,7 @@ Channel rules and user interfaces can change. Re-read each channel's authoritati
 
 | Channel                          | Loupe                                                                                       | Perform                                                                                     | Waiting for                                                                                   | Last checked |
 |----------------------------------|---------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|--------------|
-| Official OpenAI plugin directory | Ready for ZIP-first draft creation; no draft or submission ID yet                           | Ready for ZIP-first draft creation; no draft or submission ID yet                           | Publisher decision on using the released metadata or preparing a new plugin release           | 2026-09-30   |
+| Official OpenAI plugin directory | Release `0.2.5` ZIP ready; no draft or submission ID yet                                    | Release `0.4.5` ZIP ready; no draft or submission ID yet                                    | Manual ZIP uploads, automated checks, review, and explicit publication                        | 2026-09-30   |
 | Codex Plugin Marketplace         | Published: `https://www.codex-marketplace.com/plugins/la-review`                            | Published: `https://www.codex-marketplace.com/plugins/toolkit`                              | Nothing                                                                                       | 2026-09-29   |
 | Hashgraph Awesome Codex Plugins  | Not submitted: multi-plugin repository convention unresolved                                | Not submitted: multi-plugin repository convention unresolved                                | Maintainer guidance in `https://github.com/hashgraph-online/awesome-codex-plugins/issues/430` | 2026-09-29   |
 | OpenAI Community Plugins         | PR open; CLA passed; review required: `https://github.com/openai/community-plugins/pull/25` | PR open; CLA passed; review required: `https://github.com/openai/community-plugins/pull/26` | CDE maintainer review, any upstream-requested checks, and merge decisions                     | 2026-09-29   |
@@ -26,6 +26,8 @@ The first coordinated publication run used repository release `0.5.4`, annotated
 
 Both release archives were reproduced byte-for-byte, extracted into clean directories, compared with the tagged plugin trees, and exercised through plugin-specific smoke tests. The dossiers record the archive names, SHA-256 digests, complete file lists, portal copy, test cases, and validation details.
 
+The official OpenAI directory submission uses repository release `0.5.5`, annotated tag `v0.5.5`, and release commit `50186b266ec6eaade6a39e1cec120f0984216a3a`. It advances Loupe to `0.2.5` and Perform to `0.4.5` so the ZIP-imported manifests contain the preferred descriptions and user-facing starter prompts. The earlier `0.5.4` packages remain the immutable sources used for the already-completed channel work recorded below.
+
 ## Steps taken for the initial publication
 
 ### Official OpenAI plugin directory
@@ -41,9 +43,9 @@ The initial preparation and blocked attempt on 2026-09-29 proceeded as follows f
 5. Stopped rather than adding a dummy MCP server or uploading a partial standalone-skill package in place of the complete plugin.
 6. Submitted an OpenAI Support ticket describing the missing documented **Skills only** route.
 
-On 2026-09-30, the portal replaced that form with the documented complete-package upload flow, resolving the blocker. The existing `la-review-0.2.4.zip` and `toolkit-0.4.4.zip` each contain exactly one plugin root, an accepted `.codex-plugin/plugin.json` compatibility manifest, one declared skill tree, required square SVG branding, and no MCP configuration. Their recorded digests still match, so `dist/` does not need to be rebuilt merely for the portal change. The newer portable root `plugin.json` format is recommended for newly authored packages but is not required for these compatibility packages.
+On 2026-09-30, the portal replaced that form with the documented complete-package upload flow, resolving the blocker. Repository release `0.5.5` then produced `la-review-0.2.5.zip` and `toolkit-0.4.5.zip` with the preferred imported metadata. Each archive contains exactly one plugin root, an accepted `.codex-plugin/plugin.json` compatibility manifest, one declared skill tree, required square SVG branding, and no MCP configuration. The newer portable root `plugin.json` format is recommended for newly authored packages but is not required for these compatibility packages.
 
-No official OpenAI directory draft or submission ID exists for either plugin yet. Before upload, decide whether to submit the immutable `v0.5.4` packages exactly as released or make a new release whose manifest incorporates any revised directory copy. The new portal treats package metadata as read-only and requires a corrected ZIP when it changes, so do not patch either recorded archive in place.
+No official OpenAI directory draft or submission ID exists for either plugin yet. Upload the verified `0.5.5` release archives independently and do not patch either recorded archive in place.
 
 ### Codex Plugin Marketplace
 
