@@ -6,7 +6,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Release diffs
 
-- **Unreleased:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.4...HEAD
+- **Unreleased:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.5...HEAD
+- **v0.5.5:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.4...v0.5.5
 - **v0.5.4:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.3...v0.5.4
 - **v0.5.3:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.2...v0.5.3
 - **v0.5.2:** https://github.com/pallgeuer/la-dev-codex-plugins/compare/v0.5.1...v0.5.2
@@ -30,6 +31,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
+None.
+
+---
+
+## 0.5.5 (2026-09-30)
+
 ### Added
 
 #### Plugin discovery
@@ -49,6 +56,10 @@ All notable changes to this project are documented here. The format follows [Kee
 #### Plugin discovery
 
 - Updated the official OpenAI directory runbook and plugin dossiers for the unified complete-ZIP upload, automated-check, review, and explicit-publication workflow, including the reduced requirements for skills-only plugins.
+
+#### Project setup
+
+- Refreshed the recommended Python development snapshot to `pydocformatter==1.2.1` while retaining the current direct dependency pins from that release.
 
 #### Release safety
 
