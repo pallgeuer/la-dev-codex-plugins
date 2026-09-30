@@ -9,7 +9,7 @@ Channel rules and user interfaces can change. Re-read each channel's authoritati
 | Channel                          | Loupe                                                                                       | Perform                                                                                     | Waiting for                                                                                   | Last checked |
 |----------------------------------|---------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|--------------|
 | Official OpenAI plugin directory | Release `0.2.5` ZIP ready; no draft or submission ID yet                                    | Release `0.4.5` ZIP ready; no draft or submission ID yet                                    | Manual ZIP uploads, automated checks, review, and explicit publication                        | 2026-09-30   |
-| Codex Plugin Marketplace         | Published: `https://www.codex-marketplace.com/plugins/la-review`                            | Published: `https://www.codex-marketplace.com/plugins/toolkit`                              | Nothing                                                                                       | 2026-09-29   |
+| Codex Plugin Marketplace         | `0.2.5` published: `https://www.codex-marketplace.com/plugins/la-review`                    | `0.4.5` published: `https://www.codex-marketplace.com/plugins/toolkit`                      | General Browse indexing; both direct listings are current                                     | 2026-09-30   |
 | Hashgraph Awesome Codex Plugins  | Not submitted: multi-plugin repository convention unresolved                                | Not submitted: multi-plugin repository convention unresolved                                | Maintainer guidance in `https://github.com/hashgraph-online/awesome-codex-plugins/issues/430` | 2026-09-29   |
 | OpenAI Community Plugins         | PR open; CLA passed; review required: `https://github.com/openai/community-plugins/pull/25` | PR open; CLA passed; review required: `https://github.com/openai/community-plugins/pull/26` | CDE maintainer review, any upstream-requested checks, and merge decisions                     | 2026-09-29   |
 
@@ -17,16 +17,16 @@ The Codex Plugin Marketplace is an independent curated marketplace and is not th
 
 ## Published release baseline
 
-The first coordinated publication run used repository release `0.5.4`, annotated tag `v0.5.4`, and release commit `5e6c30b27f4be9acccb1fa4cc8d104e2681b3b03`.
+The current release prepared for complete plugin publication is repository release `0.5.5`, annotated tag `v0.5.5`, and release commit `50186b266ec6eaade6a39e1cec120f0984216a3a`.
 
 | Plugin  | Plugin ID   | Published version | Immutable source                                                                  | Dossier                  |
 |---------|-------------|-------------------|-----------------------------------------------------------------------------------|--------------------------|
-| Loupe   | `la-review` | `0.2.4`           | `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.4/plugins/la-review` | [loupe.md](loupe.md)     |
-| Perform | `toolkit`   | `0.4.4`           | `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.4/plugins/toolkit`   | [perform.md](perform.md) |
+| Loupe   | `la-review` | `0.2.5`           | `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.5/plugins/la-review` | [loupe.md](loupe.md)     |
+| Perform | `toolkit`   | `0.4.5`           | `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.5/plugins/toolkit`   | [perform.md](perform.md) |
 
 Both release archives were reproduced byte-for-byte, extracted into clean directories, compared with the tagged plugin trees, and exercised through plugin-specific smoke tests. The dossiers record the archive names, SHA-256 digests, complete file lists, portal copy, test cases, and validation details.
 
-The official OpenAI directory submission uses repository release `0.5.5`, annotated tag `v0.5.5`, and release commit `50186b266ec6eaade6a39e1cec120f0984216a3a`. It advances Loupe to `0.2.5` and Perform to `0.4.5` so the ZIP-imported manifests contain the preferred descriptions and user-facing starter prompts. The earlier `0.5.4` packages remain the immutable sources used for the already-completed channel work recorded below.
+The first coordinated publication run used repository release `0.5.4`, annotated tag `v0.5.4`, and release commit `5e6c30b27f4be9acccb1fa4cc8d104e2681b3b03`. Those packages remain the immutable sources for the initial Codex Plugin Marketplace submissions and the pending OpenAI Community Plugins contributions. Release `0.5.5` advances Loupe to `0.2.5` and Perform to `0.4.5` with the preferred descriptions and user-facing starter prompts; it is now live on the Codex Plugin Marketplace and prepared for the official OpenAI directory.
 
 ## Steps taken for the initial publication
 
@@ -66,6 +66,15 @@ npx codex-marketplace add pallgeuer/la-dev-codex-plugins/plugins/toolkit --plugi
 ```
 
 The direct pages were live when checked, but neither entry appeared in the general `/plugins` response yet. Treat that as browse/search indexing lag, not as an unpublished listing.
+
+On 2026-09-30, the `v0.5.5` release changed both plugin manifests while the public pages remained at their originally submitted versions. The signed-in submission interface exposed no separate update or rescan control. Submitting each new immutable release-tree URL as type **PLUGIN** rescanned and updated the existing slug rather than creating a duplicate listing:
+
+| Plugin  | Updated source                                                                    | Submission ID                          | Authentication       | Verified public result |
+|---------|-----------------------------------------------------------------------------------|----------------------------------------|----------------------|------------------------|
+| Loupe   | `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.5/plugins/la-review` | `e33bdbf6-d3e5-40c8-81b7-05ec895610a8` | Personal owner match | `la-review` `0.2.5`    |
+| Perform | `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.5/plugins/toolkit`   | `6f7d98ba-8508-48b5-b431-8e788e4a11b5` | Personal owner match | `toolkit` `0.4.5`      |
+
+Both direct pages immediately displayed the new version and intended long description. Perform displayed an updated date of 2026-09-30; Loupe retained its original displayed update date despite serving the new version and description. The unpinned install commands resolved the `main` branch packages and retrieved manifests for `0.2.5` and `0.4.5`. Neither plugin appeared in the general `/plugins` response when rechecked, so Browse/search discovery remains an independent indexing state.
 
 ### Hashgraph Awesome Codex Plugins
 
@@ -155,14 +164,15 @@ OpenAI's submission documentation states that metadata, asset, bundled-skill, an
 
 ### Codex Plugin Marketplace
 
-The marketplace currently documents initial repository/tree submission but does not document a separate author update workflow. Use this evidence-led procedure:
+The marketplace documents repository and direct-tree submissions but does not expose a separate author update or rescan control. A 2026-09-30 update confirmed that a new immutable tag-tree submission for an existing plugin ID updates its existing public slug after review.
 
 1. Ensure the new release is on the repository's default branch and the plugin manifest there reports the released plugin version.
-2. Open the existing public listing and verify its displayed version, description, publisher, links, and install command against the new release.
-3. If the listing refreshes from GitHub automatically, test the install command in a clean location and record the verified version/date in the dossier and status table.
-4. If the listing remains stale, inspect the signed-in listing/submission UI for an update or rescan control. Use that existing-listing flow if present.
-5. If no update control is documented or exposed, contact the marketplace maintainer with the existing public URL, prior submission ID, immutable new tag URL, plugin ID, and new version. Do not create a duplicate listing or resubmit blindly.
-6. After the update appears, verify both the direct page and general Browse/search discovery. Treat those as separate checks.
+2. Open the existing public listing and verify whether its displayed version, description, publisher, links, and install command already match the release.
+3. If the listing is stale, open `https://www.codex-marketplace.com/submit`, select the same artifact type, and submit the changed plugin's direct tree URL under the new immutable release tag. For example, use `https://github.com/<owner>/<repo>/tree/vX.Y.Z/plugins/<plugin-id>` with type **PLUGIN**.
+4. Do not use a reusable `main` target for release updates. Although branch tree URLs are accepted, the submission system reuses an already approved exact target; a unique immutable tag URL both preserves the reviewed source and permits a fresh scan on every release.
+5. Record the new submission ID, authentication result, review result, exact tag URL, plugin version, and date. If the submission is rejected, routed to manual review, or unexpectedly creates a second identity instead of updating the existing slug, stop and contact the marketplace maintainer before taking further action.
+6. After approval, verify the existing direct page shows the new version and description. Test that the unpinned install command retrieves the released manifest from the default branch.
+7. Verify the general Browse/search surface separately. A current direct page can precede Browse indexing, so record that lag without treating the plugin as unpublished.
 
 ### Hashgraph Awesome Codex Plugins
 

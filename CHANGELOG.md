@@ -36,6 +36,7 @@ All notable changes to this project are documented here. The format follows [Kee
 #### Plugin discovery
 
 - Recorded the verified `v0.5.5` Loupe and Perform directory archives and advanced both official-submission dossiers to the ZIPs prepared for the unified OpenAI portal.
+- Updated the independent Codex Plugin Marketplace listings to Loupe `0.2.5` and Perform `0.4.5`, and documented the verified immutable-tag resubmission procedure for future listing updates.
 
 ---
 

@@ -178,16 +178,19 @@ The verified `la-review-0.2.5.zip` is ready for initial upload as a skills-only 
 
 ### Codex Plugin Marketplace
 
-- Submitted source: `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.4/plugins/la-review`
-- Submission ID: `18247881-7092-45da-921b-47841d9f0ee4`
-- Displayed submission time: 2026-09-29 15:36
+- Initial source: `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.4/plugins/la-review`
+- Initial submission ID: `18247881-7092-45da-921b-47841d9f0ee4`
+- Initial displayed submission time: 2026-09-29 15:36
+- Updated source: `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.5/plugins/la-review`
+- Update submission ID: `e33bdbf6-d3e5-40c8-81b7-05ec895610a8`
+- Updated: 2026-09-30
 - Authentication: personal owner match
 - Automated result: repository and plugin approved, clean scan, no stored findings
 - Public listing: `https://www.codex-marketplace.com/plugins/la-review`
-- Verified public version: `0.2.4`
+- Verified public version: `0.2.5`
 - Install command: `npx codex-marketplace add pallgeuer/la-dev-codex-plugins/plugins/la-review --plugin`
 
-The direct public page was live on 2026-09-29 with the intended publisher, description, version, and install command. The general Browse response had not indexed the entry yet.
+The direct public page was live on 2026-09-29. On 2026-09-30, submitting the new immutable tag tree updated the existing listing to `0.2.5` with the intended expanded description, including optional Claude reviewer diversity. The page retained its original displayed update date despite serving the new version and copy. The unpinned install source retrieved the `0.2.5` manifest from `main`; the general Browse response still had not indexed the entry.
 
 ### Hashgraph Awesome Codex Plugins
 

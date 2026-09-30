@@ -207,16 +207,19 @@ The verified `toolkit-0.4.5.zip` is ready for initial upload as a skills-only pa
 
 ### Codex Plugin Marketplace
 
-- Submitted source: `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.4/plugins/toolkit`
-- Submission ID: `828e9134-a244-4a8a-bea2-dd5f3e6e6675`
-- Displayed submission time: 2026-09-29 15:43
+- Initial source: `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.4/plugins/toolkit`
+- Initial submission ID: `828e9134-a244-4a8a-bea2-dd5f3e6e6675`
+- Initial displayed submission time: 2026-09-29 15:43
+- Updated source: `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.5/plugins/toolkit`
+- Update submission ID: `6f7d98ba-8508-48b5-b431-8e788e4a11b5`
+- Updated: 2026-09-30
 - Authentication: personal owner match
 - Automated result: repository and plugin approved, clean scan, no stored findings
 - Public listing: `https://www.codex-marketplace.com/plugins/toolkit`
-- Verified public version: `0.4.4`
+- Verified public version: `0.4.5`
 - Install command: `npx codex-marketplace add pallgeuer/la-dev-codex-plugins/plugins/toolkit --plugin`
 
-The direct public page was live on 2026-09-29 with the intended publisher, description, version, and install command. The general Browse response had not indexed the entry yet.
+The direct public page was live on 2026-09-29. On 2026-09-30, submitting the new immutable tag tree updated the existing listing to `0.4.5` with the intended expanded description and displayed update date. The unpinned install source retrieved the `0.4.5` manifest from `main`; the general Browse response still had not indexed the entry.
 
 ### Hashgraph Awesome Codex Plugins
 
