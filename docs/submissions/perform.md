@@ -201,9 +201,17 @@ The shared status and future-release procedures are in [Published discovery chan
 
 ### Official OpenAI plugin directory
 
-No valid Perform draft or submission ID exists. On 2026-09-29, the publisher portal exposed only the `With MCP` form and required an MCP server at final validation, so an OpenAI Support ticket was submitted and no invalid workaround was used. On 2026-09-30, the portal and official guide changed to a unified **Upload new or existing plugin** flow. Release `0.4.5` was then prepared specifically for that importer with the preferred long description and user-facing starter prompts.
+On 2026-09-29, the publisher portal exposed only the `With MCP` form and required an MCP server at final validation, so an OpenAI Support ticket was submitted and no invalid workaround was used. On 2026-09-30, the portal and official guide changed to a unified **Upload new or existing plugin** flow. Release `0.4.5` was then prepared specifically for that importer with the preferred long description and user-facing starter prompts.
 
-The verified `toolkit-0.4.5.zip` is ready for initial upload as a skills-only package. The portal should import its complete read-only listing metadata and one `perform` skill without creating an MCP setup task.
+The verified `toolkit-0.4.5.zip` was uploaded as a skills-only package on 2026-09-30. The resulting draft has one bundled `perform` skill and no MCP server.
+
+- Portal identity: `plugins_6abd7373e7c48191881e21ff87014f38`
+- Publisher URL: `https://platform.openai.com/plugins/manage/plugins_6abd7373e7c48191881e21ff87014f38`
+- Uploaded: 2026-09-30
+- Automated checks: Metadata and one bundled skill completed with no issues found
+- Submitted: 2026-09-30
+- Current status: **In review**
+- Next action: Wait for the portal or email review decision. After approval, explicitly publish the approved version and verify its public directory listing.
 
 ### Codex Plugin Marketplace
 

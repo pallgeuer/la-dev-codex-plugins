@@ -179,8 +179,11 @@ The verified `la-review-0.2.5.zip` was uploaded as a skills-only package on 2026
 - Portal identity: `plugins_6abd26efa26c8191bfe2f781bdde6ec2`
 - Publisher URL: `https://platform.openai.com/plugins/manage/plugins_6abd26efa26c8191bfe2f781bdde6ec2`
 - Submitted: 2026-09-30
-- Current status: **In review**
-- Next action: Wait for the portal or email review decision. After approval, explicitly publish the approved version and verify its public directory listing.
+- Review result: Approved on 2026-09-30
+- Published: 2026-09-30
+- Public directory: `https://chatgpt.com/plugins?search=loupe`
+- Current status: **Published and discoverable**
+- Next action: Verify the exact version, prompts, assets, links, and invocation in the public directory entry.
 
 ### Codex Plugin Marketplace
 
