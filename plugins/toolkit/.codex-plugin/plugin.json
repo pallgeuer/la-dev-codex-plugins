@@ -39,9 +39,9 @@
     "logo": "./assets/logo.svg",
     "logoDark": "./assets/logo-dark.svg",
     "defaultPrompt": [
-      "List the reusable Perform actions available in this repository without running one.",
-      "Run the Perform action that finds TODOs in the current repository.",
-      "Use the Python project-setup audit action and show me the exact workflow before executing it."
+      "$toolkit:perform",
+      "$toolkit:perform find-todos",
+      "$toolkit:perform audit-test-performance"
     ]
   }
 }

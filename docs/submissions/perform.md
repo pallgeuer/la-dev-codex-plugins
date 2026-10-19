@@ -110,6 +110,8 @@ Perform runs locally under the user's Codex session and permissions. It has no h
 
 ## Starter prompts
 
+For submissions or updates to the official OpenAI plugin directory, enter the three text prompts below in the portal. Keep the explicit `$toolkit:perform` values in `plugins/toolkit/.codex-plugin/plugin.json` as the plugin's default prompts; do not copy the portal prompts back into the manifest. This distinction applies to the official directory submission, not the OpenAI Community Plugins package.
+
 1. `List the reusable Perform actions available in this repository without running one.`
 2. `Run the Perform action that finds TODOs in the current repository.`
 3. `Use the Python project-setup audit action and show me the exact workflow before executing it.`
@@ -210,8 +212,9 @@ The verified `toolkit-0.4.5.zip` was uploaded as a skills-only package on 2026-0
 - Uploaded: 2026-09-30
 - Automated checks: Metadata and one bundled skill completed with no issues found
 - Submitted: 2026-09-30
-- Current status: **In review**
-- Next action: Wait for the portal or email review decision. After approval, explicitly publish the approved version and verify its public directory listing.
+- Current status: **Not approved for inclusion in the public directory at this time**; the decision email's date was not provided, and the outcome was recorded on 2026-10-19.
+- Decision reason: OpenAI said the directory currently focuses on plugins with specialized capabilities and connected ChatGPT experiences, while broader support for sharing and discovering skills is still being developed. The email did not identify a package validation failure or a defect specific to Perform.
+- Appeal route: Reply directly to the decision email with questions or if the publisher believes the review was in error. No appeal or revised official-directory submission is recorded.
 
 ### Codex Plugin Marketplace
 
@@ -239,10 +242,15 @@ Perform is not submitted. HOL Plugin Scanner 3.9.0 reported 96/100, grade A, wit
 - Contributor fork: `https://github.com/pallgeuer/community-plugins`
 - Branch: `add-perform-toolkit`
 - Commit: `bbab6f73a1215efcc03e53cdb69c59224cab3676`
+- Review-response commit: `cb0c0505398cfe279a0502419928c44f21f243fd`
 - Pull request: `https://github.com/openai/community-plugins/pull/26`
+- Maintainer response: `https://github.com/openai/community-plugins/pull/26#issuecomment-6267116889`
 - Current status on 2026-09-29: open, CLA passed, review required, no reviews
+- Current status on 2026-10-19: open, review response pushed, CLA passed, CDE review required; new pull-request workflows await maintainer approval
 
-The contribution contains the exact `v0.5.4` Perform package plus its matching marketplace entry, root master test command, unit/integration/security tests, and single-job workflow. `npm run validate:marketplace`, `npm run test:toolkit` with five tests, and `npm run validate` passed. The complete marketplace dispatcher reached a pre-existing Autodesk Fusion storage check that rejects the managed sandbox's service-owned `/` ancestry; clean-host CI remains authoritative for that upstream-wide gate. The existing repository-wide CLA signature from Loupe PR #25 was recognized automatically, so no duplicate signature comment was posted.
+On 2026-10-13, the CDE collaborator requested that Perform show the selected action source and precedence before execution, make invalid-override/fallback behavior explicit, document permission and file/data boundaries in its packaged README, and add isolated tests for overrides, malformed configuration, strict selection, and safe catalog writes. The 2026-10-19 response at `cb0c0505398cfe279a0502419928c44f21f243fd` adds selected-definition source and precedence to inspection and rendering, blocks configured actions on malformed files, blocks ambiguous selection and invalid strict selectors when a parseable variant is invalid, and preserves unrelated actions and exact valid siblings. It documents the boundaries and adds offline cold-package integration coverage. The response also aligns the proposed community package with the current source baseline, version `0.4.6`, while retaining explicit `$toolkit:perform` starter prompts. Its [maintainer reply](https://github.com/openai/community-plugins/pull/26#issuecomment-6267116889) summarizes the changes. `npm run test:toolkit` passed all nine tests; marketplace validation, Ruff, ty, Vermin, and `git diff --check` passed locally. The full marketplace dispatcher passed its marketplace and Grafana suites, then stopped at the unrelated ReviewOps build because `ajv` was unavailable in the clean clone. The updated pull-request workflows have not yet run because they await maintainer approval. After both community contributions are accepted, reconcile their packages into one coordinated source release using [the post-acceptance checklist](community_acceptance_followup.md).
+
+The original contribution contained the exact `v0.5.4` Perform package plus its matching marketplace entry, root master test command, unit/integration/security tests, and single-job workflow. `npm run validate:marketplace`, `npm run test:toolkit` with five tests, and `npm run validate` passed. The complete marketplace dispatcher reached a pre-existing Autodesk Fusion storage check that rejects the managed sandbox's service-owned `/` ancestry; clean-host CI remains authoritative for that upstream-wide gate. The existing repository-wide CLA signature from Loupe PR #25 was recognized automatically, so no duplicate signature comment was posted.
 
 Submitted pull-request title: `Add Perform Action Toolkit plugin`
 

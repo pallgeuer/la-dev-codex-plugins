@@ -130,7 +130,7 @@ $la-review:loupe unstaged and untracked changes
 $la-review:loupe last commit
 $la-review:loupe last two commits
 $la-review:loupe HEAD~2..HEAD
-$la-review:loupe feature/loupe-plugin branch
+$la-review:loupe feature/example branch
 $la-review:loupe PR #123
 ```
 

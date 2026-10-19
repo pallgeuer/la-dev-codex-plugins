@@ -39,9 +39,9 @@
     "logo": "./assets/logo.svg",
     "logoDark": "./assets/logo-dark.svg",
     "defaultPrompt": [
-      "Review my current uncommitted changes with independent reviewers and verify every finding.",
-      "Review the last commit with Loupe, emphasizing correctness and design evidence.",
-      "Review PR #123 with Loupe and consolidate duplicate or unsupported findings."
+      "$la-review:loupe",
+      "$la-review:loupe last commit",
+      "$la-review:loupe feature/example branch"
     ]
   }
 }

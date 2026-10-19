@@ -83,6 +83,8 @@ Loupe runs locally under the user's Codex session and permissions. It has no hos
 
 ## Starter prompts
 
+For submissions or updates to the official OpenAI plugin directory, enter the three text prompts below in the portal. Keep the current explicit `$la-review:loupe` values in `plugins/la-review/.codex-plugin/plugin.json` as the plugin's default prompts; do not copy the portal prompts back into the manifest. This distinction applies to the official directory submission, not the OpenAI Community Plugins package.
+
 1. `Review my current uncommitted changes with independent reviewers and verify every finding.`
 2. `Review the last commit with Loupe, emphasizing correctness and design evidence.`
 3. `Review PR #123 with Loupe and consolidate duplicate or unsupported findings.`
@@ -214,8 +216,15 @@ Loupe is not submitted. HOL Plugin Scanner 3.9.0 reported 96/100, grade A, with 
 - Pull request: `https://github.com/openai/community-plugins/pull/25`
 - CLA signature: `https://github.com/openai/community-plugins/pull/25#issuecomment-5892082519`
 - Current status on 2026-09-29: open, CLA passed, review required, no reviews
+- Review-response commit: `c46c104daea1fc6b1e927bb897e53053a174a7eb` (2026-10-19)
+- Explicit-invocation follow-up commit: `960a5033ed3e028ec1d440ae7139d4b78d8c2a99` (2026-10-19)
+- Neutral branch-example follow-up commit: `7e63c1214d59c60cfe5cd3449e7546f871ac1ad0` (2026-10-19)
+- Permission and test response: `https://github.com/openai/community-plugins/pull/25#issuecomment-6266008018`
+- Current status on 2026-10-19: open, revised package `0.2.6`, CLA passed, CDE review required; new pull-request workflows await maintainer approval
 
-The contribution contains the exact `v0.5.4` Loupe package plus its matching marketplace entry, root master test command, unit/integration/security tests, and single-job workflow. `npm run validate:marketplace`, `npm run test:la-review` with five tests, and `npm run validate` passed. The complete marketplace dispatcher reached a pre-existing Autodesk Fusion storage check that rejects the managed sandbox's service-owned `/` ancestry; clean-host CI remains authoritative for that upstream-wide gate.
+On 2026-10-13, the CDE collaborator requested provider data-flow and artifact/transcript-retention details in the packaged README, reviewer-permission alignment with the review-only contract, and offline runner tests for missing tools, scope handling, partial failures, timeouts/cleanup, and output retention. The response retains Loupe's established reviewer modes because they let child reviewers run existing and manual tests that write caches or temporary files. The packaged README now describes that write-capable boundary accurately, and the maintainer reply requests assessment of that choice. The revised community package is an unreleased `0.2.6` candidate based on the current `v0.5.5` package, with expanded README and test coverage but unchanged runner and skill behavior. The manifest's starter prompts were restored to explicit `$la-review:loupe` invocations; a further follow-up changed the branch example to `feature/example`. Local `npm run validate:marketplace`, `npm run validate`, and `npm run test:la-review` passed for the review response; after the branch-example follow-up, marketplace validation and all six Loupe tests passed again. The complete marketplace dispatcher was attempted but stopped at an unrelated ReviewOps build because its `ajv` development dependency had not been installed in the clean clone. The new pull-request workflows are awaiting maintainer approval before they can run. After both Loupe and Perform are accepted, reconcile their packages into one coordinated source release using [the post-acceptance checklist](community_acceptance_followup.md).
+
+The original contribution contained the exact `v0.5.4` Loupe package plus its matching marketplace entry, root master test command, unit/integration/security tests, and single-job workflow. At that stage, `npm run validate:marketplace`, `npm run test:la-review` with five tests, and `npm run validate` passed. The complete marketplace dispatcher reached a pre-existing Autodesk Fusion storage check that rejects the managed sandbox's service-owned `/` ancestry; clean-host CI remains authoritative for that upstream-wide gate.
 
 Submitted pull-request title: `Add Loupe Code Review plugin`
 

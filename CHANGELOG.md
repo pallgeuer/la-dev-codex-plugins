@@ -38,7 +38,11 @@ All notable changes to this project are documented here. The format follows [Kee
 - Recorded the verified `v0.5.5` Loupe and Perform directory archives and advanced both official-submission dossiers to the ZIPs prepared for the unified OpenAI portal.
 - Updated the independent Codex Plugin Marketplace listings to Loupe `0.2.5` and Perform `0.4.5`, and documented the verified immutable-tag resubmission procedure for future listing updates.
 - Recorded Loupe `0.2.5` as approved, published, and discoverable in the official OpenAI plugin directory, including its portal identity and reviewed non-blocking third-party-platform metadata warning.
-- Recorded Perform `0.4.5` as submitted and in review in the official OpenAI plugin directory after its metadata and bundled skill completed automated checks without issues.
+- Recorded that Perform `0.4.5` passed automated package checks but was not approved for the official OpenAI public directory under its current focus on connected experiences and specialized capabilities.
+- Recorded Community Plugins review feedback for Loupe and Perform and prepared a coordinated source-release checklist for after both contributions are accepted.
+- Submitted Perform's Community Plugins review response with source visibility, fail-closed invalid-configuration behavior, documented boundaries, and offline integration coverage; source backport awaits acceptance.
+- Restored explicit `$la-review:loupe` starter prompts in Loupe's package metadata.
+- Restored explicit `$toolkit:perform` starter prompts in Perform's package metadata and kept the directory's text prompts in the submission dossiers.
 
 ---
 

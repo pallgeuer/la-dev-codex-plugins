@@ -82,7 +82,7 @@ Specify another scope in ordinary text:
 $la-review:loupe unstaged changes
 $la-review:loupe unstaged and untracked changes
 $la-review:loupe last commit
-$la-review:loupe feature/loupe-plugin branch
+$la-review:loupe feature/example branch
 $la-review:loupe PR #123
 ```
 
