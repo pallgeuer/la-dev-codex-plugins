@@ -2,6 +2,8 @@
 
 ## Getting started
 
+- [New repository setup recipe](new_repo_recipe.md) starts from an empty directory with project intake, a persistent journal, early Codex activation, verbatim instructions, complete checks, and a deferred-work/cleanup handoff.
+
 - [Marketplace plugin installation](installation.md) covers marketplace refs, plugin installation and verification, Loupe permissions, and updates.
 - [Plugin FAQ](faq.md) answers common questions about choosing, installing, configuring, and trusting Loupe and Perform.
 - [Plugin compatibility and stability](compatibility.md) defines public plugin interfaces, independent versioning, and breaking-change documentation.
