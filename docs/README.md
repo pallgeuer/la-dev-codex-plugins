@@ -2,15 +2,14 @@
 
 ## Getting started
 
-- [New repository setup recipe](new_repo_recipe.md) starts from an empty directory with project intake, a persistent journal, early Codex activation, verbatim instructions, complete checks, and a deferred-work/cleanup handoff.
-
+- [New repository setup recipe](new_repo_recipe.md) contains machine-followable instructions for Codex.
 - [Marketplace plugin installation](installation.md) covers marketplace refs, plugin installation and verification, Loupe permissions, and updates.
 - [Plugin FAQ](faq.md) answers common questions about choosing, installing, configuring, and trusting Loupe and Perform.
 - [Plugin compatibility and stability](compatibility.md) defines public plugin interfaces, independent versioning, and breaking-change documentation.
 - [Privacy policy](../PRIVACY.md), [terms of use](../TERMS.md), and [security policy](../SECURITY.md) document the plugins' local execution, data handling, user responsibilities, and private vulnerability-reporting process.
 - [Recommended Codex setup](recommended_setup.md) collects optional user-level instructions and configuration that complement the plugins.
-- [Language-agnostic project setup](project_setup_agnostic.md) is an ordered repository setup recipe with ready-to-copy files and checks.
-- [Python project setup](project_setup_python.md) extends that recipe with uv, packaging, pytest, Ruff, pydocformatter, ty, CI, and PyPI releases.
+- [Language-agnostic project setup](project_setup_agnostic.md) covers project documents, editor settings, Git hooks, and CI.
+- [Python project setup](project_setup_python.md) covers uv, packaging, pytest, Ruff, pydocformatter, ty, CI, and PyPI releases.
 - [AI-supported repository development](ai_supported_development.md) describes the development loop to use after repository setup.
 
 ## Plugin guides

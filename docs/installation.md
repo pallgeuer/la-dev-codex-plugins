@@ -2,15 +2,13 @@
 
 Install the marketplace once, then select either or both plugins. Each plugin is installed independently, and marketplace installation is separate from installing the repository's [Python distribution](../PYPI.md).
 
-For an empty repository, use the [New repository setup recipe](new_repo_recipe.md) to coordinate installation with all user/project instructions and configuration before the early restart. Existing plugin users can follow the installation/update sections directly.
+For a new empty repository, use the [New repository setup recipe](new_repo_recipe.md).
 
-## Inventory prerequisites
+## Prerequisites
 
-Before dependent commands, inspect the active tools and host rather than assuming prerequisites exist. Check executable paths/versions, Codex home, Git, and the requirements of the selected plugin below. Loupe needs Bash, Python, jq, and an authenticated reviewer; Perform's in-chat skill needs only its documented runtime. New GitHub repository setup additionally requires GitHub CLI/API authentication, and uv-based Python setup requires local uv. Installing a marketplace/plugin does not install these tools or the Python distribution.
+Use the requirements table below for the selected plugin. An existing supported system Python (3.6+) is sufficient for the plugins and the base Python distribution; no custom interpreter or environment is needed. The optional pytest integration has its own dependency. Installing the Python distribution is not required to use the marketplace plugins.
 
-When missing, use maintained provider instructions: [Codex CLI](https://learn.chatgpt.com/docs/cli/overview), [Git](https://git-scm.com/downloads), [jq](https://jqlang.org/download/), [GitHub CLI](https://github.com/cli/cli/blob/trunk/docs/install_linux.md), and [uv](https://docs.astral.sh/uv/getting-started/installation/). Distinguish OS-managed packages, standalone installers, project dependencies, and plugins. Check host/runtime support before installation. Obtain authorization for system/user-level changes, preserve existing environments and unrelated settings, and do not edit shell profiles or replace system Python without explicit agreement. Verify any PATH refresh in the actual shell/session.
-
-Use normal provider authentication flows; never request passwords/tokens in chat. For GitHub, verify `gh --version`, `gh auth status --hostname github.com`, and `gh api user --jq .login`. If login is needed, have the user run `gh auth login --hostname github.com --web` in their terminal and select the agreed Git protocol. Preserve working SSH keys rather than uploading a new one automatically. Git SSH authentication does not establish gh API authentication. If administrator authentication must happen in the user's terminal, prepare the exact reviewed command, save the journal, ask for that action, and stop dependent work until the user responds. Verify the result afterward. When an official command is unsupported by an older local tool, inspect its capabilities and preserve the provider's signature/fingerprint verification using a compatible isolated procedure rather than skipping trust checks or modifying a personal keyring.
+For missing plugin tools, see [Codex CLI](https://learn.chatgpt.com/docs/cli/overview), [Git](https://git-scm.com/downloads), and [jq](https://jqlang.org/download/).
 
 ## Install and verify
 
@@ -61,7 +59,7 @@ Every plugin you selected should report `installed, enabled`. Run this command u
 
 ### 4. Restart Codex and smoke-test the skills
 
-When following the entry recipe, finish the applicable user/repository config and both AGENTS.md templates first, save a resumable handoff, then end the turn and ask the user to restart through their normal launch mode. Otherwise start or restart Codex after installation:
+Start or restart Codex after installation:
 
 ```bash
 codex
@@ -72,7 +70,7 @@ Perform the applicable non-destructive check inside the new session:
 - For `la-review`, type `$la-review:loupe` and confirm that skill autocomplete recognizes it, but do not submit the invocation merely as an installation check because that would launch external reviewers.
 - For `toolkit`, submit `$toolkit:perform` with no arguments. It should list the effective actions and stop without executing one.
 
-The plugin is ready when both the command-line listing and its applicable in-session check succeed. Both shipped skills intentionally disable implicit invocation, so absence from an implicit skill list is not failed activation; use the explicit checks above. For an ongoing setup, also verify loaded repository instructions and the effective config/trust layer with `/debug-config` and `/status`. Installed files or parseable TOML alone are not proof of activation. Preserve the normal daemon/app launch mode; use supported restart controls when needed instead of prescribing `--no-daemon` as a generic reload flag. If resume retains stale guidance, use a fresh chat with the saved journal handoff.
+The plugin is ready when both the command-line listing and its applicable in-session check succeed. Both skills disable implicit invocation: for example, use `$la-review:loupe` explicitly rather than expecting a request such as "review my changes" to select Loupe automatically. Absence from an implicit skill list is therefore normal.
 
 ## Requirements by plugin
 
@@ -126,7 +124,7 @@ See [Loupe's data and trust boundary](loupe.md#data-and-trust-boundary) before d
 
 ### Update a marketplace following `main`
 
-After a change is merged into the tracked `main` branch, restarting Codex can refresh its plugins; pushing only a PR branch cannot update a main-tracking installation. A pinned marketplace stays on its ref. Start a new session and verify the changed skill/reference content; do not promise that restarting guarantees a successful refresh. To explicitly refresh the configured source, run `codex plugin marketplace upgrade la-dev-codex-plugins`, then restart and recheck. If installed content is still stale, use the reinstall fallback below. To force a refresh and reinstall the selected plugin versions explicitly:
+Restarting Codex can refresh plugins that follow `main`. To force a refresh and reinstall the selected plugin versions explicitly:
 
 ```bash
 codex plugin remove la-review@la-dev-codex-plugins

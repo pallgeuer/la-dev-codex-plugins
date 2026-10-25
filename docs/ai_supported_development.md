@@ -1,6 +1,6 @@
 # AI-supported repository development
 
-For a new repository, first follow [New repository setup recipe](new_repo_recipe.md), using [Language-agnostic project setup](project_setup_agnostic.md) and any applicable language guide such as [Python project setup](project_setup_python.md) for the required templates and checks.
+For project configuration, see [Language-agnostic project setup](project_setup_agnostic.md) and [Python project setup](project_setup_python.md). For a new empty repository, use the [New repository setup recipe](new_repo_recipe.md).
 
 AI-supported development works best when the repository carries its own durable feedback. A correction made only in one conversation is easily lost; a correction encoded in a tool, test, or concise instruction improves every later change.
 
