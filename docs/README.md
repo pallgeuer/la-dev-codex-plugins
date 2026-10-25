@@ -2,13 +2,14 @@
 
 ## Getting started
 
+- [New repository setup recipe](new_repo_recipe.md) contains machine-followable instructions for Codex to turn an empty directory and a project brief into a configured repository.
 - [Marketplace plugin installation](installation.md) covers marketplace refs, plugin installation and verification, Loupe permissions, and updates.
 - [Plugin FAQ](faq.md) answers common questions about choosing, installing, configuring, and trusting Loupe and Perform.
 - [Plugin compatibility and stability](compatibility.md) defines public plugin interfaces, independent versioning, and breaking-change documentation.
 - [Privacy policy](../PRIVACY.md), [terms of use](../TERMS.md), and [security policy](../SECURITY.md) document the plugins' local execution, data handling, user responsibilities, and private vulnerability-reporting process.
 - [Recommended Codex setup](recommended_setup.md) collects optional user-level instructions and configuration that complement the plugins.
-- [Language-agnostic project setup](project_setup_agnostic.md) is an ordered repository setup recipe with ready-to-copy files and checks.
-- [Python project setup](project_setup_python.md) extends that recipe with uv, packaging, pytest, Ruff, pydocformatter, ty, CI, and PyPI releases.
+- [Language-agnostic project setup](project_setup_agnostic.md) covers project documents, editor settings, Git hooks, and CI.
+- [Python project setup](project_setup_python.md) covers uv, packaging, pytest, Ruff, pydocformatter, ty, CI, and PyPI releases.
 - [AI-supported repository development](ai_supported_development.md) describes the development loop to use after repository setup.
 
 ## Plugin guides
@@ -22,6 +23,7 @@
 - [Markdown table formatting](markdown_tables.md) documents the `la-dev-markdown-tables` library, command, and pre-commit hooks.
 - [Pytest working-directory isolation](pytest_isolation.md) documents the explicitly loaded `la_dev_codex_plugins.pytest_isolation.plugin` module.
 - [Release checksum manifests](release_checksums.md) documents the `la-dev-release-checksums` library and command.
+- [Python/GitHub release template](templates/release_python_github.md) contains a complete reusable `RELEASE.md` runbook for manual GitHub releases.
 
 ## Repository development
 

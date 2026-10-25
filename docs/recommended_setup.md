@@ -2,6 +2,8 @@
 
 These optional user-level instructions and configuration defaults complement the marketplace plugins across all projects. Review and adapt them to your own security requirements, tools, and working style.
 
+For a new empty repository, use the [New repository setup recipe](new_repo_recipe.md).
+
 ## User-level instructions
 
 This repository includes a recommended [user-level AGENTS.md file](../AGENTS_user.md) with global Codex instructions that complement the plugins. Review and adapt it as desired, or directly copy it into your Codex home directory:
@@ -46,14 +48,15 @@ model = "gpt-5.6-sol"
 
 Use `/model` within Codex to select an available model and add or update this setting automatically, especially when switching to a newer model.
 
-For Python development, add these writable roots to the same `[sandbox_workspace_write]` table to let `pip` and `uv` reuse their caches and let `uv` manage downloaded tools and Python installations:
+For projects using pre-commit, include its normal cache root. For Python development, add these writable roots to the same `[sandbox_workspace_write]` table to let `pip` and `uv` reuse their caches and let `uv` manage downloaded tools and Python installations:
 
 ```toml
 writable_roots = [
-  "~/.cache/gh",
-  "~/.cache/pip",
-  "~/.cache/uv",
-  "~/.local/share/uv",
+    "~/.cache/gh",
+    "~/.cache/pip",
+    "~/.cache/pre-commit",
+    "~/.cache/uv",
+    "~/.local/share/uv",
 ]
 ```
 
@@ -66,3 +69,14 @@ terminal_title = ["activity", "project-name"]
 ```
 
 See [Marketplace plugin installation](installation.md) if the `la-review` and `toolkit` plugins are not installed yet. After completing the user-level setup, continue with [Language-agnostic project setup](project_setup_agnostic.md) for each repository and then [Python project setup](project_setup_python.md) when applicable.
+
+## Project trust
+
+Codex loads `.codex/config.toml` only for trusted projects. A user-level trust entry looks like:
+
+```toml
+[projects."/ABSOLUTE/PATH/TO/REPOSITORY"]
+trust_level = "trusted"
+```
+
+A repository's writable_roots list replaces the user/system list; include every cache it needs. Use `/debug-config` to inspect loaded layers and `/status` to check effective settings. See the [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference).

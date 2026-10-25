@@ -31,7 +31,19 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+#### Repository setup
+
+- Added an empty-directory setup recipe with project intake, an ignored checkpoint journal, early Codex activation, verbatim permanent instructions, and final deferred-work/cleanup reporting.
+- Added release-diff examples and a complete reusable manual GitHub release template, linked from the setup recipe and Python guide.
+
 ### Changed
+
+#### Repository setup
+
+- Kept plugin/project guides concise and human-readable, with repository bootstrap, handoffs, and automation confined to the Codex recipe; retained editor/hook hygiene, trust/cache configuration, and package-validation references.
+- Made immediate pytest-extra/xdist configuration and report-only runtime branch coverage part of the complete Python setup, and synchronized Perform's offline audit references.
 
 #### Codex instructions
 

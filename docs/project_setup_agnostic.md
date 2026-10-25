@@ -1,8 +1,8 @@
 # Language-agnostic project setup
 
-Use this recipe after completing [Marketplace plugin installation](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/installation.md) and [Recommended Codex setup](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/recommended_setup.md). Apply it from the repository root, merge with existing files instead of overwriting them, and review `git status` before and after each section.
+Use this guide after completing [Marketplace plugin installation](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/installation.md) and [Recommended Codex setup](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/recommended_setup.md). It covers project documents, editor settings, Git hooks, Codex configuration, and CI. Apply it from the repository root, merge the examples with existing files rather than overwriting them, and review `git status` before and after each section.
 
-For a Python repository, complete this guide first and then continue with [Python project setup](project_setup_python.md). After setup, use [AI-supported repository development](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/ai_supported_development.md) for the normal development loop.
+For Python tooling, complete this guide and then use [Python project setup](project_setup_python.md). After setup, see [AI-supported repository development](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/ai_supported_development.md) for the normal development loop. For a new empty repository, give Codex the [New repository setup recipe](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/new_repo_recipe.md) to follow.
 
 ## 1. Create the root project documents
 
@@ -38,23 +38,37 @@ Link to CONTRIBUTING.md, when present.
 License name and link to the license file.
 ```
 
-Keep installation and the first example usable without reading the whole file. Omit `Contributing` when the project does not accept contributions. For a private repository, omit `License` unless a license or usage policy is actually needed; for a distributed or open-source project, add the appropriate `LICENSE` or `LICENSE.md`.
+Keep installation and the first example usable without reading the whole file. Omit `Contributing` when the project does not accept contributions. Choose licensing independently of repository visibility. Include the appropriate `LICENSE` or `LICENSE.md` and attribution when a license is needed, including any requested later-version permission.
 
-For a versioned project, create `CHANGELOG.md`:
+For a versioned project, create `CHANGELOG.md` with a Release diffs section:
 
-```markdown
+````markdown
 # Changelog
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## Release diffs
+
+TODO: Replace this placeholder with real release/comparison links when preparing the first version tag. No version tags exist yet. The following is an example only; these versions and links do not describe existing releases:
+
+```text
+Unreleased: https://github.com/YOUR-ORG/YOUR-REPOSITORY/compare/v0.2.0...HEAD
+v0.2.0: https://github.com/YOUR-ORG/YOUR-REPOSITORY/compare/v0.1.0...v0.2.0
+v0.1.0: https://github.com/YOUR-ORG/YOUR-REPOSITORY/releases/tag/v0.1.0
+```
+
+---
+
 ## Unreleased
 
 None.
-```
+````
 
-Replace `None.` with `Added`, `Changed`, `Fixed`, or `Removed` sections when noteworthy work lands. Add comparison links when the first release is prepared. Keep entries about shipped outcomes, not intermediate implementation churn. Separate the introduction, release diffs, `Unreleased`, and every released-version section with horizontal rules.
+Until the first release, keep the comparison examples labeled as examples. Replace them with real links when preparing that release: Unreleased compares the latest tag with HEAD, later versions compare consecutive tags, and the first version links to its release.
+
+Replace `None.` with Added/Changed/Fixed/Removed sections as work lands. Describe shipped outcomes, retain Unreleased when empty, and separate top-level sections with horizontal rules.
 
 For example, a minimal complete changelog with two releases can use level-four category headings within the standard change-type sections:
 
@@ -116,7 +130,7 @@ Replace the repository, versions, dates, categories, and outcomes with the proje
 
 `CONTRIBUTING.md` is optional. Add it for a shared or open-source repository and include exact environment setup, repository layout, focused and complete checks, documentation commands, dependency policy, and pull-request expectations.
 
-If the project publishes releases or artifacts, [create `RELEASE.md` for a released project](#9-create-releasemd-for-a-released-project). The bundled `publish-release` Perform action requires this file and follows it as the project-specific release authority.
+For a versioned project, [create `RELEASE.md` during setup](#9-create-releasemd-for-versioned-projects), even before its first release. The bundled `publish-release` Perform action requires this file and follows it as the project-specific release authority.
 
 ## 2. Add development document and scratch locations
 
@@ -132,7 +146,7 @@ Use `docs/devel/` for committed implementation specifications, audits, and repea
 
 ## 3. Add a concise `.gitignore`
 
-Start with this block and add only outputs the project actually creates:
+Start with this block and add only files and directories relevant to the project, such as tool caches, virtual environments, local data, or generated output:
 
 ```gitignore
 .DS_Store
@@ -152,6 +166,18 @@ Then stage the placeholder explicitly:
 git add docs/devel/plans/.gitkeep
 ```
 
+If the placeholder is ignored, use `git add -f docs/devel/plans/.gitkeep`. Avoid broad image/JSON ignores that could hide source fixtures.
+
+Only if the project uses `.env` files or explicitly adopts that convention, add:
+
+```gitignore
+.env
+.env.*
+!.env.example
+```
+
+If an `.env.example` is provided, keep it free of credentials.
+
 Language-specific caches, environments, and build outputs belong in the corresponding language setup rather than a copied all-purpose ignore template.
 
 ## 4. Add repository-level Codex configuration
@@ -168,24 +194,27 @@ web_search = "live"
 [sandbox_workspace_write]
 network_access = true
 writable_roots = [
-  "~/.cache/gh",
+    "~/.cache/gh",
+    "~/.cache/pre-commit",
 ]
 ```
 
-The file records project defaults and enables repository-local Perform action discovery. The example permits GitHub CLI cache writes; add other narrow writable cache roots only for tools the project uses. A repository-level `writable_roots` value replaces, rather than extends, the user- or system-level list. Therefore repeat every external writable path needed while working in this repository, such as the pip and uv paths from the recommended user setup, instead of listing only the repository-specific additions. Disable live search or command network access when the repository's security requirements do not permit them.
+The file records project defaults and enables repository-local Perform actions. Its writable_roots list replaces the user/system list, so include every external cache the project needs. Project configuration loads only for trusted projects; see [Project trust](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/recommended_setup.md#project-trust). Disable search/network access if your security requirements prohibit it.
 
 ## 5. Create a concise `AGENTS.md`
 
-Start with this structure:
-
-Everything outside angle brackets is reusable literal guidance. Replace every `<...>` item with project-specific content and remove any placeholder that does not apply:
+Keep AGENTS.md focused on ongoing development: purpose, layout, commands, and rules. Replace angle-bracketed placeholders with project details; the other template text is reusable as written.
 
 ```markdown
 # Repository instructions
 
+This repository is for <brief description of the repository's purpose>.
+
 ## Project layout
 
+- Keep this project layout in `AGENTS.md` up-to-date as new project structure emerges.
 - <List each first-party source, test, documentation, and generated-output root.>
+- `docs/devel/plans/` contains ignored temporary plans, journals, and AI handoffs.
 - <Identify the supported public interfaces and their sources of truth.>
 
 ## Commands
@@ -210,11 +239,44 @@ Everything outside angle brackets is reusable literal guidance. Replace every `<
 - Interview me for relevant details when making plans, unless the details are quite clear already from the provided information.
 - When changing a public interface, update its tests, documentation, examples, and changelog entry in the same change.
 - Concisely document significant completed work in CHANGELOG.md under the Unreleased section, using Added/Changed/Fixed/Removed headings, short general level-four category headings, outcome bullets beneath those category headings, and horizontal rules between top-level changelog sections.
+- Use a solo direct-main workflow with minimal remote automation. Do not add publication, update bots, branch protection, or a hosted documentation site without a new decision.
 ```
 
-Replace the angle-bracketed placeholders and add exact commands as tools are configured. The ASCII-only line is a deliberate portability policy; omit it if the project intentionally uses Unicode source. Keep judgment-heavy details in focused `docs/devel/` files and link them from `AGENTS.md` with a clear trigger. Do not restate formatter or linter configuration in prose. See [AI-supported repository development](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/ai_supported_development.md) for deciding whether a convention belongs in a tool, test, specification, instruction, or Perform action.
+Keep the template wording unless a project-specific decision requires a change, and adapt the workflow when collaboration needs differ. The ASCII policy is optional for projects that intentionally use Unicode source. Put longer explanations in focused development documents; keep formatter/linter settings in their configuration files. See [AI-supported repository development](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/ai_supported_development.md) for deciding where a convention, decision, or check belongs: a tool, test, specification, instruction, or Perform action.
 
 ## 6. Install baseline pre-commit checks
+
+### Establish editor and source-file hygiene
+
+Use these files alongside the hooks below. Preserve existing settings, and review line-ending normalization separately in an existing repository.
+
+Create `.editorconfig`:
+
+```ini
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+
+[*.{yml,yaml,json}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+```
+
+Create `.gitattributes`:
+
+```gitattributes
+* text=auto eol=lf
+```
+
+Preserve deliberate binary attributes. Keep credentials, environments, and generated output out of Git. Private-key detection catches some secrets, not all of them.
 
 Install [pre-commit](https://pre-commit.com/) using the project environment or an isolated tool runner. Create `.pre-commit-config.yaml`, replacing `vX.Y.Z` with a released tag of this repository:
 
@@ -232,6 +294,18 @@ repos:
         stages: [pre-commit, pre-push, manual]
       - id: check-yaml
         stages: [pre-commit, pre-push, manual]
+      - id: check-merge-conflict
+        stages: [pre-commit, pre-push, manual]
+      - id: detect-private-key
+        stages: [pre-commit, pre-push, manual]
+      - id: check-added-large-files
+        args: [--maxkb=5120, --enforce-all]
+        stages: [pre-commit, pre-push, manual]
+      - id: end-of-file-fixer
+        stages: [pre-commit]
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+        stages: [pre-commit]
 
   - repo: https://github.com/pallgeuer/la-dev-codex-plugins
     rev: vX.Y.Z
@@ -251,6 +325,10 @@ pre-commit run --all-files --hook-stage manual
 ```
 
 Every code repository should add an appropriate formatter and linter, and normally tests and type checks, before considering setup complete. Add those hooks in the language-specific guide. Commit-time hooks may fix files; pre-push, manual, and CI hooks should only check.
+
+The large-file hook allows up to 5 MiB (5,242,880 bytes). With `--enforce-all`, it checks every supplied file, including modified files; an all-files run checks all tracked files. Larger files fail the hook without being changed or deleted. For legitimate larger files, adjust the limit, add a narrow exclusion, or use external storage/Git LFS; LFS-filtered paths are skipped by this hook.
+
+Whitespace fixers run only at commit time and preserve Markdown line breaks. Manual, pre-push, and CI checks must not rewrite files.
 
 ## 7. Add repeatable Perform actions when needed
 
@@ -343,30 +421,26 @@ jobs:
 
 Replace the installation step with the project's locked environment once one exists. Grant extra workflow permissions only to the job that needs them.
 
-## 9. Create `RELEASE.md` for a released project
+## 9. Create `RELEASE.md` for versioned projects
 
-Write commands for the actual repository; do not leave a generic checklist that requires the releaser to invent paths or publication steps. Use these headings in order:
+Document the release process in root `RELEASE.md`, including real paths, commands, destinations, and recovery steps. A private project can use manual releases without package-index publication.
 
-1. **Release model and sources of truth:** Version file, tag format, changelog, build configuration, release destinations, and whether publication is automated.
-2. **Prerequisites:** Required branch, clean-worktree rule, credentials, CLI authentication, and protected-environment access.
-3. **Inspect changes and choose the version:** Compare with the previous tag. Codex or the releaser proposes the exact semantic version, then obtains explicit user confirmation before editing version metadata.
-4. **Prepare release metadata:** Update every version declaration, finalize `CHANGELOG.md`, review user documentation, and regenerate any tracked derived files. Make rewriting and compacting the completed `Unreleased` changelog a mandatory, explicit checkpoint rather than an incidental part of moving its entries into the new version section. Require the releaser to rewrite the version's changelog entries compactly for external users, consolidate overlapping entries around final shipped outcomes, retain all material features, fixes, compatibility changes, and migrations, and omit implementation churn, superseded intermediate behavior, test-only work, and stale changes to code that no longer exists. Remove empty change categories, preserve horizontal rules between top-level changelog sections, and make the version section suitable for use as release notes. Instruct the releaser to review the rewritten section against the complete release diff, explicitly verify that this compaction is complete and accurate, and stop without continuing to checks, commits, tags, or publication until that verification succeeds.
-5. **Run checks and build artifacts:** Use the same locked full checks as CI, inspect artifact contents, and smoke-test installed artifacts.
-6. **Commit, push, and wait for CI:** Record the exact release commit and require the corresponding CI run to succeed.
-7. **Create the immutable tag:** Create and push an annotated tag on the verified commit. Never move a published tag.
-8. **Run a nonpublishing preflight:** Exercise the real build and validation pipeline against the tag without publishing.
-9. **Approve publication:** Summarize the exact version, tag, commit, artifacts, destinations, and pipeline. Obtain a second explicit user confirmation before creating a release or running an upload that triggers publication.
-10. **Publish and handle manual approval:** State which command or event triggers publication. When a protected deployment needs human approval, show the exact run to approve and stop until the user responds.
-11. **Verify every public surface:** Check the release, artifact index, installed version, checksums or signatures, documentation, and final repository state.
-12. **Recover safely:** Cover failure before tagging, after tagging but before publication, partial publication, lost responses, and defective immutable artifacts.
+Cover these stages:
 
-Mention the bundled action near the beginning:
+1. **Sources of truth:** Version file, tag format, changelog, build configuration, and destinations.
+2. **Prerequisites:** Branch, clean worktree, tools, credentials, and any deployment permissions.
+3. **Version:** Review the complete release diff and confirm the exact next version before editing metadata.
+4. **Metadata:** Update versions and comparison links; compact the changelog into accurate user-facing outcomes and review it against the diff.
+5. **Validation:** Run locked checks, inspect artifacts, and test independent installations.
+6. **Commit and CI:** Push the preparation commit and require its exact CI run to succeed.
+7. **Tag:** Create an annotated version tag on that commit; never move a published tag.
+8. **Preflight:** Validate the tagged code without publishing.
+9. **Publication approval:** Confirm the exact version, tag, commit, notes, artifacts, and destination.
+10. **Publication:** Identify the command/event and any manual deployment gate.
+11. **Verification:** Check release notes, tag identity, downloadable assets/checksums, and final repository state.
+12. **Recovery:** Explain failures before tagging, interrupted uploads, and defective published artifacts.
 
-```markdown
-Run `$toolkit:perform publish-release` to execute this runbook. The action must stop for the exact-version confirmation, the final publication confirmation, and any protected-environment approval required below.
-```
-
-Language-specific setup should extend the build, publication, verification, and recovery sections without changing these checkpoints.
+Run `$toolkit:perform publish-release` to follow the project's runbook. The action asks separately for version and publication approval.
 
 ## 10. Optionally add a Zensical documentation site
 

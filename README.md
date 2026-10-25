@@ -138,7 +138,7 @@ The bundled `audit-test-performance[agnostic]` action measures a repository's te
 
 ## Recommended further setup
 
-See [Recommended Codex setup](docs/recommended_setup.md) for optional user-level instructions, baseline sandbox and reasoning settings, network access, Python cache roots, model selection, and TUI configuration. For an individual repository, follow [Language-agnostic project setup](docs/project_setup_agnostic.md) and then [Python project setup](docs/project_setup_python.md) when applicable.
+See [Recommended Codex setup](docs/recommended_setup.md) for optional user-level instructions, baseline sandbox and reasoning settings, network access, Python cache roots, model selection, and TUI configuration. For a new empty repository, give Codex the [New repository setup recipe](docs/new_repo_recipe.md) to follow. Otherwise, follow [Language-agnostic project setup](docs/project_setup_agnostic.md) and, when applicable, [Python project setup](docs/project_setup_python.md) directly. To have Codex check an existing project against those guides, run `$toolkit:perform audit-project-setup[agnostic]` or `$toolkit:perform audit-project-setup[python]`.
 
 Normally, launch Codex with `codex`. The setup guide also explains model and reasoning-effort configuration; command-line overrides can be combined when needed, for example:
 
@@ -179,7 +179,7 @@ Only the Ubuntu and macOS hosts listed above are officially supported. Compatibi
 
 Use these guides as the entry points for repository development:
 
-- [Language-agnostic project setup](docs/project_setup_agnostic.md) and [Python project setup](docs/project_setup_python.md) provide ordered setup recipes for new or existing repositories.
+- [New repository setup recipe](docs/new_repo_recipe.md) provides Codex instructions for a new repository. [Language-agnostic project setup](docs/project_setup_agnostic.md) and [Python project setup](docs/project_setup_python.md) are reference guides for project files and tooling.
 - [AI-supported repository development](docs/ai_supported_development.md) explains how to turn recurring decisions into tools, tests, specifications, and repeatable workflows.
 - [Testing](TESTING.md) lists focused checks and the complete validation suite.
 - [Loupe code review](docs/loupe.md) documents the final multi-reviewer check recommended before every non-trivial commit.
@@ -189,8 +189,6 @@ Use these guides as the entry points for repository development:
 - [Changelog](CHANGELOG.md) records released outcomes and current unreleased work.
 
 The [documentation index](docs/README.md) provides the complete grouped list.
-
-For a fresh environment and repository, follow [Marketplace plugin installation](docs/installation.md), [Recommended Codex setup](docs/recommended_setup.md), [Language-agnostic project setup](docs/project_setup_agnostic.md), and any applicable language-specific setup in that order.
 
 Shipped plugin scripts and package source support Python 3.6+. The base runtime uses only the Python standard library; only the explicitly loaded pytest-isolation plugin may import its declared optional pytest dependency.
 

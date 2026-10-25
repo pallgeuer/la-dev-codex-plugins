@@ -1,6 +1,8 @@
 # Python project setup
 
-Complete [Language-agnostic project setup](project_setup_agnostic.md) first. This recipe assumes a modern `src/`-layout project managed with [uv](https://docs.astral.sh/uv/); merge it into an existing project rather than replacing working packaging or tool configuration blindly.
+Use this guide with [Language-agnostic project setup](project_setup_agnostic.md) for a uv-managed Python project with a src layout. Merge the examples with existing configuration.
+
+For a new empty repository, use the [New repository setup recipe](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/new_repo_recipe.md).
 
 Replace every `YOUR_*` placeholder before running the copied configuration. The versions below are a reproducible snapshot based on [pydocformatter](https://github.com/pallgeuer/pydocformatter); research and pin current compatible releases when adopting the recipe.
 
@@ -36,9 +38,10 @@ Append the outputs the project uses:
 
 ```gitignore
 .coverage
+.coverage.*
+/coverage.xml
 .pytest_cache/
 .ruff_cache/
-.cache/
 .pydocfmt_cache/
 .venv/
 __pycache__/
@@ -52,7 +55,7 @@ htmlcov/
 /zensical.generated.toml
 ```
 
-The current `.cache/` entry is for ty's project-local cache. Once ty provides a supported cache-directory setting, configure and git-ignore a tool-specific location instead. Remove coverage, pydocformatter, ty, or documentation entries when those tools are not enabled. Keep a deliberately committed lock file and authored documentation configuration out of the git-ignore list.
+Remove entries for files and directories the project does not use. Keep a deliberately committed lock file and authored documentation configuration out of the git-ignore list.
 
 Replace the agnostic guide's illustrative `.codex/config.toml` with this complete Python-project version:
 
@@ -66,14 +69,15 @@ web_search = "live"
 [sandbox_workspace_write]
 network_access = true
 writable_roots = [
-  "~/.cache/gh",
-  "~/.cache/pip",
-  "~/.cache/uv",
-  "~/.local/share/uv",
+    "~/.cache/gh",
+    "~/.cache/pip",
+    "~/.cache/pre-commit",
+    "~/.cache/uv",
+    "~/.local/share/uv",
 ]
 ```
 
-This repeats the GitHub CLI, pip, and uv paths deliberately because a repository-level `writable_roots` list replaces the user- or system-level list instead of extending it. Add every other external path this repository needs to the same list.
+This repeats the GitHub CLI, pip, pre-commit, and uv paths deliberately because a repository-level `writable_roots` list replaces the user- or system-level list instead of extending it. Add every other external path this repository needs to the same list.
 
 ## 3. Configure project metadata, dependencies, and builds
 
@@ -148,6 +152,8 @@ exclude = [
     ".codex/",
     ".agents/",
     "AGENTS.md",
+    "docs/devel/plans/",
+    "tools/",
 ]
 
 [tool.hatch.version]
@@ -164,7 +170,7 @@ Create the version source:
 __version__ = "0.1.0"
 ```
 
-Export it from `src/YOUR_IMPORT_PACKAGE/__init__.py` if version access is part of the public API. Keep this file as the single version source and test that built metadata and CLI output agree with it.
+Export it from `src/YOUR_IMPORT_PACKAGE/__init__.py` as `__version__`. Keep this file as the single version source and test that installed/built metadata agrees with it; also check version output when a CLI exists. A package without a CLI needs import-based smoke checks, not a placeholder command.
 
 Resolve and commit the environment:
 
@@ -175,20 +181,52 @@ uv lock --check
 uv tree
 ```
 
-Use `uv run` for project commands. After every dependency edit, run `uv lock` to regenerate `uv.lock`; never edit the lock file manually. Review and commit the resulting lock-file diff, resync with `uv sync --locked --no-default-groups --group dev`, and run the full checks. Add a repository test such as `tests/test_dependency_pins.py` that parses `pyproject.toml` and fails when a direct `docs`, `test`, or `dev` string is not an exact `name==version` pin; allow only `{include-group = "..."}` table entries.
+The docs group includes Markdown tools even without a documentation site. Keep the pytest extra in the test group at the same pinned version as the base package. It declares the dependency; it does not activate working-directory isolation.
+
+Use `uv run` for project commands. After every dependency edit, run `uv lock` to regenerate `uv.lock`; never edit the lock file manually. Review the resulting lock-file diff, resync with `uv sync --locked --no-default-groups --group dev`, and run the full checks before including the lockfile with the dependency change in its commit. Add a repository test such as `tests/test_dependency_pins.py` that parses `pyproject.toml` and fails when a direct `docs`, `test`, or `dev` string is not an exact `name==version` pin; allow only `{include-group = "..."}` table entries.
+
+### Native build requirements
+
+A successful lock does not guarantee installation on every host. Older interpreters, architectures, or glibc versions may lack compatible wheels and require native builds. For example, LibCST can require a [Rust toolchain](https://rust-lang.github.io/rustup/installation/). Keep transitive dependencies within their declared constraints.
+
+The project lockfile does not control separately resolved hook environments or all isolated-build dependencies, so it does not guarantee byte-identical artifacts.
 
 ## 4. Configure pytest
 
-Start with the uncomplicated pytest configuration:
+Use xdist by default, with `-n 0` for debugging or small focused runs:
 
 ```toml
 [tool.pytest.ini_options]
-addopts = ["-n", "auto"]
+addopts = ["-n", "auto", "--cov", "--cov-config=pyproject.toml", "--cov-report=term-missing"]
 filterwarnings = ["error"]
 testpaths = ["tests"]
 ```
 
 Use module-level test functions, plain `assert`, fixtures, `pytest.raises`, `@pytest.mark.parametrize`, and `pytest-mock`. Use `uv run pytest -n 0 PATH` for focused serial debugging and `uv run pytest` for the configured parallel suite.
+
+### Coverage
+
+Collect branch coverage of installed runtime packages, with missing-code reporting and no minimum percentage gate. Replace the import-package placeholder; add every runtime package. Tests and repository helpers stay outside this scope.
+
+```toml
+[tool.coverage.run]
+branch = true
+source_pkgs = ["YOUR_IMPORT_PACKAGE"]
+relative_files = true
+
+[tool.coverage.report]
+fail_under = 0
+```
+
+Keep bare `--cov` followed by another option, as above, so it cannot consume a test path. pytest-cov combines xdist results automatically. See [pytest-cov configuration](https://pytest-cov.readthedocs.io/en/latest/config.html) and [coverage configuration](https://coverage.readthedocs.io/en/latest/config.html).
+
+```bash
+uv run pytest
+uv run coverage html
+uv run coverage xml
+```
+
+HTML/XML reuse the last coverage run and write ignored `htmlcov/index.html` and `coverage.xml`. Focused runs replace full-suite data. Use `uv run pytest -n 0 --no-cov` to debug without measurement. Coverage measures execution, not test quality.
 
 ### Decide whether working-directory isolation is useful
 
@@ -200,7 +238,7 @@ To enable shared guarding, extend the pytest table:
 
 ```toml
 [tool.pytest.ini_options]
-addopts = ["-n", "auto"]
+addopts = ["-n", "auto", "--cov", "--cov-config=pyproject.toml", "--cov-report=term-missing"]
 filterwarnings = ["error"]
 testpaths = ["tests"]
 la_dev_cwd_isolation_unmarked = "shared_guarded"
@@ -227,6 +265,8 @@ def test_generates_file(isolated_cwd):
 Use `guarded_cwd` instead when a particular test must prove that it does not read from or write to its CWD.
 
 ## 5. Configure pydocformatter
+
+Review formatter changes around machine-readable comments or metadata; reflow can alter their meaning.
 
 The following is pydocformatter's complete self-configuration and is a strong, intentionally strict starting point:
 
@@ -503,17 +543,22 @@ Ty currently provides `--force-exclude` only on the CLI, with no equivalent TOML
 
 ## 8. Add the Python `AGENTS.md` instructions
 
-Add these sections to the root `AGENTS.md`. If a same-named section already exists from the agnostic setup, merge the listed lines into it instead of repeating the heading:
+Merge these sections into root AGENTS.md without repeating headings. Replace the generic command placeholder with these commands, adjusted for the project's tools/groups. Omit distribution commands when the project does not build packages.
 
 ```markdown
 ## Commands
 
-- Use uv for venv management and ALL Python execution.
+- Use uv for venv management and ALL Python execution. Install/sync with `uv sync --locked --no-default-groups --group dev`.
 - Never run uv with a custom/temporary cache dir (e.g. UV_CACHE_DIR or --cache-dir); if cache-related uv failures occur then abort and notify the user.
 - The venv has no pip; use `uv pip`, `uv tree`, or similar.
-- Use pytest for running tests. Pytest uses pytest-xdist multiprocessing by default; pass `-n 0` for serial debugging or focused runs where worker startup is slower.
-- Use `uv run ty check` for type checking, `uv run ruff ...` for code formatting/linting, and `uv run pydocfmt check --fix` to format docstrings/comments in Python and supported fenced Python blocks in Markdown.
+- After dependency edits, run `uv lock`, inspect the lock-file diff, sync the locked development environment, and verify it with `uv lock --check`. Include the generated lockfile with the dependency change when committing. Never edit `uv.lock` manually.
+- Use pytest for running tests. Pytest uses pytest-xdist multiprocessing by default; pass `-n 0` for serial debugging or focused runs where worker startup is slower. Run the suite with `uv run pytest`.
+- Format/lint with `uv run ruff check --fix`, `uv run pydocfmt check --fix`, and `uv run ruff format`, in that order. Verify with `uv run ruff check`, `uv run pydocfmt check`, and `uv run ruff format --check`.
+- Type-check with `uv run ty check --force-exclude`.
 - Use `uv run la-dev-markdown-tables` to fix Markdown table formatting and `uv run la-dev-markdown-tables --check` to verify it.
+- Install hooks with `uv run pre-commit install` and `uv run pre-commit install --hook-type pre-push`. Commit hooks may fix files; manual, pre-push, and CI checks must not rewrite files.
+- Run the complete non-mutating check with `uv run --no-sync pre-commit run --all-files --hook-stage manual --show-diff-on-failure` after syncing the locked environment. Also run `git diff --check` and inspect staged and ignored files.
+- Build with `uv build --clear`; validate wheel and source archives with `uv run twine check dist/*`, inspect contents, and smoke-test independent installations outside the checkout.
 
 ## Code style
 
@@ -531,6 +576,7 @@ Add these sections to the root `AGENTS.md`. If a same-named section already exis
 ## Packaging
 
 - Keep wheel contents limited to installed runtime code, runtime data, licenses, and required metadata. Include in the source distribution the source, build metadata, license and user-documentation files, and tests and configuration needed to build, document, and validate the unpacked archive. Exclude CI and agent configuration, repository-only helpers, and local state unless a non-sensitive file is required by those checks; never package credentials or secrets.
+- Exclude `docs/devel/plans/` from distributions, even its tracked placeholder.
 ```
 
 ## 9. Complete pre-commit
@@ -809,21 +855,13 @@ Replace CLI smoke checks with installed-import checks when the package has no CL
 
 The checksum manifest is recommended for released Python artifacts. Generate it only after metadata, installation, and smoke validation, publish it beside the exact wheel and source archive, and never restore an older manifest after a failed generation. See [Release checksum manifests](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/release_checksums.md).
 
-## 13. Extend `RELEASE.md` for Python and PyPI
+## 13. Create the Python release runbook
 
-In the generic runbook from the agnostic setup, make these Python steps exact:
+Create root RELEASE.md using the [release stages](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/project_setup_agnostic.md#9-create-releasemd-for-versioned-projects). Record the version source, lockfile, CI workflow, archive-validation commands, and release destination.
 
-1. Name the package version file, `pyproject.toml`, `uv.lock`, `PYPI.md` or `README.md`, wheel name, source-archive name, tag form, PyPI project, and release workflow as sources of truth.
-2. Have Codex inspect the complete diff since the previous tag and propose the next semantic version. Stop and obtain explicit user approval of that exact version before editing it.
-3. Update the version source, changelog comparison links/date, classifiers, Python support text, package-index description, entry-point examples, and lock file when affected.
-4. Run `uv lock --check`, the full manual pre-commit stage, documentation checks, `uv build --clear`, `twine check`, archive-content inspection, and independent wheel/sdist smoke tests.
-5. Commit and push the release preparation, require CI success for that commit, create an annotated tag on it, and run the workflow's nonpublishing `workflow_dispatch` preflight against the tag.
-6. Summarize the exact version, tag, commit, artifacts, GitHub Release, and PyPI trusted-publishing pipeline. Stop for a second explicit user approval before publishing the GitHub Release.
-7. After the release event starts the workflow, show the exact pending `pypi` environment deployment, ask the user to approve it on GitHub, and end the turn. Do not poll while waiting for that manual action.
-8. Resume only after new user input. Require the workflow to succeed, then verify GitHub assets, `SHA256SUMS`, PyPI files/metadata/provenance, and a fresh installation of the exact published version.
-9. Never move a pushed tag or replace a PyPI filename. Retain exact validated artifacts after partial publication; a defective published artifact requires a new version.
+For a manual GitHub release, validate the wheel and source archive, generate [SHA256SUMS](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/release_checksums.md), and publish those assets with curated changelog notes on an annotated tag. No PyPI workflow is needed. Use the [Python/GitHub release template](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/templates/release_python_github.md) for a complete runbook.
 
-For a non-GitHub project or an explicitly chosen direct-release process, keep the same two user confirmations and artifact validation. Publish the exact checked files with `uv publish dist/*.whl dist/*.tar.gz` or `twine upload`, retain credentials outside shell history, upload the artifacts and generated `SHA256SUMS` to the release destination, and perform the same public verification.
+For the PyPI workflow in section 12, include its nonpublishing workflow_dispatch preflight, protected-environment approval, and verification of both GitHub and PyPI assets. Preserve the separate version/publication approvals and never replace published tags or artifacts.
 
 ## 14. Verify the Python setup
 
@@ -841,9 +879,11 @@ git diff --check
 git status --short
 ```
 
-For a published package, also build, inspect, and smoke-test both distributions. Format Markdown tables with `uv run la-dev-markdown-tables` and verify with `uv run la-dev-markdown-tables --check`.
+For distributable packages, build, inspect, and independently smoke-test both archives. Check that they exclude agent/local state and the plans directory. Verify coverage in serial and parallel modes and generate HTML/XML reports. Keep Release diffs and the release runbook current.
 
-Run the Python audit; it checks both this recipe and the prerequisite agnostic recipe:
+Include py.typed when the package promises inline typing to consumers; it does not enable local checking. Fix Markdown tables with `uv run la-dev-markdown-tables` and check with `--check`.
+
+Run the Python audit against this guide and the agnostic guide:
 
 ```text
 $toolkit:perform audit-project-setup[python]
