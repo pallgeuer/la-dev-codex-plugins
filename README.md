@@ -138,7 +138,7 @@ The bundled `audit-test-performance[agnostic]` action measures a repository's te
 
 ## Recommended further setup
 
-See [Recommended Codex setup](docs/recommended_setup.md) for optional user-level instructions, baseline sandbox and reasoning settings, network access, Python cache roots, model selection, and TUI configuration. For a new empty repository, use the [New repository setup recipe](docs/new_repo_recipe.md).
+See [Recommended Codex setup](docs/recommended_setup.md) for optional user-level instructions, baseline sandbox and reasoning settings, network access, Python cache roots, model selection, and TUI configuration. For a new empty repository, give Codex the [New repository setup recipe](docs/new_repo_recipe.md) to follow. Otherwise, follow [Language-agnostic project setup](docs/project_setup_agnostic.md) and, when applicable, [Python project setup](docs/project_setup_python.md) directly. To have Codex check an existing project against those guides, run `$toolkit:perform audit-project-setup[agnostic]` or `$toolkit:perform audit-project-setup[python]`.
 
 Normally, launch Codex with `codex`. The setup guide also explains model and reasoning-effort configuration; command-line overrides can be combined when needed, for example:
 

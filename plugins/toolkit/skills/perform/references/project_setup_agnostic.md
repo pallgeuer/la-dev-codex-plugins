@@ -1,8 +1,8 @@
 # Language-agnostic project setup
 
-This guide covers project documents, editor settings, Git hooks, Codex configuration, and CI. Merge the examples with existing files rather than overwriting them. For Python tooling, also use [Python project setup](project_setup_python.md).
+Use this guide after completing [Marketplace plugin installation](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/installation.md) and [Recommended Codex setup](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/recommended_setup.md). It covers project documents, editor settings, Git hooks, Codex configuration, and CI. Apply it from the repository root, merge the examples with existing files rather than overwriting them, and review `git status` before and after each section.
 
-For a new empty repository, use the [New repository setup recipe](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/new_repo_recipe.md).
+For Python tooling, complete this guide and then use [Python project setup](project_setup_python.md). After setup, see [AI-supported repository development](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/ai_supported_development.md) for the normal development loop. For a new empty repository, give Codex the [New repository setup recipe](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/new_repo_recipe.md) to follow.
 
 ## 1. Create the root project documents
 
@@ -146,7 +146,7 @@ Use `docs/devel/` for committed implementation specifications, audits, and repea
 
 ## 3. Add a concise `.gitignore`
 
-Start with this block and add only outputs the project actually creates:
+Start with this block and add only files and directories relevant to the project, such as tool caches, virtual environments, local data, or generated output:
 
 ```gitignore
 .DS_Store
@@ -158,9 +158,6 @@ Start with this block and add only outputs the project actually creates:
 /docs/devel/plans/*
 !/docs/devel/plans/.gitkeep
 /TODO.txt
-.env
-.env.*
-!.env.example
 ```
 
 Then stage the placeholder explicitly:
@@ -169,7 +166,17 @@ Then stage the placeholder explicitly:
 git add docs/devel/plans/.gitkeep
 ```
 
-If the placeholder is ignored, use `git add -f docs/devel/plans/.gitkeep`. Keep `.env.example` free of credentials, and avoid broad image/JSON ignores that could hide source fixtures.
+If the placeholder is ignored, use `git add -f docs/devel/plans/.gitkeep`. Avoid broad image/JSON ignores that could hide source fixtures.
+
+Only if the project uses `.env` files or explicitly adopts that convention, add:
+
+```gitignore
+.env
+.env.*
+!.env.example
+```
+
+If an `.env.example` is provided, keep it free of credentials.
 
 Language-specific caches, environments, and build outputs belong in the corresponding language setup rather than a copied all-purpose ignore template.
 
@@ -187,8 +194,8 @@ web_search = "live"
 [sandbox_workspace_write]
 network_access = true
 writable_roots = [
-  "~/.cache/gh",
-  "~/.cache/pre-commit",
+    "~/.cache/gh",
+    "~/.cache/pre-commit",
 ]
 ```
 
@@ -235,7 +242,7 @@ This repository is for <brief description of the repository's purpose>.
 - Use a solo direct-main workflow with minimal remote automation. Do not add publication, update bots, branch protection, or a hosted documentation site without a new decision.
 ```
 
-Keep the template wording unless a project-specific decision requires a change, and adapt the workflow when collaboration needs differ. The ASCII policy is optional for projects that intentionally use Unicode source. Put longer explanations in focused development documents; keep formatter/linter settings in their configuration files.
+Keep the template wording unless a project-specific decision requires a change, and adapt the workflow when collaboration needs differ. The ASCII policy is optional for projects that intentionally use Unicode source. Put longer explanations in focused development documents; keep formatter/linter settings in their configuration files. See [AI-supported repository development](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/ai_supported_development.md) for deciding where a convention, decision, or check belongs: a tool, test, specification, instruction, or Perform action.
 
 ## 6. Install baseline pre-commit checks
 

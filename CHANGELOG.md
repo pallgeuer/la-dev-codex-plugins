@@ -36,7 +36,7 @@ All notable changes to this project are documented here. The format follows [Kee
 #### Repository setup
 
 - Added an empty-directory setup recipe with project intake, an ignored checkpoint journal, early Codex activation, verbatim permanent instructions, and final deferred-work/cleanup reporting.
-- Added release-diff examples and a complete manual GitHub release template in the machine-followable recipe.
+- Added release-diff examples and a complete reusable manual GitHub release template, linked from the setup recipe and Python guide.
 
 ### Changed
 

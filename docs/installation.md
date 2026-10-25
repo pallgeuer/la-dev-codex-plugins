@@ -1,12 +1,12 @@
 # Marketplace plugin installation
 
-Install the marketplace once, then select either or both plugins. Each plugin is installed independently, and marketplace installation is separate from installing the repository's [Python distribution](../PYPI.md).
+Install the marketplace once, then select either or both plugins. Each plugin is installed independently, and marketplace installation is separate from installing the repository's [Python package](../PYPI.md).
 
 For a new empty repository, use the [New repository setup recipe](new_repo_recipe.md).
 
 ## Prerequisites
 
-Use the requirements table below for the selected plugin. An existing supported system Python (3.6+) is sufficient for the plugins and the base Python distribution; no custom interpreter or environment is needed. The optional pytest integration has its own dependency. Installing the Python distribution is not required to use the marketplace plugins.
+Use the requirements table below for the selected plugin. An existing supported system Python (3.6+) is sufficient for the plugins and the base Python package; no custom interpreter or environment is needed. The optional pytest integration has its own dependency. Installing the Python package is not required to use the marketplace plugins.
 
 For missing plugin tools, see [Codex CLI](https://learn.chatgpt.com/docs/cli/overview), [Git](https://git-scm.com/downloads), and [jq](https://jqlang.org/download/).
 
@@ -45,7 +45,7 @@ Install the **[Perform Action Toolkit](codex_perform.md)** with the `toolkit` pl
 codex plugin add toolkit@la-dev-codex-plugins
 ```
 
-Each command installs only the named plugin into the active Codex home. Neither plugin requires the other, and installing either marketplace plugin does not install the Python distribution.
+Each command installs only the named plugin into the active Codex home. Neither plugin requires the other, and installing either marketplace plugin does not install the Python package.
 
 ### 3. Verify the installed state
 
@@ -79,7 +79,7 @@ The plugin is ready when both the command-line listing and its applicable in-ses
 | `la-review` / Loupe | Stable Codex CLI 0.137.0+; Python 3.6+; Bash; Git; `jq`; and at least one authenticated `codex` or `claude` executable | Install and authenticate both reviewer CLIs for provider diversity; Loupe still runs when only one is available              |
 | `toolkit` / Perform | Stable Codex CLI 0.137.0+ and Python 3.6+ with the standard library                                                    | Git improves repository-root discovery but has a marker-walk fallback; individual actions can require project-specific tools |
 
-The in-chat Perform skill does not require the `la-dev-codex-plugins` Python distribution. Install that distribution only when you want the standalone `codex-perform` launcher or the repository's reusable Python tools.
+The in-chat Perform skill does not require the `la-dev-codex-plugins` Python package. Install that package only when you want the standalone `codex-perform` launcher or the repository's reusable Python tools.
 
 Codex CLI prerelease builds are supported only on a best-effort basis. If the active `codex` executable is older than `0.137.0` or does not expose the `plugin` subcommand, update or switch the Codex installation before following this guide.
 
@@ -168,7 +168,7 @@ codex plugin marketplace remove la-dev-codex-plugins
 
 Run `codex plugin list` and `codex plugin marketplace list` to verify the resulting state. Plugin removal does not delete user-maintained Toolkit action catalogs or a Loupe allow rule manually added to `~/.codex/rules/default.rules`.
 
-The separately installed Python distribution has an independent lifecycle. Remove it from the environment where it was installed with:
+The separately installed Python package has an independent lifecycle. Remove it from the environment where it was installed with:
 
 ```bash
 python -m pip uninstall la-dev-codex-plugins

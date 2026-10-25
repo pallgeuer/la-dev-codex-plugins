@@ -52,11 +52,11 @@ For projects using pre-commit, include its normal cache root. For Python develop
 
 ```toml
 writable_roots = [
-  "~/.cache/gh",
-  "~/.cache/pip",
-  "~/.cache/pre-commit",
-  "~/.cache/uv",
-  "~/.local/share/uv",
+    "~/.cache/gh",
+    "~/.cache/pip",
+    "~/.cache/pre-commit",
+    "~/.cache/uv",
+    "~/.local/share/uv",
 ]
 ```
 

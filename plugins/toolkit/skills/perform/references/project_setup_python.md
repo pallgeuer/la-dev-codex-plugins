@@ -42,7 +42,6 @@ Append the outputs the project uses:
 /coverage.xml
 .pytest_cache/
 .ruff_cache/
-.cache/
 .pydocfmt_cache/
 .venv/
 __pycache__/
@@ -56,7 +55,7 @@ htmlcov/
 /zensical.generated.toml
 ```
 
-The current `.cache/` entry is for ty's project-local cache. Once ty provides a supported cache-directory setting, configure and git-ignore a tool-specific location instead. Remove entries for outputs the project does not create. Keep a deliberately committed lock file and authored documentation configuration out of the git-ignore list.
+Remove entries for files and directories the project does not use. Keep a deliberately committed lock file and authored documentation configuration out of the git-ignore list.
 
 Replace the agnostic guide's illustrative `.codex/config.toml` with this complete Python-project version:
 
@@ -70,11 +69,11 @@ web_search = "live"
 [sandbox_workspace_write]
 network_access = true
 writable_roots = [
-  "~/.cache/gh",
-  "~/.cache/pip",
-  "~/.cache/pre-commit",
-  "~/.cache/uv",
-  "~/.local/share/uv",
+    "~/.cache/gh",
+    "~/.cache/pip",
+    "~/.cache/pre-commit",
+    "~/.cache/uv",
+    "~/.local/share/uv",
 ]
 ```
 
@@ -860,7 +859,7 @@ The checksum manifest is recommended for released Python artifacts. Generate it 
 
 Create root RELEASE.md using the [release stages](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/project_setup_agnostic.md#9-create-releasemd-for-versioned-projects). Record the version source, lockfile, CI workflow, archive-validation commands, and release destination.
 
-For a manual GitHub release, validate the wheel and source archive, generate [SHA256SUMS](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/release_checksums.md), and publish those assets with curated changelog notes on an annotated tag. No PyPI workflow is needed. A [ready-to-adapt runbook](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/new_repo_recipe.md#release-runbook-template) is available separately.
+For a manual GitHub release, validate the wheel and source archive, generate [SHA256SUMS](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/release_checksums.md), and publish those assets with curated changelog notes on an annotated tag. No PyPI workflow is needed. Use the [Python/GitHub release template](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/templates/release_python_github.md) for a complete runbook.
 
 For the PyPI workflow in section 12, include its nonpublishing workflow_dispatch preflight, protected-environment approval, and verification of both GitHub and PyPI assets. Preserve the separate version/publication approvals and never replace published tags or artifacts.
 

@@ -2,7 +2,7 @@
 
 ## Getting started
 
-- [New repository setup recipe](new_repo_recipe.md) contains machine-followable instructions for Codex.
+- [New repository setup recipe](new_repo_recipe.md) contains machine-followable instructions for Codex to turn an empty directory and a project brief into a configured repository.
 - [Marketplace plugin installation](installation.md) covers marketplace refs, plugin installation and verification, Loupe permissions, and updates.
 - [Plugin FAQ](faq.md) answers common questions about choosing, installing, configuring, and trusting Loupe and Perform.
 - [Plugin compatibility and stability](compatibility.md) defines public plugin interfaces, independent versioning, and breaking-change documentation.
@@ -23,6 +23,7 @@
 - [Markdown table formatting](markdown_tables.md) documents the `la-dev-markdown-tables` library, command, and pre-commit hooks.
 - [Pytest working-directory isolation](pytest_isolation.md) documents the explicitly loaded `la_dev_codex_plugins.pytest_isolation.plugin` module.
 - [Release checksum manifests](release_checksums.md) documents the `la-dev-release-checksums` library and command.
+- [Python/GitHub release template](templates/release_python_github.md) contains a complete reusable `RELEASE.md` runbook for manual GitHub releases.
 
 ## Repository development
 
