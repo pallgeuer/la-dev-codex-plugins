@@ -42,6 +42,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 #### Repository setup
 
+- Added the interactive Plan-mode `setup-new-repo` Perform action, documented at the recipe's opening and across the setup guides, and backed by the complete setup recipe and a bundled, equivalence-tested set of guides and templates.
 - Added an empty-directory setup recipe with project intake, an ignored checkpoint journal, early Codex activation, verbatim permanent instructions, and final deferred-work/cleanup reporting.
 - Added release-diff examples and a complete reusable manual GitHub release template, linked from the setup recipe and Python guide.
 

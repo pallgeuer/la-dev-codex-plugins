@@ -2,7 +2,7 @@
 
 Install the marketplace once, then select either or both plugins. Each plugin is installed independently, and marketplace installation is separate from installing the repository's [Python package](../PYPI.md).
 
-For a new empty repository, use the [New repository setup recipe](new_repo_recipe.md).
+For a new empty or essentially empty repository, follow the [New repository setup recipe](new_repo_recipe.md). With Toolkit installed and enabled, start it in a Plan-mode chat with `$toolkit:perform setup-new-repo`.
 
 ## Prerequisites
 

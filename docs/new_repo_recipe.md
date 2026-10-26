@@ -1,12 +1,24 @@
 # New repository setup recipe
 
-_**Note for humans:** In Plan mode (with high or xhigh reasoning), tell Codex to set up a new repository in the current directory by following the recipe in this file, in addition to giving it a brief summary of what the desired purpose/scope/capabilities of the repository will eventually be._
+## For humans: How to use this recipe
 
-These instructions are for Codex, when starting in an empty directory and wishing to set up a new project. Keep setup orchestration in this file which is intended for Codex agents; the other guides in the same directory as this markdown are concise references intended for consumption by human users.
+With Toolkit installed and enabled, open the empty or essentially empty project directory in a Codex Plan-mode chat with high or xhigh reasoning. Give Codex a brief description of the project's intended purpose, scope, and eventual capabilities, and simply ask for acknowledgement, then run:
+
+```text
+$toolkit:perform setup-new-repo
+```
+
+The action follows this recipe and asks for missing decisions. After agreeing on the setup plan, switch to Default mode and request implementation in the same chat.
+
+If Toolkit is not installed, give Codex the path or URL to this recipe and your project brief directly in Plan mode with high or xhigh reasoning, and ask it to plan setting up the repository in the current directory. Use the same handoff to Default mode for implementation.
+
+## For Codex: Detailed instructions
+
+The instructions in this file are for Codex to follow, when starting in an empty or essentially empty project directory and wishing to set up a new project. Keep setup orchestration in this file which is intended for Codex agents; the other guides in the same directory as this markdown are concise references intended for consumption by human users.
 
 This recipe orders the complete setup; the linked guides contain its required templates and commands. Follow every applicable requirement rather than treating the templates as inspiration. Make exceptions only for explicit user decisions or stated applicability conditions, and record their reasons. Existing repositories should preserve working files and decisions instead of blindly replacing them.
 
-## 1. Agree on the intended result
+### 1. Agree on the intended result
 
 Read any supplied notes or reference code first, distinguishing historical ideas from current requirements. Ask the user for a brief covering purpose, users, eventual capabilities/content, immediate setup scope, and work to defer. Interview until consequential uncertainties are resolved.
 
@@ -16,7 +28,7 @@ Use the guide's solo direct-main workflow and minimal automation unless the user
 
 Ask as many questions as needed. An unanswered, timed-out, skipped, dismissed, or automatically resolved question is not consent; recommended/preselected choices are not answers. Stop dependent work until an explicit answer arrives while continuing independent investigation. Preserve earlier authorization; do not ask again about the same already approved action.
 
-## 2. Inspect and persist the implementation roadmap
+### 2. Inspect and persist the implementation roadmap
 
 Inspect existing/nested Git repositories, identity, instruction files, Codex home/version/settings, installed plugins, required tools, host compatibility, and authentication. Resolve discoverable facts before questioning the user. Preserve existing environments, user settings, and files.
 
@@ -35,7 +47,7 @@ Initialize Git when needed using the agreed branch and identity. Within the guid
 
 Create `.gitkeep` and stage it explicitly; use `git add -f docs/devel/plans/.gitkeep` if required by inherited ignores. Keep the temporary plans and feedback reports in that directory local unless the user explicitly chooses otherwise. Never force-add the whole directory.
 
-## 3. Finish Codex setup first
+### 3. Finish Codex setup first
 
 Follow [Marketplace plugin installation](installation.md) and [Recommended Codex setup](recommended_setup.md). Perform installation and CLI state checks now, but defer the installation guide's restart/smoke-test step until all configuration and instruction work below is ready for section 4. Inventory/install only the prerequisites actually required by the selected plugins/project, using maintained provider instructions and approval for system/global changes. Verify executable paths, host compatibility, and any PATH refresh. Do not ask for passwords/tokens in chat; save a resumable handoff if the user must complete authentication or administrator work in their terminal.
 
@@ -49,7 +61,7 @@ If a normal cache path is missing or read-only in the managed environment, stop 
 
 Create permanent instructions from the outset: stable purpose, current layout, concrete commands, and ongoing rules. Keep setup status, restart instructions, historical approvals, bootstrap caveats, and deferred setup tasks in the journal. Additional permanent rules must express real ongoing project requirements, not setup commentary. Compare the resulting file item by item with both templates before activation, accounting for each literal point, substitution, and justified deviation.
 
-## 4. End the turn for activation
+### 4. End the turn for activation
 
 When applicable plugin/config/instruction setup is complete, save the journal and explain what needs reloading. End the turn and ask the user to restart the Codex host through their normal launch mode and resume the chat. Include the session-specific resume command when available and a fresh-chat handoff from the journal. Do not introduce `--no-daemon` as a generic precaution; inspect supported daemon/app restart controls if the host itself is stale.
 
@@ -57,7 +69,7 @@ If plugin content appears stale, verify the tracked marketplace ref and actual l
 
 After resume, Codex should read the repository instructions and journal, inspect the trust entry and configuration files, and run `codex plugin list --marketplace la-dev-codex-plugins` to verify the installed/enabled plugin state. These file/CLI checks alone do not prove what the running host loaded. Ask the user to run `/debug-config` and `/status` in the Codex UI, confirm that the repository config is loaded with the expected settings, and perform the installation guide's non-destructive in-session skill checks. Autocomplete and slash commands require the user's UI action; Codex cannot run them as shell commands. Explicit-only skills may be absent from implicit discovery, so ask for the documented autocomplete or explicit invocation check. Do not launch a Loupe review just to verify autocomplete. Wait for the user's confirmation before dependent implementation. If resuming still shows stale state, ask the user to start a new chat with the journal handoff and repeat the checks.
 
-## 5. Complete the repository and verify it
+### 5. Complete the repository and verify it
 
 Complete the remaining agnostic and applicable language guide requirements. For Python, lock and actually sync the environment on the host, keep the pytest extra and xdist configured from the start, and use serial runs manually when useful. Configure runtime-package branch coverage by default, missing-code reporting, no percentage gate, and HTML/XML on demand; installing pytest-cov alone is incomplete. Enable guarded-CWD behavior only when tests warrant it.
 
@@ -71,7 +83,7 @@ For distributable packages, build and inspect both archive formats and independe
 
 Verify the authenticated GitHub API identity and remote-name availability separately from Git transport credentials. Create the agreed remote empty: no generated competing README/license commit. Preserve an unexpected existing repository and ask before changing its setup. Push only the checked source, require CI success for its exact commit, run the applicable Perform setup audit, and resolve findings. Recheck permanent-template fidelity after any later instruction changes.
 
-## 6. Finish and summarize deferred work
+### 6. Finish and summarize deferred work
 
 Update the journal with final commit/CI/remote evidence, guide deviations, and every remaining task. **Summarize all deferred work in the final response**, with each item's reason and concrete resumption condition; do not hide it only in a file. Distinguish intentionally deferred product/migration/publication work from blockers to the requested setup. Explicitly state when no deferred work remains.
 

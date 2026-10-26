@@ -501,6 +501,16 @@ def test_exec_md_goal_rejects_implicit_json_noninteractive_frontend(capsys):
     assert "exec-md-goal[agnostic]" in payload["error"]["message"]
 
 
+def test_new_repository_setup_rejects_standalone_launch(monkeypatch, capsys, tmp_path):
+    codex_home = tmp_path / "codex-home"
+    codex_home.mkdir()
+    monkeypatch.setenv("CODEX_HOME", str(codex_home))
+
+    assert perform.main(local_arguments("--cwd", str(tmp_path), "setup-new-repo", "--dry-run", "--json")) == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error"]["code"] == "plan_mode_unavailable"
+
+
 def test_plan_action_reports_cli_activation_is_unavailable(monkeypatch, capsys, tmp_path):
     codex_home = tmp_path / "codex-home"
     actions = codex_home / "toolkit_perform_actions"

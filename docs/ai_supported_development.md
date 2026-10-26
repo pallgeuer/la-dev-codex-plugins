@@ -1,6 +1,6 @@
 # AI-supported repository development
 
-For project configuration, see [Language-agnostic project setup](project_setup_agnostic.md) and [Python project setup](project_setup_python.md). For a new empty repository, use the [New repository setup recipe](new_repo_recipe.md).
+For project configuration, see [Language-agnostic project setup](project_setup_agnostic.md) and [Python project setup](project_setup_python.md). For a new empty or essentially empty repository, follow the [New repository setup recipe](new_repo_recipe.md). With Toolkit installed and enabled, start it in a Plan-mode chat with `$toolkit:perform setup-new-repo`.
 
 AI-supported development works best when the repository carries its own durable feedback. A correction made only in one conversation is easily lost; a correction encoded in a tool, test, or concise instruction improves every later change.
 

@@ -2,7 +2,7 @@
 
 Use this guide after completing [Marketplace plugin installation](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/installation.md) and [Recommended Codex setup](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/recommended_setup.md). It covers project documents, editor settings, Git hooks, Codex configuration, and CI. Apply it from the repository root, merge the examples with existing files rather than overwriting them, and review `git status` before and after each section.
 
-For Python tooling, complete this guide and then use [Python project setup](project_setup_python.md). After setup, see [AI-supported repository development](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/ai_supported_development.md) for the normal development loop. For a new empty repository, give Codex the [New repository setup recipe](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/new_repo_recipe.md) to follow.
+For Python tooling, complete this guide and then use [Python project setup](project_setup_python.md). After setup, see [AI-supported repository development](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/ai_supported_development.md) for the normal development loop. For a new empty or essentially empty repository, follow the [New repository setup recipe](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/new_repo_recipe.md). With Toolkit installed and enabled, start it in a Plan-mode chat with `$toolkit:perform setup-new-repo`.
 
 ## 1. Create the root project documents
 

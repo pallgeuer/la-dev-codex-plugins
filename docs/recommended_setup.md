@@ -2,7 +2,7 @@
 
 These optional user-level instructions and configuration defaults complement the marketplace plugins across all projects. Review and adapt them to your own security requirements, tools, and working style.
 
-For a new empty repository, use the [New repository setup recipe](new_repo_recipe.md).
+For a new empty or essentially empty repository, follow the [New repository setup recipe](new_repo_recipe.md). With Toolkit installed and enabled, start it in a Plan-mode chat with `$toolkit:perform setup-new-repo`.
 
 ## User-level instructions
 

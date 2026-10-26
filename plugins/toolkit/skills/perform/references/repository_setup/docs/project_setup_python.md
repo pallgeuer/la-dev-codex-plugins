@@ -2,7 +2,7 @@
 
 Use this guide with [Language-agnostic project setup](project_setup_agnostic.md) for a uv-managed Python project with a src layout. Merge the examples with existing configuration.
 
-For a new empty repository, use the [New repository setup recipe](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/new_repo_recipe.md).
+For a new empty or essentially empty repository, follow the [New repository setup recipe](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/new_repo_recipe.md). With Toolkit installed and enabled, start it in a Plan-mode chat with `$toolkit:perform setup-new-repo`.
 
 Replace every `YOUR_*` placeholder before running the copied configuration. The versions below are a reproducible snapshot based on [pydocformatter](https://github.com/pallgeuer/pydocformatter); research and pin current compatible releases when adopting the recipe.
 

@@ -85,6 +85,18 @@ For the complete in-chat workflow, see the [Codex Perform skill guide](../plugin
 
 Action definitions determine whether a run is observational or can edit files. After an action changes a non-trivial codebase, run the repository's deterministic checks and use [Loupe](loupe.md#use-loupe-during-development) for the final independent review when appropriate.
 
+## Set up a new repository
+
+In an empty or essentially empty project directory, start a Plan-mode chat with high or xhigh reasoning and run:
+
+```text
+$toolkit:perform setup-new-repo
+```
+
+The action follows the [New repository setup recipe](new_repo_recipe.md), using any project brief already in the conversation and asking for missing decisions. It preserves small starter contents such as notes, a README, a license, or instructions, and asks before applying the bootstrap workflow to an established project. After agreeing on the plan, switch to Default mode and request implementation in the same chat. This Plan-mode action cannot be launched by `codex-perform`.
+
+The installed skill bundles the recipe, setup and development guides, recommended user instructions, Python/GitHub release template, and supporting Markdown-table, pytest-isolation, and release-checksum guides under `references/repository_setup/`. These files preserve the source directory layout and are tested byte for byte against their repository sources. The action prefers these local copies even when a guide links to their GitHub URLs; unbundled supporting documentation remains online. The two `audit-project-setup` variants use the same bundled project-setup guides.
+
 ## Discover and customize actions
 
 Perform discovers direct lowercase `*.json` files from these `toolkit_perform_actions` directories, from lowest to highest precedence:

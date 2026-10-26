@@ -108,8 +108,8 @@ def test_documented_codex_home_fallback_uses_home_directory():
 def test_installed_perform_guides_cross_link_inside_plugin_payload():
     references = PLUGIN_ROOT / "skills" / "perform" / "references"
     cross_linked_filenames = ("action_files.md", "codex_skill.md", "standalone_cli.md")
-    payload_filenames = (*cross_linked_filenames, "project_setup_agnostic.md", "project_setup_python.md")
-    assert {path.name for path in references.glob("*.md")} == set(payload_filenames)
+    assert {path.name for path in references.glob("*.md")} == set(cross_linked_filenames)
+    assert {path.name for path in references.iterdir()} == {*cross_linked_filenames, "repository_setup"}
     for filename in cross_linked_filenames:
         guide = references / filename
         documentation = guide.read_text(encoding="utf-8")
