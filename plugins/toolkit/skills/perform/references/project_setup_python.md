@@ -50,12 +50,15 @@ build/
 dist/
 htmlcov/
 *.egg-info/
+/.cache/
 /.generated/
 /site/
 /zensical.generated.toml
 ```
 
 Remove entries for files and directories the project does not use. Keep a deliberately committed lock file and authored documentation configuration out of the git-ignore list.
+
+The `/.cache/` entry is for Zensical's build cache, whose location is currently fixed beside the configuration file. See the [Zensical setup note](project_setup_agnostic.md#10-optionally-add-a-zensical-documentation-site) for the upstream request and eventual migration to `.zensical_cache/`.
 
 Replace the agnostic guide's illustrative `.codex/config.toml` with this complete Python-project version:
 

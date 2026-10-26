@@ -50,6 +50,7 @@ All notable changes to this project are documented here. The format follows [Kee
 #### Repository setup
 
 - Kept plugin/project guides concise and human-readable, with repository bootstrap, handoffs, and automation confined to the Codex recipe; retained editor/hook hygiene, trust/cache configuration, and package-validation references.
+- Clarified Zensical's fixed build-cache location, the required ignore/editor exclusions, and the eventual migration to a dedicated cache directory in the setup guides and bundled references.
 - Made immediate pytest-extra/xdist configuration and report-only runtime branch coverage part of the complete Python setup, and synchronized Perform's offline audit references.
 
 #### Codex instructions

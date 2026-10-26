@@ -455,9 +455,12 @@ zensical.template.toml             # Tracked authored configuration
 .generated/                        # Git-ignored generated input tree
 zensical.generated.toml            # Git-ignored generated configuration
 site/                              # Git-ignored built site
+.cache/                            # Git-ignored Zensical build cache
 ```
 
 The generator may be written in Python or any other project-appropriate language and may live at another clearly documented path. Keep authored and generated files separate. Run generation before `zensical build --strict`; do not run them in parallel. Add a GitHub Pages workflow only when the project uses a GitHub remote and wants Pages deployment.
+
+Zensical currently hardcodes its build cache as `.cache/` beside the configuration file; a custom cache directory is [still a backlog item](https://github.com/zensical/backlog/issues/84). Ignore that directory and exclude it from editor indexing. When Zensical supports a configurable location, use a dedicated `.zensical_cache/` directory and update configuration, ignore rules, and editor exclusions together.
 
 When the project has a generated Zensical input tree, add this conditional instruction to `AGENTS.md` and replace the placeholder with the exact project command:
 
