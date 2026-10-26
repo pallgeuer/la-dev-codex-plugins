@@ -17,6 +17,7 @@ def _git(repository, *arguments):
     subprocess.run(("git", *arguments), cwd=str(repository), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
+@pytest.mark.isolated_cwd
 def test_select_tracked_paths_uses_nearest_root_case_insensitive_suffixes_and_nul_output(tmp_path, monkeypatch):
     repository = tmp_path / "repo"
     nested = repository / "nested" / "deeper"
@@ -34,6 +35,7 @@ def test_select_tracked_paths_uses_nearest_root_case_insensitive_suffixes_and_nu
     assert all(path.is_absolute() for path in discovered)
 
 
+@pytest.mark.isolated_cwd
 def test_select_tracked_paths_decodes_non_utf8_filename_with_filesystem_surrogateescape(tmp_path):
     repository = tmp_path / "repo"
     repository.mkdir()
@@ -51,6 +53,7 @@ def test_select_tracked_paths_decodes_non_utf8_filename_with_filesystem_surrogat
     assert os.fsencode(discovered[0].name) == raw_name
 
 
+@pytest.mark.isolated_cwd
 def test_select_tracked_paths_ignores_absent_files_but_returns_tracked_symlinks_for_validation(tmp_path):
     repository = tmp_path / "repo"
     repository.mkdir()
@@ -73,6 +76,7 @@ def test_select_tracked_paths_ignores_absent_files_but_returns_tracked_symlinks_
     assert link in discovered
 
 
+@pytest.mark.isolated_cwd
 def test_empty_git_discovery_succeeds(tmp_path):
     repository = tmp_path / "repo"
     repository.mkdir()
@@ -80,6 +84,7 @@ def test_empty_git_discovery_succeeds(tmp_path):
     assert markdown_tables.select_markdown_paths(root=repository, use_config=False) == ()
 
 
+@pytest.mark.isolated_cwd
 @pytest.mark.parametrize("suffix", ["\r", "\n"])
 def test_git_root_preserves_trailing_path_line_characters(tmp_path, suffix):
     repository = tmp_path / ("repository" + suffix)
@@ -89,6 +94,7 @@ def test_git_root_preserves_trailing_path_line_characters(tmp_path, suffix):
     assert markdown_selection._discover_git_root(repository) == repository.absolute()
 
 
+@pytest.mark.isolated_cwd
 def test_select_paths_loads_strict_root_config_and_adds_cli_exclusions(tmp_path):
     repository = tmp_path / "repo"
     docs = repository / "docs"
@@ -109,6 +115,7 @@ def test_select_paths_loads_strict_root_config_and_adds_cli_exclusions(tmp_path)
     assert markdown_tables.select_markdown_paths(root=repository, apply_excludes=False) == (command_line, configured, keep)
 
 
+@pytest.mark.isolated_cwd
 def test_select_paths_can_include_only_nonignored_untracked_markdown(tmp_path):
     repository = tmp_path / "repo"
     repository.mkdir()
@@ -129,6 +136,7 @@ def test_select_paths_can_include_only_nonignored_untracked_markdown(tmp_path):
     assert markdown_tables.select_markdown_paths(ignored, root=repository, use_config=False) == (ignored,)
 
 
+@pytest.mark.isolated_cwd
 def test_select_paths_expands_git_scoped_directories_in_input_order(tmp_path):
     repository = tmp_path / "repo"
     docs = repository / "docs"
@@ -163,6 +171,7 @@ def test_directory_entry_index_preserves_sorted_descendants_for_each_ancestor(tm
     assert indexed["docs/nested"] == (entries[2][1],)
 
 
+@pytest.mark.isolated_cwd
 def test_select_paths_rejects_directory_outside_active_worktree(tmp_path):
     repository = tmp_path / "repo"
     outside = tmp_path / "outside"
@@ -174,6 +183,7 @@ def test_select_paths_rejects_directory_outside_active_worktree(tmp_path):
         markdown_tables.select_markdown_paths(outside, root=repository, use_config=False)
 
 
+@pytest.mark.isolated_cwd
 def test_select_paths_match_external_files_by_absolute_posix_path(tmp_path):
     repository = tmp_path / "repo"
     outside = tmp_path / "outside.md"
@@ -234,6 +244,7 @@ def test_git_discovery_forces_c_locale_and_only_expected_not_worktree_falls_back
     assert captured_environments[0]["LC_ALL"] == "C"
 
 
+@pytest.mark.isolated_cwd
 @pytest.mark.parametrize("explicit", [False, True])
 def test_configuration_fifo_is_opened_nonblocking_and_rejected(tmp_path, monkeypatch, explicit):
     repository = tmp_path / "repo"
@@ -254,6 +265,7 @@ def test_configuration_fifo_is_opened_nonblocking_and_rejected(tmp_path, monkeyp
         markdown_tables.select_markdown_paths(root=repository, config_path=config if explicit else None)
 
 
+@pytest.mark.isolated_cwd
 @pytest.mark.parametrize(
     ("contents", "message"),
     [
@@ -278,6 +290,7 @@ def test_select_paths_rejects_invalid_configuration(tmp_path, contents, message)
         markdown_tables.select_markdown_paths(root=repository)
 
 
+@pytest.mark.isolated_cwd
 def test_select_paths_explicit_config_and_argument_contracts(tmp_path):
     repository = tmp_path / "repo"
     repository.mkdir()
@@ -296,6 +309,7 @@ def test_select_paths_explicit_config_and_argument_contracts(tmp_path):
         markdown_tables.select_markdown_paths(path, root=repository, config_path=tmp_path / "missing.json")
 
 
+@pytest.mark.isolated_cwd
 def test_select_paths_configuration_requires_regular_utf8_file(tmp_path):
     repository = tmp_path / "repo"
     repository.mkdir()

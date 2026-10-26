@@ -13,11 +13,31 @@ import warnings
 import pytest
 
 _ENVIRONMENT_NAMES = ("TMPDIR", "TEMP", "TMP")
+# Git's repository-local environment (git rev-parse --local-env-vars), maintained without requiring Git at runtime.
+_GIT_ENVIRONMENT_NAMES = (
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_COMMON_DIR",
+    "GIT_CONFIG",
+    "GIT_CONFIG_COUNT",
+    "GIT_CONFIG_PARAMETERS",
+    "GIT_DIR",
+    "GIT_GRAFT_FILE",
+    "GIT_IMPLICIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_NO_REPLACE_OBJECTS",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_PREFIX",
+    "GIT_REPLACE_REF_BASE",
+    "GIT_SHALLOW_FILE",
+    "GIT_WORK_TREE",
+)
 _MISSING = object()
 _UNMARKED_OPTION = "la_dev_cwd_isolation_unmarked"
 _UNMARKED_MODES = ("none", "shared_guarded")
 _CLEANUP_OPTION = "la_dev_cwd_isolation_cleanup"
 _CLEANUP_MODES = ("eager", "pytest_retained")
+_GIT_ENVIRONMENT_OPTION = "la_dev_cwd_isolation_git_environment"
+_GIT_ENVIRONMENT_MODES = ("clear", "inherit")
 _DISPOSITION_PENDING = "pending"
 _DISPOSITION_REMOVED = "eagerly_removed"
 _DISPOSITION_RETAINED = "safely_retained"
@@ -45,8 +65,7 @@ class _PolicyError(ValueError):
 class _IsolationState:
     """Lifecycle state for one private or session-shared boundary.
 
-    The original process fields preserve the exact CWD, temporary-environment
-    values, and ``tempfile.tempdir`` cache restored when the boundary ends.
+    The original process fields preserve the exact CWD, managed environment values, and ``tempfile.tempdir`` cache restored when the boundary ends. The Git environment policy determines whether repository-local variables are cleared and restored or left unmanaged.
     The boundary fields identify the disposable root and its parent, guarded
     or writable CWD, sibling temporary directory, and recorded identities used
     for fail-closed cleanup and shared-state activation. The cleanup mode and
@@ -64,6 +83,7 @@ class _IsolationState:
         "cwd_identity",
         "disposition",
         "environment",
+        "git_environment_mode",
         "guarded",
         "integrity_manifest",
         "original_cwd",
@@ -73,12 +93,13 @@ class _IsolationState:
         "tmp_identity",
     )
 
-    def __init__(self, original_cwd, environment, tempdir, guarded, cleanup_mode):
+    def __init__(self, original_cwd, environment, tempdir, guarded, cleanup_mode, git_environment_mode):
         self.original_cwd = original_cwd
         self.environment = environment
         self.tempdir = tempdir
         self.guarded = guarded
         self.cleanup_mode = cleanup_mode
+        self.git_environment_mode = git_environment_mode
         self.integrity_manifest = None
         self.disposition = _DISPOSITION_PENDING
         self.preserved_nested_boundaries = set()
@@ -92,13 +113,14 @@ class _IsolationState:
 
 
 class _SessionIsolation:
-    """Configured shared-isolation state owned by one pytest configuration."""
+    """Configured isolation policies and shared boundary owned by one pytest configuration."""
 
-    __slots__ = ("allocation_parent", "boundary_files", "cleanup_attempted", "cleanup_mode", "enabled", "poison_files", "policy_hookimpls", "shared_state")
+    __slots__ = ("allocation_parent", "boundary_files", "cleanup_attempted", "cleanup_mode", "enabled", "git_environment_mode", "poison_files", "policy_hookimpls", "shared_state")
 
-    def __init__(self, enabled, cleanup_mode):
+    def __init__(self, enabled, cleanup_mode, git_environment_mode):
         self.enabled = enabled
         self.cleanup_mode = cleanup_mode
+        self.git_environment_mode = git_environment_mode
         self.allocation_parent = None
         self.boundary_files = None
         self.poison_files = None
@@ -176,6 +198,7 @@ def pytest_addoption(parser):
     """Register the string-valued isolation settings."""
     parser.addini(_UNMARKED_OPTION, "Isolation mode for tests without an explicit isolation marker or fixture", default="none")
     parser.addini(_CLEANUP_OPTION, "Cleanup lifecycle for working-directory isolation boundaries", default="eager")
+    parser.addini(_GIT_ENVIRONMENT_OPTION, "Inherited repository-local Git environment handling during working-directory isolation", default="clear")
 
 
 def _get_optional_ini(config, name):
@@ -216,7 +239,10 @@ def pytest_configure(config):
         raise pytest.UsageError("{}={!r} is invalid; allowed values are: {}".format(_CLEANUP_OPTION, cleanup_mode, ", ".join(_CLEANUP_MODES)))
     if cleanup_mode == "pytest_retained":
         _validate_retained_compatibility(config)
-    setattr(config, _SESSION_ATTRIBUTE, _SessionIsolation(enabled=configured == "shared_guarded", cleanup_mode=cleanup_mode))
+    git_environment_mode = config.getini(_GIT_ENVIRONMENT_OPTION)
+    if git_environment_mode not in _GIT_ENVIRONMENT_MODES:
+        raise pytest.UsageError("{}={!r} is invalid; allowed values are: {}".format(_GIT_ENVIRONMENT_OPTION, git_environment_mode, ", ".join(_GIT_ENVIRONMENT_MODES)))
+    setattr(config, _SESSION_ATTRIBUTE, _SessionIsolation(enabled=configured == "shared_guarded", cleanup_mode=cleanup_mode, git_environment_mode=git_environment_mode))
 
 
 def _fail(message):
@@ -380,14 +406,16 @@ def _select_mode(item):
     return "guarded" if guarded else "isolated", poison_files
 
 
-def _save_process_state(guarded, cleanup_mode):
-    """Capture exact process state before creating an isolation boundary."""
+def _save_process_state(guarded, cleanup_mode, git_environment_mode):
+    """Capture exact process state, including Git variables only when managed, before creating an isolation boundary."""
     try:
         original_cwd = os.getcwd()  # noqa: PTH109 - the contract requires saving the exact os.getcwd value
     except OSError as exc:
         _fail("could not save the original working directory: {}".format(exc))
     environment = {name: os.environ.get(name, _MISSING) for name in _ENVIRONMENT_NAMES}
-    return _IsolationState(original_cwd, environment, tempfile.tempdir, guarded=guarded, cleanup_mode=cleanup_mode)
+    if git_environment_mode == "clear":
+        environment.update((name, os.environ.get(name, _MISSING)) for name in _GIT_ENVIRONMENT_NAMES)
+    return _IsolationState(original_cwd, environment, tempfile.tempdir, guarded=guarded, cleanup_mode=cleanup_mode, git_environment_mode=git_environment_mode)
 
 
 def _write_read_only_files(root, files):
@@ -453,6 +481,14 @@ def _redirect_temporary_state(state):
     for name in _ENVIRONMENT_NAMES:
         os.environ[name] = temporary_path
     tempfile.tempdir = None
+
+
+def _activate_environment(state):
+    """Redirect temporary state and clear managed Git variables at each isolation activation."""
+    _redirect_temporary_state(state)
+    if state.git_environment_mode == "clear":
+        for name in _GIT_ENVIRONMENT_NAMES:
+            os.environ.pop(name, None)
 
 
 def _directory_open_flags():
@@ -703,7 +739,7 @@ def _activate_shared_state(state, enter_cwd, failures):
                 failures.append("could not enter shared guarded working directory {}: {}".format(state.cwd, exc))
                 return False
 
-    _redirect_temporary_state(state)
+    _activate_environment(state)
     return True
 
 
@@ -1000,7 +1036,7 @@ def pytest_collection_finish(session):
             )
         )
 
-    state = _save_process_state(guarded=True, cleanup_mode=isolation.cleanup_mode)
+    state = _save_process_state(guarded=True, cleanup_mode=isolation.cleanup_mode, git_environment_mode=isolation.git_environment_mode)
     try:
         _create_boundary(
             state,
@@ -1009,7 +1045,7 @@ def pytest_collection_finish(session):
             record_integrity=True,
             allocation_parent=isolation.allocation_parent if isolation.cleanup_mode == "pytest_retained" else None,
         )
-        _redirect_temporary_state(state)
+        _activate_environment(state)
     except BaseException as exc:
         failures = _restore_state(state, inspect_final=False)
         message = "Shared guarded session setup failed: {}".format(exc)
@@ -1107,14 +1143,14 @@ def _setup_private_item_isolation(item, mode, poison_files):
         if not _activate_shared_state(shared_state, enter_cwd=False, failures=failures):
             _fail("Shared guarded state verification failed before private test setup: {}".format("; ".join(failures)))
     isolation = _session_isolation(item.config)
-    state = _save_process_state(guarded=mode == "guarded", cleanup_mode=isolation.cleanup_mode)
+    state = _save_process_state(guarded=mode == "guarded", cleanup_mode=isolation.cleanup_mode, git_environment_mode=isolation.git_environment_mode)
     try:
         if isolation.cleanup_mode == "pytest_retained":
             allocation_parent = shared_state.tmp if shared_state is not None else isolation.allocation_parent
             _create_boundary(state, poison_files, allocation_parent=allocation_parent)
         else:
             _create_boundary(state, poison_files)
-        _redirect_temporary_state(state)
+        _activate_environment(state)
         os.chdir(str(state.cwd))
     except BaseException:
         failures = _restore_state(state, inspect_final=False)

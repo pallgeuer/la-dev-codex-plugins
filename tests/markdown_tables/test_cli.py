@@ -140,13 +140,16 @@ def test_operational_errors_continue_to_later_files(tmp_path, capsys):
     assert "Cannot inspect file" in captured.err
 
 
+@pytest.mark.isolated_cwd
 @pytest.mark.parametrize("check", [False, True])
-def test_cli_refuses_outside_directory_and_final_symlink_in_both_modes(tmp_path, capsys, check):
-    target = tmp_path / "target.md"
+def test_cli_refuses_outside_directory_and_final_symlink_in_both_modes(isolated_cwd, capsys, check):
+    _git(isolated_cwd, "init")
+    outside = isolated_cwd.parent / "tmp"
+    target = outside / "target.md"
     target.write_text("| A |\n|---|\n", encoding="utf-8")
-    link = tmp_path / "link.md"
+    link = outside / "link.md"
     link.symlink_to(target)
-    arguments = [str(tmp_path), str(link)]
+    arguments = [str(outside), str(link)]
     if check:
         arguments.insert(0, "--check")
 
@@ -182,6 +185,7 @@ def test_help_and_version_exit_zero(option, capsys):
     assert capsys.readouterr().out
 
 
+@pytest.mark.isolated_cwd
 def test_cli_applies_root_config_to_pre_commit_style_explicit_paths_and_can_bypass_it(tmp_path, monkeypatch, capsys):
     repository = tmp_path / "repo"
     repository.mkdir()
@@ -197,6 +201,7 @@ def test_cli_applies_root_config_to_pre_commit_style_explicit_paths_and_can_bypa
     assert "generated.md:1" in capsys.readouterr().err
 
 
+@pytest.mark.isolated_cwd
 def test_cli_exclusions_are_additive_and_no_config_disables_root_config(tmp_path, monkeypatch, capsys):
     repository = tmp_path / "repo"
     repository.mkdir()
@@ -214,6 +219,7 @@ def test_cli_exclusions_are_additive_and_no_config_disables_root_config(tmp_path
     assert "configured.md:1" in capsys.readouterr().err
 
 
+@pytest.mark.isolated_cwd
 def test_cli_directory_discovery_adds_only_nonignored_untracked_files(tmp_path, monkeypatch, capsys):
     repository = tmp_path / "repo"
     docs = repository / "docs"
@@ -239,6 +245,7 @@ def test_cli_directory_discovery_adds_only_nonignored_untracked_files(tmp_path, 
     assert "ignored.md" not in diagnostics
 
 
+@pytest.mark.isolated_cwd
 def test_cli_invalid_config_fails_before_fixing_any_file(tmp_path, monkeypatch, capsys):
     repository = tmp_path / "repo"
     repository.mkdir()
@@ -254,6 +261,7 @@ def test_cli_invalid_config_fails_before_fixing_any_file(tmp_path, monkeypatch, 
     assert path.read_text(encoding="utf-8") == source
 
 
+@pytest.mark.isolated_cwd
 def test_cli_operational_git_failure_stops_before_writing_explicit_file(tmp_path, monkeypatch, capsys):
     repository = tmp_path / "repo"
     repository.mkdir()
@@ -270,6 +278,7 @@ def test_cli_operational_git_failure_stops_before_writing_explicit_file(tmp_path
     assert path.read_text(encoding="utf-8") == source
 
 
+@pytest.mark.isolated_cwd
 def test_cli_directory_error_does_not_prevent_later_file_fix(tmp_path, monkeypatch, capsys):
     repository = tmp_path / "repo"
     outside = tmp_path / "outside"

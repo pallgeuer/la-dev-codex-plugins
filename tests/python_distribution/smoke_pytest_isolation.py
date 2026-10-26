@@ -44,10 +44,74 @@ def remove_retained_tree(path):
     shutil.rmtree(str(path))
 
 
+def smoke_git_environment(suite_root):
+    """Verify Git variable management without requiring a Git executable."""
+    (suite_root / "conftest.py").write_text(
+        """import os
+
+INITIAL = {name: os.environ.get(name) for name in ("GIT_INDEX_FILE", "GIT_DIR", "GIT_CONFIG_COUNT")}
+os.environ["GIT_INDEX_FILE"] = "/caller/absolute-index"
+os.environ["GIT_DIR"] = ""
+os.environ.pop("GIT_CONFIG_COUNT", None)
+CALLER = {name: os.environ.get(name) for name in INITIAL}
+
+def pytest_unconfigure(config):
+    assert {name: os.environ.get(name) for name in CALLER} == CALLER
+    for name, value in INITIAL.items():
+        if value is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = value
+""",
+        encoding="ascii",
+    )
+    test_path = suite_root / "test_git_environment.py"
+    test_path.write_text(
+        """import os
+
+def test_01_git_state(isolated_cwd, pytestconfig):
+    if pytestconfig.getini("la_dev_cwd_isolation_git_environment") == "clear":
+        assert all(name not in os.environ for name in ("GIT_INDEX_FILE", "GIT_DIR", "GIT_CONFIG_COUNT"))
+        os.environ["GIT_INDEX_FILE"] = "test-owned-index"
+    else:
+        assert os.environ["GIT_INDEX_FILE"] == "/caller/absolute-index"
+        assert os.environ["GIT_DIR"] == ""
+
+def test_02_outer_state(pytestconfig):
+    shared = pytestconfig.getini("la_dev_cwd_isolation_unmarked") == "shared_guarded"
+    if shared and pytestconfig.getini("la_dev_cwd_isolation_git_environment") == "clear":
+        assert "GIT_INDEX_FILE" not in os.environ
+    else:
+        assert os.environ["GIT_INDEX_FILE"] == "/caller/absolute-index"
+""",
+        encoding="ascii",
+    )
+    for mode in ("none", "shared_guarded"):
+        for policy in ("clear", "inherit"):
+            run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pytest",
+                    "-p",
+                    "la_dev_codex_plugins.pytest_isolation.plugin",
+                    "-q",
+                    "-o",
+                    "la_dev_cwd_isolation_unmarked=" + mode,
+                    "-o",
+                    "la_dev_cwd_isolation_git_environment=" + policy,
+                    str(test_path),
+                ],
+                str(suite_root),
+            )
+    (suite_root / "conftest.py").unlink()
+
+
 def smoke_plugin(expected_pytest_version):
     """Run temporary suites covering default, explicit, and shared isolation."""
     with tempfile.TemporaryDirectory(prefix="la-dev-pytest-isolation-smoke-") as temporary_directory:
         suite_root = pathlib.Path(temporary_directory).resolve()
+        smoke_git_environment(suite_root)
         test_path = suite_root / "test_installed_plugin.py"
         test_path.write_text(
             """import os

@@ -31,6 +31,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
+### Fixed
+
+#### Test isolation
+
+- Isolated temporary Git repositories from inherited commit-hook state by default, with exact environment restoration and a suite-wide compatibility opt-out, so `git commit -a` hooks cannot make isolated tests share the caller's index.
+- Made CLI directory/symlink rejection tests independent of the caller's repository and migrated release-validator tests to the shared Git environment isolation policy.
+
 ### Added
 
 #### Repository setup

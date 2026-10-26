@@ -36,6 +36,48 @@ pytest_plugins = ("la_dev_codex_plugins.pytest_isolation.plugin",)
 
 The `la_dev_codex_plugins.pytest_isolation` package itself does not import pytest or eagerly load the plugin. Register the plugin during pytest's normal initial plugin configuration; dynamic registration after `pytest_sessionstart` is unsupported. Downstream suites must not override the `guarded_cwd` or `isolated_cwd` fixture names while using the plugin; fixture overriding would make request-based activation ambiguous and is unsupported. Shared policy customization uses the process-global pytest hook documented below.
 
+## Git environment isolation
+
+Active private or shared working-directory isolation clears inherited Git repository-local environment variables by default. Git hooks can export an absolute `GIT_INDEX_FILE`, particularly during `git commit -a`; changing directories alone then leaves temporary test repositories using the caller's index. Clearing the inherited state lets each temporary repository use its own index, object store, and configuration.
+
+`la_dev_cwd_isolation_git_environment` is a process-wide string-valued ini option with exactly two accepted values:
+
+- `clear`, the default, saves the exact presence and values of managed Git variables, clears them when isolation activates, and restores the saved state when the boundary ends.
+- `inherit` leaves Git environment variables unmanaged, including any changes tests make. Use this compatibility setting when tests intentionally inherit repository routing, shared object stores, or command configuration:
+
+```toml
+[tool.pytest.ini_options]
+la_dev_cwd_isolation_git_environment = "inherit"
+```
+
+There is no additional command-line option, environment alias, marker argument, or per-test override. Invalid values, including empty, differently cased, and whitespace-polluted values, are usage errors before isolation allocation. Loading the plugin with no active private or shared isolation remains inert with either setting.
+
+The maintained list matches Git's repository-local environment names reported by `git rev-parse --local-env-vars`:
+
+```text
+GIT_ALTERNATE_OBJECT_DIRECTORIES
+GIT_COMMON_DIR
+GIT_CONFIG
+GIT_CONFIG_COUNT
+GIT_CONFIG_PARAMETERS
+GIT_DIR
+GIT_GRAFT_FILE
+GIT_IMPLICIT_WORK_TREE
+GIT_INDEX_FILE
+GIT_NO_REPLACE_OBJECTS
+GIT_OBJECT_DIRECTORY
+GIT_PREFIX
+GIT_REPLACE_REF_BASE
+GIT_SHALLOW_FILE
+GIT_WORK_TREE
+```
+
+Other variables remain unchanged, including Git identity, tracing, and global/system configuration controls. Indexed `GIT_CONFIG_KEY_n` and `GIT_CONFIG_VALUE_n` entries remain unchanged; clearing `GIT_CONFIG_COUNT` disables their inherited use. Tests explicitly setting a new count should also supply their own corresponding keys and values.
+
+Private isolation clears the variables before downstream function fixtures run and keeps test-defined values available through their finalizers. Broader fixtures retain the original environment unless shared guarding is enabled. Shared mode clears the variables from collection finish through session teardown and reasserts that state at the same activation points as temporary-directory redirection: before each test, before private allocation, after private teardown, and after broader fixture finalization. Nested private teardown restores the cleared shared environment; final shared teardown restores the caller's exact environment. Normal failures, skips, partial setup failures, and interrupt unwinding use the same restoration lifecycle.
+
+Tests may explicitly configure Git variables after isolation begins. Clearing inherited command configuration also removes inherited `git -c` settings, and clearing object-store variables can affect projects intentionally reusing external objects; select `inherit` when that inheritance is required. The plugin uses a fixed-size list and never launches Git for discovery, so Git remains optional and activation overhead consists only of environment operations.
+
 ## Cleanup lifecycle
 
 `la_dev_cwd_isolation_cleanup` is a process-wide string-valued ini option with exactly two accepted values:
@@ -58,7 +100,7 @@ Without `--basetemp`, pytest versions exposing `tmp_path_retention_policy` and `
 
 In retained mode, the shared boundary is a direct child of the current process's pytest base temp. Explicit private boundaries remain below the shared `tmp/` when shared guarding is active, preserving neutral boundary-file ancestry. Without shared guarding, private boundaries are direct children of the pytest base temp. Pytest-managed `tmp_path` and `tmpdir` artifacts remain ordinary siblings rather than becoming children of an isolation boundary. Each xdist worker initializes and uses its own factory and base-temp allocation without shared coordination.
 
-Both modes restore the exact saved CWD, temporary-environment presence and values, and `tempfile.tempdir`, then verify recorded boundary identities and any shared policy manifest. Eager mode additionally restores permissions and removes the verified tree immediately. Retained mode stops after successful verification without traversing arbitrary writable `tmp/` contents. Missing or identity-replaced entries and otherwise identity-uncertain state are reported and preserved in either mode. Mode or policy corruption is reported; eager mode may still remove the tree when every recorded identity remains safely verified, while retained mode preserves it. A safely retained nested private boundary is complete and does not block the outer shared lifecycle.
+Both modes restore the exact saved CWD, managed environment-variable presence and values, and `tempfile.tempdir`, then verify recorded boundary identities and any shared policy manifest. Eager mode additionally restores permissions and removes the verified tree immediately. Retained mode stops after successful verification without traversing arbitrary writable `tmp/` contents. Missing or identity-replaced entries and otherwise identity-uncertain state are reported and preserved in either mode. Mode or policy corruption is reported; eager mode may still remove the tree when every recorded identity remains safely verified, while retained mode preserves it. A safely retained nested private boundary is complete and does not block the outer shared lifecycle.
 
 Retained boundaries and standard temporary artifacts therefore consume disk for pytest's configured retention window and remain available for debugging. A later pytest invocation may prune the entire old base temp using pytest's cleanup implementation, not the plugin's descriptor-anchored identity checks. Suites selecting this cooperative lifecycle must not place valuable or externally moved data in isolation boundaries or deliberately replace recorded paths. Retained cleanup provides lifecycle compatibility and correctness isolation, not a stronger security sandbox.
 
@@ -186,6 +228,7 @@ The sibling `tmp/` remains writable in both modes. Before other function-scoped 
 
 - saves the exact `os.getcwd()` value;
 - saves the exact value or absence of `TMPDIR`, `TEMP`, and `TMP`;
+- saves and clears the managed Git repository-local variables when the Git environment policy is `clear`;
 - saves the exact `tempfile.tempdir` cache;
 - points all three environment variables at the absolute `tmp/` path;
 - sets `tempfile.tempdir = None` so the standard library rediscovers the redirected directory; and
@@ -193,7 +236,7 @@ The sibling `tmp/` remains writable in both modes. Before other function-scoped 
 
 The private boundary and writable directories receive explicit owner-accessible modes after creation, so a restrictive process umask cannot make isolation setup or cleanup unusable. Guarded mode subsequently applies its documented read-only owner modes to the guarded tree while leaving `tmp/` writable.
 
-A plugin-wide function-scoped autouse dispatcher enters private isolation after broader fixture setup but before downstream function-scoped fixtures, and leaves it after those function fixtures finalize but before module- or session-scoped finalizers. The private teardown inspects the test's final CWD, attempts to restore the outer CWD, restores all three environment variables and the exact `tempfile.tempdir` value, and finalizes the boundary through verified descriptors according to the configured cleanup mode. An outer runtest-protocol hook performs emergency restoration when Ctrl-C or `pytest.exit()` bypasses normal teardown; setup and emergency restoration preserve the original exception or interrupt even when restoration also reports failures. Restoration is attempted before ordinary leak failures are reported, including after assertion failures, skips, fixture failures, and partial isolation setup failures. Boundary construction records each identity before subsequent fallible setup work. If restoring the original CWD fails, environment restoration and boundary finalization still proceed. Finalization opens and verifies the recorded boundary, `cwd/`, and `tmp/`; any missing or changed recorded identity preserves the boundary and replacement rather than deleting uncertain data. Under eager cleanup, writable descendants have owner access restored descriptor-relatively before they are opened, allowing permission-testing trees to be cleaned without following symbolic links. Policy verification and eager cleanup use iterative descriptor stacks rather than Python recursion; descriptor exhaustion is reported as an ordinary teardown failure and preserves the affected boundary.
+A plugin-wide function-scoped autouse dispatcher enters private isolation after broader fixture setup but before downstream function-scoped fixtures, and leaves it after those function fixtures finalize but before module- or session-scoped finalizers. The private teardown inspects the test's final CWD, attempts to restore the outer CWD, restores all managed environment variables and the exact `tempfile.tempdir` value, and finalizes the boundary through verified descriptors according to the configured cleanup mode. An outer runtest-protocol hook performs emergency restoration when Ctrl-C or `pytest.exit()` bypasses normal teardown; setup and emergency restoration preserve the original exception or interrupt even when restoration also reports failures. Restoration is attempted before ordinary leak failures are reported, including after assertion failures, skips, fixture failures, and partial isolation setup failures. Boundary construction records each identity before subsequent fallible setup work. If restoring the original CWD fails, environment restoration and boundary finalization still proceed. Finalization opens and verifies the recorded boundary, `cwd/`, and `tmp/`; any missing or changed recorded identity preserves the boundary and replacement rather than deleting uncertain data. Under eager cleanup, writable descendants have owner access restored descriptor-relatively before they are opened, allowing permission-testing trees to be cleaned without following symbolic links. Policy verification and eager cleanup use iterative descriptor stacks rather than Python recursion; descriptor exhaustion is reported as an ordinary teardown failure and preserves the affected boundary.
 
 CWD and environment variables are process-global. Privately isolated tests must not race threads that use either state. Each pytest-xdist worker is a separate process and receives independent private per-test boundaries; the plugin does not provide thread isolation.
 
