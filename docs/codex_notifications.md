@@ -23,14 +23,46 @@ sudo apt install pulseaudio-utils
 
 The helper never installs software, contacts the network, changes the default output, unmutes devices, or alters system volume. Linux distributions beyond Ubuntu are intended to work when these requirements are met, but follow the repository's [operating-system support policy](../README.md#operating-system-support). Native Windows and WSL are not supported.
 
-## Install from a checkout
+## Install
 
-Obtain this repository and enter its root. Use a reviewed release tag instead of `main` if you need a pinned version:
+Choose an existing Codex marketplace checkout or obtain your own checkout, then copy the helper using the shared steps below.
+
+### Reuse Codex's marketplace checkout
+
+If you already installed a plugin from this marketplace, Codex normally already has a full checkout of this repository: you do not need to clone it again. The full marketplace checkout is separate from the versioned installed-plugin payloads under `plugins/cache/`.
+
+Find the marketplace named `la-dev-codex-plugins` and its `root` path:
+
+```bash
+codex plugin marketplace list --json
+```
+
+Change into the reported root. A common location is the following, but use the reported path if it differs:
+
+```bash
+cd "${CODEX_HOME:-$HOME/.codex}/.tmp/marketplaces/la-dev-codex-plugins"
+```
+
+Check that `scripts/codex_turn_ding.py` exists there. If the checkout predates this helper, refresh it through Codex rather than running `git pull` in its managed checkout:
+
+```bash
+codex plugin marketplace upgrade la-dev-codex-plugins
+```
+
+After refreshing, locate the root again and re-enter it because Codex may replace its managed checkout. A marketplace pinned to an older release may still lack the helper; choose a ref containing it or use your own checkout below.
+
+Continue with **Copy and configure the helper** below. Copy the file out of the managed checkout; do not point `notify` directly at a temporary marketplace path or versioned plugin-cache path, which Codex can replace or remove.
+
+### Obtain your own checkout
+
+If you do not have a suitable existing checkout, obtain this repository and enter its root. Use a reviewed release tag instead of `main` if you need a pinned version:
 
 ```bash
 git clone https://github.com/pallgeuer/la-dev-codex-plugins.git
 cd la-dev-codex-plugins
 ```
+
+### Copy and configure the helper
 
 Copy the self-contained script into your active Codex home. The following deliberately refuses to replace an existing file; for an update, review the replacement first as described below:
 

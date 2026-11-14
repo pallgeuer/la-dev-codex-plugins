@@ -43,7 +43,7 @@ All notable changes to this project are documented here. The format follows [Kee
 #### Codex notifications
 
 - Added a standalone, standard-library-only completion-sound helper with stable per-chat musical pitches, Linux/macOS player detection, adjustable amplitude, previews, diagnostics, and generated user-level configuration.
-- Documented installation, playback requirements, troubleshooting, updates, and removal without requiring a marketplace plugin or Python package installation.
+- Documented installation from an existing Codex-managed marketplace checkout or a separate clone, playback requirements, troubleshooting, updates, and removal without requiring a marketplace plugin or Python package installation.
 
 #### Repository setup
 
