@@ -141,6 +141,8 @@ uvx --python 3.10 --from pytest==9.1.1 --with pytest-xdist==3.8.0 pytest tests/p
 uvx --python 3.14 --from pytest==9.1.1 --with pytest-xdist==3.8.0 pytest tests/pytest_isolation/
 ```
 
+The standalone completion-sound helper is covered by `tests/scripts/test_codex_turn_ding.py` and the dependency-free platform smoke checks. Tests validate synthesis, configuration, notification filtering, and audio-player invocations without requiring sound hardware. Physical playback must be checked separately with the helper's `--preview` mode.
+
 Run repository contracts and repository-script tests:
 
 ```bash

@@ -11,6 +11,7 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import wave
 
 REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[2]
 PERFORM_SCRIPTS = REPOSITORY_ROOT / "plugins" / "toolkit" / "skills" / "perform" / "scripts"
@@ -189,6 +190,26 @@ def smoke_loupe_runner():
     assert payload["reviewers"][0]["session_log_path"] is None
 
 
+def smoke_completion_sound(environment, temporary_root):
+    """Exercise standalone synthesis and generated configuration without audio hardware."""
+    script = REPOSITORY_ROOT / "scripts" / "codex_turn_ding.py"
+    ding = load_module("supported_platform_turn_ding", script)
+    payload = json.dumps({"type": "agent-turn-complete", "thread-id": "platform-smoke"})
+    assert ding.notification_note(payload) == ding.note_index("platform-smoke")
+    assert 0 <= ding.note_index("platform-smoke") < 13
+    path = temporary_root / "ding.wav"
+    ding.write_tone(path, 0, 0.85)
+    with wave.open(str(path), "rb") as sound:
+        assert sound.getnchannels() == 1
+        assert sound.getsampwidth() == 2
+        assert sound.getframerate() == 44100
+        assert sound.getnframes() == 59535
+    entry = run([sys.executable, "-I", str(script), "--print-config"], environment)
+    command = json.loads(entry.split("=", 1)[1])
+    assert command == [str(pathlib.Path(sys.executable).absolute()), "-I", str(script.resolve())]
+    assert run([*command, "{}"], environment) == ""
+
+
 def main():
     """Run every dependency-free supported-platform smoke check."""
     if sys.version_info < (3, 6):
@@ -213,6 +234,7 @@ def main():
         smoke_bounded_process(environment)
         smoke_release_checksums(temporary_root)
         smoke_loupe_runner()
+        smoke_completion_sound(environment, temporary_root)
     print("Supported-platform smoke checks passed on {} with Python {}.{}.{}.".format(sys.platform, *sys.version_info[:3]))
     return 0
 

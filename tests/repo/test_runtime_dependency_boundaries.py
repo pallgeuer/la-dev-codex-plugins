@@ -13,6 +13,7 @@ SRC_ROOT = REPO_ROOT / "src"
 STANDALONE_RUNTIME_FILES = (
     REPO_ROOT / "package_scripts" / "codex-perform",
     REPO_ROOT / "source_launcher" / "codex_perform.py",
+    REPO_ROOT / "scripts" / "codex_turn_ding.py",
 )
 PYTEST_PLUGIN = SRC_ROOT / "la_dev_codex_plugins" / "pytest_isolation" / "plugin.py"
 STRICT_STDLIB_ROOTS = (

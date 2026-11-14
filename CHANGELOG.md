@@ -40,6 +40,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+#### Codex notifications
+
+- Added a standalone, standard-library-only completion-sound helper with stable per-chat musical pitches, Linux/macOS player detection, adjustable amplitude, previews, diagnostics, and generated user-level configuration.
+- Documented installation, playback requirements, troubleshooting, updates, and removal without requiring a marketplace plugin or Python package installation.
+
 #### Repository setup
 
 - Added the interactive Plan-mode `setup-new-repo` Perform action, documented at the recipe's opening and across the setup guides, and backed by the complete setup recipe and a bundled, equivalence-tested set of guides and templates.
