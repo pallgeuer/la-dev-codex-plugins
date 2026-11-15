@@ -70,6 +70,10 @@ terminal_title = ["activity", "project-name"]
 
 See [Marketplace plugin installation](installation.md) if the `la-review` and `toolkit` plugins are not installed yet. After completing the user-level setup, continue with [Language-agnostic project setup](project_setup_agnostic.md) for each repository and then [Python project setup](project_setup_python.md) when applicable.
 
+## Completion sounds
+
+For optional sounds after every completed CLI turn, follow [Codex completion sounds](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/codex_notifications.md). Its standalone Python 3.6+ helper assigns a stable pitch per chat, detects available Linux/macOS audio players, and includes preview and diagnostic commands. Install it separately and merge its generated `notify` entry at the root of your active Codex config; it is independent of marketplace plugin installation.
+
 ## Project trust
 
 Codex loads `.codex/config.toml` only for trusted projects. A user-level trust entry looks like:

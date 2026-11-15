@@ -33,12 +33,22 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+#### Codex notifications
+
+- Generated valid TOML configuration for supplementary Unicode installation paths and rejected paths that TOML cannot represent, with parser-backed regression tests.
+- Restored playback fallback after known fatal `ffplay` diagnostics even when the player exits zero, while keeping notifications quiet.
+
 #### Test isolation
 
 - Isolated temporary Git repositories from inherited commit-hook state by default, with exact environment restoration and a suite-wide compatibility opt-out, so `git commit -a` hooks cannot make isolated tests share the caller's index.
 - Made CLI directory/symlink rejection tests independent of the caller's repository and migrated release-validator tests to the shared Git environment isolation policy.
 
 ### Added
+
+#### Codex notifications
+
+- Added a standalone, standard-library-only completion-sound helper with stable per-chat musical pitches, Linux/macOS player detection, adjustable amplitude, previews, diagnostics, and generated user-level configuration.
+- Documented installation from an existing Codex-managed marketplace checkout or a separate clone, playback requirements, troubleshooting, updates, and removal without requiring a marketplace plugin or Python package installation.
 
 #### Repository setup
 
@@ -47,6 +57,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - Added release-diff examples and a complete reusable manual GitHub release template, linked from the setup recipe and Python guide.
 
 ### Changed
+
+#### Codex notifications
+
+- Consolidated platform selection, player arguments, and diagnostic policies into shared backend definitions.
 
 #### Repository setup
 
