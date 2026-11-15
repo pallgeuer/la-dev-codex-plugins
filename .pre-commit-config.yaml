@@ -67,14 +67,14 @@ repos:
 
       - id: ty
         name: ty
-        entry: uvx --python 3.8 --from ty==0.0.70 --with pytest==8.3.5 ty check --force-exclude plugins scripts source_launcher src tests
+        entry: uvx --python 3.8 --from ty==0.0.70 --with pytest==8.3.5 --with tomli==2.2.1 ty check --force-exclude plugins scripts source_launcher src tests
         language: system
         pass_filenames: false
         stages: [pre-commit, pre-push, manual]
 
       - id: pytest
         name: pytest
-        entry: uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 pytest tests
+        entry: uvx --python 3.8 --from pytest==8.3.5 --with pytest-xdist==3.6.1 --with tomli==2.2.1 pytest tests
         language: system
         pass_filenames: false
         stages: [pre-commit, pre-push, manual]

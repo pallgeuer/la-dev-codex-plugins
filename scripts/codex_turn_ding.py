@@ -2,6 +2,7 @@
 """Standalone, standard-library-only Codex CLI completion sounds for POSIX hosts."""
 
 import argparse
+import collections
 import hashlib
 import json
 import math
@@ -22,6 +23,18 @@ LEAD_SECONDS = 0.25
 TONE_SECONDS = 1.1
 ATTEMPT_SECONDS = 3.0
 PLAYBACK_SECONDS = 8.0
+
+PlayerBackend = collections.namedtuple("PlayerBackend", "name platforms options failure_markers")
+PlayerBackend.__doc__ = "A player name, supported platforms, argv options, and lowercase fatal stderr markers."
+# Table order determines preference after filtering by platform; markers enable internal stderr capture.
+PLAYER_BACKENDS = (
+    PlayerBackend("afplay", ("darwin",), (), ()),
+    PlayerBackend("paplay", ("linux",), ("--client-name=Codex turn ding",), ()),
+    PlayerBackend("pw-play", ("linux",), (), ()),
+    PlayerBackend("aplay", ("linux",), ("-q",), ()),
+    PlayerBackend("ffplay", ("darwin", "linux"), ("-nodisp", "-autoexit", "-loglevel", "error"), (b"audio open failed", b"failed to open file", b"could not initialize sdl", b"sdl_openaudio (")),
+    PlayerBackend("play", ("darwin", "linux"), ("-q",), ()),
+)
 
 
 def note_index(thread_id):
@@ -60,32 +73,21 @@ def write_tone(path, index, volume):
 
 
 def available_players():
-    """Return available player names and executable paths in platform preference order."""
-    if sys.platform == "darwin":
-        names = ("afplay", "ffplay", "play")
-    elif sys.platform.startswith("linux"):
-        names = ("paplay", "pw-play", "aplay", "ffplay", "play")
-    else:
-        names = ()
+    """Return backend descriptors and executable paths in platform preference order."""
+    platform = "linux" if sys.platform.startswith("linux") else sys.platform
     players = []
-    for name in names:
-        executable = "/usr/bin/afplay" if name == "afplay" and os.access("/usr/bin/afplay", os.X_OK) else shutil.which(name)
+    for backend in PLAYER_BACKENDS:
+        if platform not in backend.platforms:
+            continue
+        executable = "/usr/bin/afplay" if backend.name == "afplay" and os.access("/usr/bin/afplay", os.X_OK) else shutil.which(backend.name)
         if executable:
-            players.append((name, executable))
+            players.append((backend, executable))
     return players
 
 
-def player_command(name, executable, path):
-    """Build a direct player invocation for a WAV path without shell evaluation."""
-    options = {
-        "afplay": [],
-        "paplay": ["--client-name=Codex turn ding"],
-        "pw-play": [],
-        "aplay": ["-q"],
-        "ffplay": ["-nodisp", "-autoexit", "-loglevel", "quiet"],
-        "play": ["-q"],
-    }
-    return [executable] + options[name] + [str(path)]
+def player_command(backend, executable, path):
+    """Build a descriptor's direct WAV invocation without shell evaluation."""
+    return [executable, *backend.options, str(path)]
 
 
 def play_tone(index, volume):
@@ -98,21 +100,29 @@ def play_tone(index, volume):
         path = pathlib.Path(folder) / "ding.wav"
         write_tone(path, index, volume)
         deadline = time.monotonic() + PLAYBACK_SECONDS
-        for name, executable in players:
+        for backend, executable in players:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 failures.append("Playback time budget exhausted")
                 break
             try:
                 result = subprocess.run(
-                    player_command(name, executable, path), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=min(ATTEMPT_SECONDS, remaining), check=False
+                    player_command(backend, executable, path),
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE if backend.failure_markers else subprocess.DEVNULL,
+                    timeout=min(ATTEMPT_SECONDS, remaining),
+                    check=False,
                 )
             except (OSError, subprocess.TimeoutExpired):
-                failures.append("{} unavailable or timed out".format(name))
+                failures.append("{} unavailable or timed out".format(backend.name))
             else:
-                if result.returncode == 0:
+                if backend.failure_markers and any(marker in (result.stderr or b"").lower() for marker in backend.failure_markers):
+                    failures.append("{} reported a playback failure".format(backend.name))
+                elif result.returncode == 0:
                     return True, failures
-                failures.append("{} exited with status {}".format(name, result.returncode))
+                else:
+                    failures.append("{} exited with status {}".format(backend.name, result.returncode))
     return False, failures
 
 
@@ -141,12 +151,30 @@ def volume_argument(value):
     return volume
 
 
+def toml_string(value):
+    """Encode a Unicode scalar string as an ASCII-only TOML basic string."""
+    escaped = []
+    for character in value:
+        code = ord(character)
+        if 0xD800 <= code <= 0xDFFF:
+            raise ValueError("Installation paths must contain valid Unicode scalar values")
+        if character in ('"', "\\"):
+            escaped.append("\\" + character)
+        elif 0x20 <= code < 0x7F:
+            escaped.append(character)
+        elif code <= 0xFFFF:
+            escaped.append("\\u{:04x}".format(code))
+        else:
+            escaped.append("\\U{:08x}".format(code))
+    return '"' + "".join(escaped) + '"'
+
+
 def configuration(volume):
     """Return a TOML root notify entry bound to this interpreter and installed script."""
     command = [str(pathlib.Path(sys.executable).absolute()), "-I", str(pathlib.Path(__file__).resolve())]
     if volume != DEFAULT_VOLUME:
         command.extend(["--volume", str(volume)])
-    return "notify = " + json.dumps(command, ensure_ascii=True)
+    return "notify = [" + ", ".join(toml_string(argument) for argument in command) + "]"
 
 
 def main(argv=None):
@@ -163,12 +191,17 @@ def main(argv=None):
     if interactive and args.notification is not None:
         parser.error("Utility modes do not accept a notification argument")
     if args.print_config:
-        print(configuration(args.volume))
+        try:
+            entry = configuration(args.volume)
+        except ValueError as exc:
+            print("Could not generate configuration: {}".format(exc), file=sys.stderr)
+            return 1
+        print(entry)
         return 0
     if args.diagnose:
         players = available_players()
         print("Platform: {}\nPython: {}\nScript: {}".format(sys.platform, sys.executable, pathlib.Path(__file__).resolve()))
-        print("Playback order: {}".format(", ".join("{} ({})".format(*player) for player in players) or "none"))
+        print("Playback order: {}".format(", ".join("{} ({})".format(backend.name, executable) for backend, executable in players) or "none"))
         print("Output follows system/player routing; no device or system volume is changed.")
         return 0 if players else 1
     index = notification_note(args.notification) if args.notification is not None else None

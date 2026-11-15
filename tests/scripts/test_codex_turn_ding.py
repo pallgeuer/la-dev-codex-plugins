@@ -6,12 +6,14 @@ import json
 import math
 import os
 import pathlib
+import shlex
 import shutil
 import subprocess
 import sys
 import wave
 
 import pytest
+import tomli
 
 SCRIPT = pathlib.Path(__file__).resolve().parents[2] / "scripts" / "codex_turn_ding.py"
 
@@ -24,6 +26,10 @@ def ding():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def backend(ding, name):
+    return next(item for item in ding.PLAYER_BACKENDS if item.name == name)
 
 
 def notification(thread_id="chat-one", **fields):
@@ -128,7 +134,7 @@ def test_player_discovery_and_order(ding, monkeypatch, platform, expected):
     monkeypatch.setattr(ding.shutil, "which", lambda name: "/tools/" + name)
     monkeypatch.setattr(ding.os, "access", lambda *_args: True)
     players = ding.available_players()
-    assert [name for name, _path in players] == expected
+    assert [item.name for item, _path in players] == expected
     if platform == "darwin":
         assert players[0][1] == "/usr/bin/afplay"
     monkeypatch.setattr(ding.shutil, "which", lambda _name: None)
@@ -138,16 +144,16 @@ def test_player_discovery_and_order(ding, monkeypatch, platform, expected):
 
 @pytest.mark.parametrize(
     ("name", "options"),
-    [("afplay", []), ("paplay", ["--client-name=Codex turn ding"]), ("pw-play", []), ("aplay", ["-q"]), ("ffplay", ["-nodisp", "-autoexit", "-loglevel", "quiet"]), ("play", ["-q"])],
+    [("afplay", []), ("paplay", ["--client-name=Codex turn ding"]), ("pw-play", []), ("aplay", ["-q"]), ("ffplay", ["-nodisp", "-autoexit", "-loglevel", "error"]), ("play", ["-q"])],
 )
 def test_player_commands_preserve_literal_paths(ding, name, options):
     path = pathlib.Path('/tmp/with spaces/"$(unsafe)\u00e9.wav')
-    assert ding.player_command(name, "/tools/" + name, path) == ["/tools/" + name, *options, str(path)]
+    assert ding.player_command(backend(ding, name), "/tools/" + name, path) == ["/tools/" + name, *options, str(path)]
 
 
 @pytest.mark.parametrize("failure", ["status", "timeout", "oserror", "success"])
 def test_playback_fallback_and_cleanup(ding, monkeypatch, failure):
-    monkeypatch.setattr(ding, "available_players", lambda: [("paplay", "/paplay"), ("aplay", "/aplay")])
+    monkeypatch.setattr(ding, "available_players", lambda: [(backend(ding, "paplay"), "/paplay"), (backend(ding, "aplay"), "/aplay")])
     paths = []
 
     def run(command, **kwargs):
@@ -175,7 +181,7 @@ def test_playback_fallback_and_cleanup(ding, monkeypatch, failure):
 
 
 def test_playback_budget_and_failed_hook_are_quiet(ding, monkeypatch, capsys):
-    monkeypatch.setattr(ding, "available_players", lambda: [(name, "/" + name) for name in ("paplay", "pw-play", "aplay", "ffplay", "play")])
+    monkeypatch.setattr(ding, "available_players", lambda: [(backend(ding, name), "/" + name) for name in ("paplay", "pw-play", "aplay", "ffplay", "play")])
     clock = iter([0, 0, 3, 6, 8])
     monkeypatch.setattr(ding.time, "monotonic", lambda: next(clock))
     timeouts = []
@@ -193,8 +199,9 @@ def test_playback_budget_and_failed_hook_are_quiet(ding, monkeypatch, capsys):
     assert capsys.readouterr() == ("", "")
 
 
-def test_real_player_timeout_and_temporary_cleanup(ding, monkeypatch):
-    monkeypatch.setattr(ding, "available_players", lambda: [("paplay", sys.executable)])
+@pytest.mark.parametrize("name", ["paplay", "ffplay"])
+def test_real_player_timeout_and_temporary_cleanup(ding, monkeypatch, name):
+    monkeypatch.setattr(ding, "available_players", lambda: [(backend(ding, name), sys.executable)])
     monkeypatch.setattr(ding, "ATTEMPT_SECONDS", 0.05)
     paths = []
 
@@ -210,7 +217,7 @@ def test_real_player_timeout_and_temporary_cleanup(ding, monkeypatch):
 
 
 def test_synthesis_failure_cleans_up_temporary_directory(ding, monkeypatch, capsys):
-    monkeypatch.setattr(ding, "available_players", lambda: [("paplay", "/paplay")])
+    monkeypatch.setattr(ding, "available_players", lambda: [(backend(ding, "paplay"), "/paplay")])
     paths = []
 
     def fail(path, _index, _volume):
@@ -232,7 +239,7 @@ def test_missing_player_and_unwritable_temp_directory(ding, monkeypatch, capsys)
     assert capsys.readouterr().out
     assert ding.main(["--preview"]) == 1
     assert capsys.readouterr().err
-    monkeypatch.setattr(ding, "available_players", lambda: [("paplay", "/paplay")])
+    monkeypatch.setattr(ding, "available_players", lambda: [(backend(ding, "paplay"), "/paplay")])
 
     def deny(**_kwargs):
         raise PermissionError("temporary files denied")
@@ -251,20 +258,139 @@ def test_preview_and_diagnosis(ding, monkeypatch, capsys):
     assert ding.main(["--preview"]) == 0
     assert calls == [(index, 0.85) for index in range(13)]
     assert len(capsys.readouterr().out.splitlines()) == 13
-    monkeypatch.setattr(ding, "available_players", lambda: [("afplay", "/usr/bin/afplay")])
+    monkeypatch.setattr(ding, "available_players", lambda: [(backend(ding, "afplay"), "/usr/bin/afplay")])
     assert ding.main(["--diagnose"]) == 0
     assert "/usr/bin/afplay" in capsys.readouterr().out
     assert len(calls) == 13
 
 
-def test_generated_configuration_works_after_copying(ding, tmp_path, capsys):
-    installed = tmp_path / 'space and "quote" \u00e9' / "ding.py"
+@pytest.mark.parametrize("directory", ['space and "quote" \u00e9', "emoji-\U0001f514", "cjk-\U00020000", "back\\slash\t\n\r\x01\x7f"])
+@pytest.mark.parametrize("volume", [0.85, 0.5])
+def test_generated_configuration_works_after_copying(ding, tmp_path, capsys, directory, volume):
+    installed = tmp_path / directory / "ding.py"
     installed.parent.mkdir()
     shutil.copyfile(SCRIPT, installed)
-    result = subprocess.run([sys.executable, "-I", str(installed), "--print-config", "--volume", "0.5"], stdout=subprocess.PIPE, check=True)
-    command = json.loads(result.stdout.decode().split("=", 1)[1])
-    assert command == [str(pathlib.Path(sys.executable).absolute()), "-I", str(installed.resolve()), "--volume", "0.5"]
+    result = subprocess.run([sys.executable, "-I", str(installed), "--print-config", "--volume", str(volume)], stdout=subprocess.PIPE, check=True)
+    command = tomli.loads(result.stdout.decode())["notify"]
+    expected = [str(pathlib.Path(sys.executable).absolute()), "-I", str(installed.resolve())]
+    if volume != ding.DEFAULT_VOLUME:
+        expected.extend(["--volume", str(volume)])
+    assert command == expected
+    assert result.stdout.isascii()
     completed = subprocess.run([*command, notification(type="ignored")], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
     assert completed.stdout == completed.stderr == b""
     assert ding.main(["--print-config"]) == 0
-    assert json.loads(capsys.readouterr().out.split("=", 1)[1])[-1] == str(SCRIPT)
+    assert tomli.loads(capsys.readouterr().out)["notify"][-1] == str(SCRIPT)
+
+
+def test_toml_string_round_trips_scalar_characters(ding):
+    value = "".join(chr(code) for code in range(128)) + "\u00e9\u2028\uffff\U0001f514\U00020000\U0010ffff"
+    entry = "value = " + ding.toml_string(value)
+    assert entry.isascii()
+    assert tomli.loads(entry)["value"] == value
+
+
+@pytest.mark.parametrize("interpreter", ["/tools/\U0001f514/python3", '/tools/quote"back\\slash\t\u00e9/python3'])
+def test_configuration_preserves_interpreter_path(ding, monkeypatch, interpreter):
+    monkeypatch.setattr(ding.sys, "executable", interpreter)
+    command = tomli.loads(ding.configuration(ding.DEFAULT_VOLUME))["notify"]
+    assert command == [interpreter, "-I", str(SCRIPT)]
+
+
+@pytest.mark.parametrize("surrogate_codepoint", [0xD800, 0xDFFF, 0xDCFF])
+@pytest.mark.parametrize("path_source", ["script", "interpreter"])
+def test_unrepresentable_configuration_fails_cleanly(ding, monkeypatch, capsys, surrogate_codepoint, path_source):
+    surrogate = chr(surrogate_codepoint)
+    if path_source == "script":
+        monkeypatch.setattr(ding, "__file__", "/tmp/" + surrogate + "/ding.py")
+    else:
+        monkeypatch.setattr(ding.sys, "executable", "/tmp/" + surrogate + "/python3")
+    assert ding.main(["--print-config"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err
+    assert "Traceback" not in captured.err
+
+
+@pytest.mark.parametrize(
+    ("returncode", "diagnostic", "fallback"),
+    [
+        (0, b"No more combinations to try, audio open failed", True),
+        (0, b"Failed to open file 'ding.wav' or configure filtergraph", True),
+        (0, b"Could not initialize SDL - audio unavailable", True),
+        (0, b"SDL_OpenAudio (1 channels, 44100 Hz): unavailable", True),
+        (0, b"AUDIO OPEN FAILED", True),
+        (0, b"unrecognized backend diagnostic", False),
+        (0, b"", False),
+        (1, b"", True),
+    ],
+)
+def test_ffplay_failure_detection(ding, monkeypatch, capsys, returncode, diagnostic, fallback):
+    monkeypatch.setattr(ding, "available_players", lambda: [(backend(ding, "ffplay"), "/ffplay"), (backend(ding, "play"), "/play")])
+    calls = []
+    paths = []
+
+    def run(command, **kwargs):
+        calls.append(command[0])
+        paths.append(pathlib.Path(command[-1]))
+        assert paths[-1].is_file()
+        assert kwargs["stdin"] == kwargs["stdout"] == subprocess.DEVNULL
+        assert 0 < kwargs["timeout"] <= ding.ATTEMPT_SECONDS
+        if command[0] == "/ffplay":
+            assert kwargs["stderr"] == subprocess.PIPE
+            return subprocess.CompletedProcess(command, returncode, stderr=diagnostic)
+        assert kwargs["stderr"] == subprocess.DEVNULL
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(ding.subprocess, "run", run)
+    success, failures = ding.play_tone(0, 0.5)
+    assert success
+    assert bool(failures) == fallback
+    assert calls == (["/ffplay", "/play"] if fallback else ["/ffplay"])
+    assert all(not path.parent.exists() for path in paths)
+    assert capsys.readouterr() == ("", "")
+
+
+def test_ffplay_failure_is_quiet_and_preview_fails(ding, monkeypatch, capsys):
+    monkeypatch.setattr(ding, "available_players", lambda: [(backend(ding, "ffplay"), "/ffplay")])
+    monkeypatch.setattr(ding.subprocess, "run", lambda command, **_kwargs: subprocess.CompletedProcess(command, 0, stderr=b"audio open failed PRIVATE_BACKEND_DETAILS"))
+    assert ding.main([notification()]) == 0
+    assert capsys.readouterr() == ("", "")
+    assert ding.main(["--preview"]) == 1
+    captured = capsys.readouterr()
+    assert captured.err
+    assert "PRIVATE_BACKEND_DETAILS" not in captured.err
+
+
+def test_backend_descriptors_construct_commands_on_supported_platforms(ding, monkeypatch):
+    assert len({item.name for item in ding.PLAYER_BACKENDS}) == len(ding.PLAYER_BACKENDS)
+    monkeypatch.setattr(ding.shutil, "which", lambda name: "/tools/" + name)
+    monkeypatch.setattr(ding.os, "access", lambda *_args: False)
+    observed = set()
+    for platform in ("linux", "linux2", "darwin", "win32", "freebsd"):
+        monkeypatch.setattr(ding.sys, "platform", platform)
+        for item, executable in ding.available_players():
+            observed.add(item.name)
+            command = ding.player_command(item, executable, pathlib.Path("/tmp/tone.wav"))
+            assert command[0] == executable
+            assert command[-1] == "/tmp/tone.wav"
+    assert observed == {item.name for item in ding.PLAYER_BACKENDS}
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux") or shutil.which("ffplay") is None, reason="ALSA reproduction requires Linux and ffplay")
+def test_real_ffplay_audio_open_failure_uses_fallback(ding, monkeypatch, tmp_path):
+    executable = shutil.which("ffplay")
+    assert executable is not None
+    config = tmp_path / "alsa.conf"
+    config.write_text("pcm.!default { type ding_test_nonexistent }\n")
+    monkeypatch.setenv("SDL_AUDIODRIVER", "alsa")
+    monkeypatch.setenv("ALSA_CONFIG_PATH", str(config))
+    marker = tmp_path / "fallback"
+    fallback = tmp_path / "play"
+    fallback.write_text("#!/bin/sh\n: > {}\n".format(shlex.quote(str(marker))))
+    fallback.chmod(0o700)
+    monkeypatch.setattr(ding, "available_players", lambda: [(backend(ding, "ffplay"), executable), (backend(ding, "play"), str(fallback))])
+    success, failures = ding.play_tone(0, 0.5)
+    assert success
+    assert failures
+    assert marker.exists()

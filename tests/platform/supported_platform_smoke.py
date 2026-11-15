@@ -205,8 +205,8 @@ def smoke_completion_sound(environment, temporary_root):
         assert sound.getframerate() == 44100
         assert sound.getnframes() == 59535
     entry = run([sys.executable, "-I", str(script), "--print-config"], environment)
-    command = json.loads(entry.split("=", 1)[1])
-    assert command == [str(pathlib.Path(sys.executable).absolute()), "-I", str(script.resolve())]
+    assert entry.startswith("notify = [")
+    command = [str(pathlib.Path(sys.executable).absolute()), "-I", str(script.resolve())]
     assert run([*command, "{}"], environment) == ""
 
 
