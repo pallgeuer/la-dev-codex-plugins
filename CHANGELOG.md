@@ -35,6 +35,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 #### Codex notifications
 
+- Retained completion alerts when state-directory resolution fails, including relative paths after the working directory is deleted, and skipped state lookups and retries for muted notifications.
+- Preserved whitespace in configured state-directory environment paths and rejected non-regular state databases without falling back to stale records or blocking on FIFOs.
+- Rejected unrepresentable installation paths consistently for generated completion and lifecycle-hook configuration.
+- Suppressed completion sounds for threads without a stored record and delegated agents, while preserving built-in `/review`, approval, and question sounds; unfamiliar metadata and failed lookups retain completion alerts.
 - Generated valid TOML configuration for supplementary Unicode installation paths and rejected paths that TOML cannot represent, with parser-backed regression tests.
 - Restored playback fallback after known fatal `ffplay` diagnostics even when the player exits zero, while keeping notifications quiet.
 
@@ -60,7 +64,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 #### Codex notifications
 
+- Renamed the PulseAudio application to "Codex ding" so notification playback is easier to identify in audio controls.
 - Consolidated platform selection, player arguments, and diagnostic policies into shared backend definitions.
+- Shared configuration command construction and question-tool matching, and separated populated state fixtures from unrelated sound-helper tests.
+- Required an explicit setup choice between the default 85% and full 100% ding amplitude when Codex runs the steps, applying the choice consistently to completion, approval, and question sounds.
+- Extended the standalone sound helper with generated lifecycle hooks for approval requests and structured questions, preserving per-chat pitch and independent playback for each event; documented hook trust, coverage limits, and Linux output routing.
 
 #### Repository setup
 

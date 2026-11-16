@@ -8,6 +8,7 @@ import io
 import json
 import os
 import pathlib
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -194,8 +195,18 @@ def smoke_completion_sound(environment, temporary_root):
     """Exercise standalone synthesis and generated configuration without audio hardware."""
     script = REPOSITORY_ROOT / "scripts" / "codex_turn_ding.py"
     ding = load_module("supported_platform_turn_ding", script)
+    state_home = temporary_root / "ding-state"
+    state_home.mkdir()
+    connection = sqlite3.connect(str(state_home / "state_5.sqlite"))
+    try:
+        connection.execute("CREATE TABLE threads (id TEXT PRIMARY KEY, source TEXT)")
+        connection.execute("INSERT INTO threads VALUES (?, ?)", ("platform-smoke", '"cli"'))
+        connection.commit()
+    finally:
+        connection.close()
     payload = json.dumps({"type": "agent-turn-complete", "thread-id": "platform-smoke"})
-    assert ding.notification_note(payload) == ding.note_index("platform-smoke")
+    assert ding.notification_note(payload, str(state_home)) == ding.note_index("platform-smoke")
+    assert ding.notification_note(json.dumps({"type": "agent-turn-complete", "thread-id": "ephemeral"}), str(state_home)) is None
     assert 0 <= ding.note_index("platform-smoke") < 13
     path = temporary_root / "ding.wav"
     ding.write_tone(path, 0, 0.85)

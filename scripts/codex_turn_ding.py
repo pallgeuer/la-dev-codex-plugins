@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Standalone, standard-library-only Codex CLI completion sounds for POSIX hosts."""
+"""Standalone, standard-library-only Codex CLI attention sounds for POSIX hosts."""
 
 import argparse
 import collections
@@ -8,7 +8,10 @@ import json
 import math
 import os
 import pathlib
+import re
+import shlex
 import shutil
+import sqlite3
 import struct
 import subprocess
 import sys
@@ -23,13 +26,16 @@ LEAD_SECONDS = 0.25
 TONE_SECONDS = 1.1
 ATTEMPT_SECONDS = 3.0
 PLAYBACK_SECONDS = 8.0
+LOOKUP_TIMEOUT_SECONDS = 0.1
+RECORD_RETRY_SECONDS = 0.05
+QUESTION_TOOL_PATTERN = r"^(?:functions[._]?)?request_user_input(?:_async)?$"
 
 PlayerBackend = collections.namedtuple("PlayerBackend", "name platforms options failure_markers")
 PlayerBackend.__doc__ = "A player name, supported platforms, argv options, and lowercase fatal stderr markers."
 # Table order determines preference after filtering by platform; markers enable internal stderr capture.
 PLAYER_BACKENDS = (
     PlayerBackend("afplay", ("darwin",), (), ()),
-    PlayerBackend("paplay", ("linux",), ("--client-name=Codex turn ding",), ()),
+    PlayerBackend("paplay", ("linux",), ("--client-name=Codex ding",), ()),
     PlayerBackend("pw-play", ("linux",), (), ()),
     PlayerBackend("aplay", ("linux",), ("-q",), ()),
     PlayerBackend("ffplay", ("darwin", "linux"), ("-nodisp", "-autoexit", "-loglevel", "error"), (b"audio open failed", b"failed to open file", b"could not initialize sdl", b"sdl_openaudio (")),
@@ -126,7 +132,81 @@ def play_tone(index, volume):
     return False, failures
 
 
-def notification_note(payload):
+def sqlite_directory(override=None):
+    """Resolve the state directory from an explicit path, environment, or Codex default."""
+    if override is not None:
+        return pathlib.Path(override).absolute()
+    for name in ("CODEX_SQLITE_HOME", "CODEX_HOME"):
+        value = os.environ.get(name, "")
+        if value.strip():
+            return pathlib.Path(value).absolute()
+    return pathlib.Path.home() / ".codex"
+
+
+def state_database(directory):
+    """Find the newest numeric state database without falling back to stale schemas."""
+    candidates = []
+    for path in directory.iterdir():
+        match = re.fullmatch(r"state_([0-9]+)\.sqlite", path.name)
+        if match:
+            candidates.append((int(match.group(1)), path.name, path))
+    if not candidates:
+        raise OSError("No Codex state database found")
+    return max(candidates)[2]
+
+
+def open_state_database(path):
+    """Open regular-file state read-only, following symlinks and including committed WAL data."""
+    if not path.is_file():
+        raise OSError("Codex state database is not a regular file")
+    return sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=LOOKUP_TIMEOUT_SECONDS)
+
+
+def completion_allowed(thread_id, sqlite_home=None):
+    """Resolve optional state home and suppress background completions, retaining alerts on lookup failures."""
+    try:
+        connection = open_state_database(state_database(sqlite_directory(sqlite_home)))
+        try:
+            for attempt in range(3):
+                row = connection.execute("SELECT source FROM threads WHERE id = ?", (thread_id,)).fetchone()
+                if row is not None:
+                    break
+                if attempt < 2:
+                    time.sleep(RECORD_RETRY_SECONDS)
+        finally:
+            connection.close()
+    except (OSError, ValueError, UnicodeError, sqlite3.Error):
+        return True
+    if row is None:
+        return False
+    try:
+        source = json.loads(row[0])
+    except (TypeError, ValueError, UnicodeError, RecursionError):
+        return True
+    # /review also has coarse thread_source="subagent". Only thread_spawn is delegated work.
+    subagent = source.get("subagent") if isinstance(source, dict) else None
+    return not (isinstance(subagent, dict) and isinstance(subagent.get("thread_spawn"), dict))
+
+
+def diagnose_state(sqlite_home=None):
+    """Resolve optional state home and report discovery and schema availability without conversation content."""
+    try:
+        directory = sqlite_directory(sqlite_home)
+        print("SQLite directory: {}".format(directory))
+        path = state_database(directory)
+        print("State database: {}".format(path))
+        connection = open_state_database(path)
+        try:
+            connection.execute("SELECT id, source FROM threads LIMIT 0")
+        finally:
+            connection.close()
+    except (OSError, ValueError, UnicodeError, sqlite3.Error):
+        print("Completion filtering unavailable; valid completions will still ding.")
+    else:
+        print("Completion filtering schema available; absent records and delegated agents are silent.")
+
+
+def notification_note(payload, sqlite_home=None):
     """Return a valid completed-turn notification's note, or None for ignored input."""
     try:
         notification = json.loads(payload)
@@ -135,9 +215,36 @@ def notification_note(payload):
         thread_id = notification.get("thread-id")
         if not isinstance(thread_id, str) or not thread_id.strip():
             return None
-        return note_index(thread_id)
+        index = note_index(thread_id)
+        return index if completion_allowed(thread_id, sqlite_home) else None
     except (ValueError, UnicodeError, RecursionError):
         return None
+
+
+def hook_note(payload):
+    """Return the session pitch for permission and question hooks, or None for ignored input."""
+    try:
+        event = json.loads(payload)
+        if not isinstance(event, dict):
+            return None
+        name = event.get("hook_event_name")
+        if name != "PermissionRequest":
+            tool = event.get("tool_name")
+            if name != "PreToolUse" or not isinstance(tool, str) or re.fullmatch(QUESTION_TOOL_PATTERN, tool) is None:
+                return None
+        session_id = event.get("session_id")
+        if not isinstance(session_id, str) or not session_id.strip():
+            return None
+        return note_index(session_id)
+    except (ValueError, UnicodeError, RecursionError):
+        return None
+
+
+def hook_configuration(volume):
+    """Return user-level lifecycle hook JSON using this interpreter, script, and amplitude."""
+    command = configuration_command(volume, hook=True)
+    handler = {"type": "command", "command": " ".join(shlex.quote(argument) for argument in command), "async": True, "timeout": 10}
+    return json.dumps({"hooks": {"PermissionRequest": [{"hooks": [handler]}], "PreToolUse": [{"matcher": QUESTION_TOOL_PATTERN, "hooks": [handler]}]}}, indent=2, ensure_ascii=True)
 
 
 def volume_argument(value):
@@ -151,13 +258,18 @@ def volume_argument(value):
     return volume
 
 
+def validate_scalar_string(value):
+    """Reject lone surrogates that configuration consumers cannot represent."""
+    if any(0xD800 <= ord(character) <= 0xDFFF for character in value):
+        raise ValueError("Installation paths must contain valid Unicode scalar values")
+
+
 def toml_string(value):
     """Encode a Unicode scalar string as an ASCII-only TOML basic string."""
+    validate_scalar_string(value)
     escaped = []
     for character in value:
         code = ord(character)
-        if 0xD800 <= code <= 0xDFFF:
-            raise ValueError("Installation paths must contain valid Unicode scalar values")
         if character in ('"', "\\"):
             escaped.append("\\" + character)
         elif 0x20 <= code < 0x7F:
@@ -169,11 +281,23 @@ def toml_string(value):
     return '"' + "".join(escaped) + '"'
 
 
-def configuration(volume):
-    """Return a TOML root notify entry bound to this interpreter and installed script."""
+def configuration_command(volume, hook=False, sqlite_home=None):
+    """Build validated argv for completion or hook playback, with completion-only state discovery."""
     command = [str(pathlib.Path(sys.executable).absolute()), "-I", str(pathlib.Path(__file__).resolve())]
+    if hook:
+        command.append("--hook")
+    elif sqlite_home is not None:
+        command.extend(["--sqlite-home", str(sqlite_directory(sqlite_home))])
     if volume != DEFAULT_VOLUME:
         command.extend(["--volume", str(volume)])
+    for argument in command:
+        validate_scalar_string(argument)
+    return command
+
+
+def configuration(volume, sqlite_home=None):
+    """Return a TOML root notify entry with optional explicit SQLite directory and amplitude."""
+    command = configuration_command(volume, sqlite_home=sqlite_home)
     return "notify = [" + ", ".join(toml_string(argument) for argument in command) + "]"
 
 
@@ -182,17 +306,20 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("notification", nargs="?", help="Codex's appended notification JSON")
     parser.add_argument("--volume", type=volume_argument, default=DEFAULT_VOLUME, help="Synthesis amplitude from 0 to 1 (default: 0.85)")
+    parser.add_argument("--sqlite-home", help="Codex state directory (otherwise CODEX_SQLITE_HOME, CODEX_HOME, or ~/.codex)")
     mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--hook", action="store_true", help="Read a permission or question lifecycle event as JSON on standard input")
+    mode.add_argument("--print-hooks", action="store_true", help="Print hooks.json for approval and question sounds alongside notify")
     mode.add_argument("--preview", action="store_true", help="Play all 13 notes, in ascending order")
     mode.add_argument("--diagnose", action="store_true", help="Report interpreter and available playback tools without playing")
     mode.add_argument("--print-config", action="store_true", help="Print a root TOML notify entry for this installed file")
     args = parser.parse_args(argv)
-    interactive = args.preview or args.diagnose or args.print_config
+    interactive = args.preview or args.diagnose or args.print_config or args.print_hooks or args.hook
     if interactive and args.notification is not None:
         parser.error("Utility modes do not accept a notification argument")
-    if args.print_config:
+    if args.print_hooks or args.print_config:
         try:
-            entry = configuration(args.volume)
+            entry = hook_configuration(args.volume) if args.print_hooks else configuration(args.volume, args.sqlite_home)
         except ValueError as exc:
             print("Could not generate configuration: {}".format(exc), file=sys.stderr)
             return 1
@@ -203,11 +330,20 @@ def main(argv=None):
         print("Platform: {}\nPython: {}\nScript: {}".format(sys.platform, sys.executable, pathlib.Path(__file__).resolve()))
         print("Playback order: {}".format(", ".join("{} ({})".format(backend.name, executable) for backend, executable in players) or "none"))
         print("Output follows system/player routing; no device or system volume is changed.")
+        diagnose_state(args.sqlite_home)
         return 0 if players else 1
-    index = notification_note(args.notification) if args.notification is not None else None
+    if args.volume == 0 and not args.preview:
+        return 0
+    if args.hook:
+        try:
+            index = hook_note(sys.stdin.read())
+        except (OSError, UnicodeError):
+            return 0
+    else:
+        index = notification_note(args.notification, args.sqlite_home) if args.notification is not None else None
     if args.preview:
         indices = range(len(NOTE_NAMES))
-    elif index is None or args.volume == 0:
+    elif index is None:
         return 0
     else:
         indices = (index,)
