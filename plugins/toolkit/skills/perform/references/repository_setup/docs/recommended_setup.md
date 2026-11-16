@@ -70,9 +70,11 @@ terminal_title = ["activity", "project-name"]
 
 See [Marketplace plugin installation](installation.md) if the `la-review` and `toolkit` plugins are not installed yet. After completing the user-level setup, continue with [Language-agnostic project setup](project_setup_agnostic.md) for each repository and then [Python project setup](project_setup_python.md) when applicable.
 
-## Completion sounds
+## Attention sounds
 
-For optional sounds after every completed CLI turn, follow [Codex completion sounds](https://github.com/pallgeuer/la-dev-codex-plugins/blob/main/docs/codex_notifications.md). Its standalone Python 3.6+ helper assigns a stable pitch per chat, detects available Linux/macOS audio players, and includes preview and diagnostic commands. Install it separately and merge its generated `notify` entry at the root of your active Codex config; it is independent of marketplace plugin installation.
+For optional sounds after completed conversation and built-in review turns, and when approvals or structured questions need attention, follow [Codex attention sounds](codex_notifications.md). Its standalone Python 3.6+ helper assigns a stable pitch per chat, detects Linux/macOS audio players, and includes preview and diagnostic commands. Completion sounds use the root `notify` entry; approval/question sounds additionally use optional lifecycle hooks that the user reviews and trusts through `/hooks`.
+
+This is user-level setup once per machine, independent of marketplace plugin installation. Keep the helper outside project repositories, preserve an existing working setup, and use the same explicitly chosen amplitude for completion and attention sounds: 85% (the default) or 100% (full amplitude). The new-repository recipe offers full sounds, completion-only sounds, or skipping setup when no working setup exists; enabling sounds requires an explicit amplitude choice before previews or configuration changes.
 
 ## Project trust
 

@@ -7,7 +7,7 @@
 - [Plugin FAQ](faq.md) answers common questions about choosing, installing, configuring, and trusting Loupe and Perform.
 - [Plugin compatibility and stability](compatibility.md) defines public plugin interfaces, independent versioning, and breaking-change documentation.
 - [Privacy policy](../PRIVACY.md), [terms of use](../TERMS.md), and [security policy](../SECURITY.md) document the plugins' local execution, data handling, user responsibilities, and private vulnerability-reporting process.
-- [Codex completion sounds](codex_notifications.md) covers a standalone user-level notification helper with stable per-chat pitches, audio previews, and Linux/macOS setup.
+- [Codex attention sounds](codex_notifications.md) covers optional completion, approval, and question sounds with stable per-chat pitches, audio previews, and Linux/macOS setup.
 - [Recommended Codex setup](recommended_setup.md) collects optional user-level instructions and configuration that complement the plugins.
 - [Language-agnostic project setup](project_setup_agnostic.md) covers project documents, editor settings, Git hooks, and CI.
 - [Python project setup](project_setup_python.md) covers uv, packaging, pytest, Ruff, pydocformatter, ty, CI, and PyPI releases.
