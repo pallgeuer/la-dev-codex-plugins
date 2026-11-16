@@ -740,11 +740,11 @@ def test_playback_fallback_and_cleanup(ding, monkeypatch, failure):
         assert path.is_file()
         paths.append(path)
         assert kwargs["stdin"] == kwargs["stdout"] == kwargs["stderr"] == subprocess.DEVNULL
-        assert 0 < kwargs["timeout"] <= 3
+        assert 0 < kwargs["timeout"] <= ding.ATTEMPT_SECONDS
         assert not kwargs.get("shell")
         if len(paths) == 1:
             if failure == "timeout":
-                raise subprocess.TimeoutExpired(command, 3)
+                raise subprocess.TimeoutExpired(command, kwargs["timeout"])
             if failure == "oserror":
                 raise OSError("player disappeared")
             if failure == "status":
@@ -773,7 +773,7 @@ def test_playback_budget_and_failed_hook_are_quiet(ding, monkeypatch, capsys):
 
     monkeypatch.setattr(ding.subprocess, "run", fail)
     assert ding.main([notification()]) == 0
-    assert timeouts == [3, 3, 2]
+    assert timeouts == [4, 4, 2]
     assert all(not path.parent.exists() for path in paths)
     assert capsys.readouterr() == ("", "")
 

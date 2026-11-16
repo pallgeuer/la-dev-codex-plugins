@@ -35,6 +35,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 #### Codex notifications
 
+- Allowed four seconds per audio player so normal cold-start playback can finish within the existing eight-second total budget, while continuing to stop fallback after uncertain timeouts.
 - Prevented duplicate sounds after audio-player timeouts by stopping fallback when playback is uncertain, and requested a short PulseAudio buffer to avoid normal drain delays exceeding the playback deadline.
 - Retained completion alerts when state-directory resolution fails, including relative paths after the working directory is deleted, and skipped state lookups and retries for muted notifications.
 - Preserved whitespace in configured state-directory environment paths and rejected non-regular state databases without falling back to stale records or blocking on FIFOs.
