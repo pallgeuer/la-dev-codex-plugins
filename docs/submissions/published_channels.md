@@ -6,12 +6,12 @@ Channel rules and user interfaces can change. Re-read each channel's authoritati
 
 ## Current status
 
-| Channel                          | Loupe                                                                                          | Perform                                                                                        | Waiting for                                                                                   | Last checked |
-|----------------------------------|------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|--------------|
-| Official OpenAI plugin directory | `0.2.5` approved, published, and discoverable                                                  | `0.4.5` not approved for the public directory: `plugins_6abd7373e7c48191881e21ff87014f38`      | No review pending; reply to the decision email if an appeal is desired                        | 2026-10-19   |
-| Codex Plugin Marketplace         | `0.2.5` published: `https://www.codex-marketplace.com/plugins/la-review`                       | `0.4.5` published: `https://www.codex-marketplace.com/plugins/toolkit`                         | General Browse indexing; both direct listings are current                                     | 2026-09-30   |
-| Hashgraph Awesome Codex Plugins  | Not submitted: multi-plugin repository convention unresolved                                   | Not submitted: multi-plugin repository convention unresolved                                   | Maintainer guidance in `https://github.com/hashgraph-online/awesome-codex-plugins/issues/430` | 2026-09-29   |
-| OpenAI Community Plugins         | PR open; `0.2.6` review response pushed: `https://github.com/openai/community-plugins/pull/25` | PR open; `0.4.6` review response pushed: `https://github.com/openai/community-plugins/pull/26` | Workflow approval, CI, and CDE review for both contributions                                  | 2026-10-19   |
+| Channel                          | Loupe                                                                                                               | Perform                                                                                      | Waiting for                                                            | Last checked |
+|----------------------------------|---------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|------------------------------------------------------------------------|--------------|
+| Official OpenAI plugin directory | `0.2.5` approved, published, and discoverable                                                                       | `0.4.5` not approved for the public directory: `plugins_6abd7373e7c48191881e21ff87014f38`    | No review pending; reply to the decision email if an appeal is desired | 2026-10-19   |
+| Codex Plugin Marketplace         | `0.2.5` published: `https://www.codex-marketplace.com/plugins/la-review`                                            | `0.4.5` published: `https://www.codex-marketplace.com/plugins/toolkit`                       | Both direct pages reverified; Browse indexing not rechecked            | 2026-10-31   |
+| Hashgraph Awesome Codex Plugins  | HOL proposal [#599](https://github.com/hashgraph-online/awesome-codex-plugins/pull/599) open; owner response posted | Same combined proposal; owner response posted                                                | Reconcile generator PRs #597/#586/#624; independent acceptance         | 2026-10-31   |
+| OpenAI Community Plugins         | PR [#25](https://github.com/openai/community-plugins/pull/25) open; `0.2.6` plugin CI passed                        | PR [#26](https://github.com/openai/community-plugins/pull/26) open; `0.4.6` plugin CI passed | CDE review and disposition of unrelated dependency-audit failures      | 2026-10-31   |
 
 The Codex Plugin Marketplace is an independent curated marketplace and is not the official OpenAI plugin directory. The OpenAI Community Plugins repository is also a separate Git-backed marketplace; inclusion there does not publish a plugin to OpenAI's universal directory.
 
@@ -84,29 +84,15 @@ Both direct pages immediately displayed the new version and intended long descri
 
 ### Hashgraph Awesome Codex Plugins
 
-The current [contribution guide](https://github.com/hashgraph-online/awesome-codex-plugins/blob/main/CONTRIBUTING.md) asks for one alphabetized repository-root link in `README.md`; a generator then mirrors the plugin bundle. This repository instead contains two independent plugin manifests below `plugins/`, so a root-only entry is ambiguous and could mirror only one package.
+The [contribution guide](https://github.com/hashgraph-online/awesome-codex-plugins/blob/main/CONTRIBUTING.md) permits separate README entries for separately named nested plugins, each linking to the repository root. [PR #585](https://github.com/hashgraph-online/awesome-codex-plugins/pull/585) merged that clarification on 2026-10-27, resolving the question raised in [issue #430](https://github.com/hashgraph-online/awesome-codex-plugins/issues/430).
 
-The following preparation was completed:
+HOL opened the combined Loupe/Perform [proposal #599](https://github.com/hashgraph-online/awesome-codex-plugins/pull/599). The source owner [confirmed the names, descriptions, independent package paths, and current-main source](https://github.com/hashgraph-online/awesome-codex-plugins/pull/599#issuecomment-6542661494) on 2026-10-31. The checked source was `61bbb45a0875279b97aa916e9e2a5a5230b243b6`, declaring Loupe `0.2.5` and Perform `0.4.5` with unreleased changes beyond `v0.5.5`. Record the source commit alongside manifest versions because root links fetch the default branch.
 
-1. Ran HOL Plugin Scanner 3.9.0 against each released plugin root.
-2. Recorded 96/100, grade A, with policy and verification passing and no critical, high, medium, or low findings for both plugins.
-3. Confirmed issue `#430` already tracked the multi-plugin mirroring ambiguity.
-4. Posted this approved question at `https://github.com/hashgraph-online/awesome-codex-plugins/issues/430#issuecomment-5891778025`:
+As checked on 2026-10-31, #599 remained open without reviews. Acceptance depends on reconciliation and independent review of the overlapping generator PRs [#597](https://github.com/hashgraph-online/awesome-codex-plugins/pull/597) and [#586](https://github.com/hashgraph-online/awesome-codex-plugins/pull/586), plus the dark-logo correction [#624](https://github.com/hashgraph-online/awesome-codex-plugins/pull/624). The latter preserves declared `interface.logoDark` assets and is stacked on #597's safe path handling; retain that dependency when merging.
 
-> Hi maintainers, I am preparing two independent plugin submissions from one marketplace-shaped repository and saw this issue, which I believe would also affect me. So before opening PRs I thought maybe I could nudge this thread.
->
-> My case:
->
-> - Loupe Code Review (`la-review` 0.2.4): `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.4/plugins/la-review`
-> - Perform Action Toolkit (`toolkit` 0.4.4): `https://github.com/pallgeuer/la-dev-codex-plugins/tree/v0.5.4/plugins/toolkit`
->
-> The repository root is `https://github.com/pallgeuer/la-dev-codex-plugins` and its marketplace lists both packages. A root-only mirror would be ambiguous and could select only one bundle, while these packages must remain separately installable.
->
-> What is the intended way forward for our cases?
->
-> Should I open two README-entry PRs that identify the direct subpaths, use the tree URLs despite the current repository-root-link rule, or follow another structure?
+Patched bundles matched the source inventories and installed separately with passing offline helper checks. The [centralized scanner run](https://github.com/hashgraph-online/awesome-codex-plugins/actions/runs/41169480616) passed the contribution gate; remaining findings concern repository automation, the intentional absence of a dependency lockfile, and screenshot advisories. Deep skill scanners were unavailable. Final acceptance still requires retesting complete installed bundles on the reconciled generator and independent security review, including provider-backed invocation.
 
-No Hashgraph pull request has been opened. Wait for a maintainer answer; do not create an ambiguous root-only submission.
+Next: track the three generator PRs, verify both independent package paths and declared assets on the final head, and await maintainer review. Source-owner confirmation of listing copy does not establish complete bundle acceptance.
 
 ### OpenAI Community Plugins
 
@@ -130,11 +116,11 @@ The following steps were completed:
 
 The exact submitted PR bodies and plugin-specific source/test evidence are retained in the plugin dossiers.
 
-On 2026-10-13, the CDE collaborator requested packaged data-flow and retention documentation, reviewer-permission alignment, and offline runner tests on Loupe PR #25. The same collaborator requested action-source visibility, override/fallback behavior, permission boundaries, and isolated tests on Perform PR #26. Both remain open and require final CDE review. Before the Loupe revision, each PR's own plugin suite passed while Autodesk Fusion and ReviewOps jobs failed on dependency audits outside either submitted plugin. The new Loupe pull-request workflows await maintainer approval before they can run.
-Loupe's 2026-10-19 revision at `c46c104daea1fc6b1e927bb897e53053a174a7eb` expanded the packaged README and added offline runner tests without changing the shipped skill or scripts. The [maintainer response](https://github.com/openai/community-plugins/pull/25#issuecomment-6266008018) explains why write-capable child modes remain necessary for test-based verification. Revised CI and CDE review remain pending.
-The follow-up at `960a5033ed3e028ec1d440ae7139d4b78d8c2a99` restored explicit Loupe starter prompts and listed both integration test files in the npm command. Its pull-request workflows also await maintainer approval.
-The further follow-up at `7e63c1214d59c60cfe5cd3449e7546f871ac1ad0` changed only the third Loupe starter prompt's branch example to `feature/example`; marketplace validation and all six Loupe tests passed locally.
-Perform's 2026-10-19 review response at `cb0c0505398cfe279a0502419928c44f21f243fd` updated the proposed community package to `0.4.6`, showed selected-definition source and precedence, made invalid configuration fail closed, clarified package boundaries, and added offline integration tests. Its [maintainer response](https://github.com/openai/community-plugins/pull/26#issuecomment-6267116889) records the choices. All nine Perform tests, marketplace validation, and Python quality and compatibility checks passed locally. The full marketplace dispatcher passed its marketplace and Grafana suites but stopped at an unrelated ReviewOps build missing `ajv` in the clean clone. Perform's new pull-request workflows await maintainer approval before CI can run; CDE review remains required. The source package remains at `0.4.5` pending the coordinated post-acceptance release.
+The October 19 review responses added Loupe data-flow/retention documentation and offline runner coverage, and Perform action-source visibility, fail-closed selection, boundary documentation, and isolated tests. Loupe retains write-capable child reviewer modes for test-based verification; CDE assessment of that boundary remains pending. Review-response heads are Loupe `7e63c1214d59c60cfe5cd3449e7546f871ac1ad0` and Perform `cb0c0505398cfe279a0502419928c44f21f243fd`.
+
+As checked on 2026-10-31, both PRs remained open without reviews or new maintainer feedback. Plugin E2E suites, CLA, dependency review, marketplace catalogue/dispatcher, and runner-matrix jobs passed. Workflow approval is no longer a blocker. Autodesk Fusion and ReviewOps jobs fail at unrelated dependency audits; await maintainer disposition of those checks and CDE review.
+
+CDE follow-ups were posted on 2026-10-31: [Loupe #25](https://github.com/openai/community-plugins/pull/25#issuecomment-6542656262) and [Perform #26](https://github.com/openai/community-plugins/pull/26#issuecomment-6542657988). Await responses, then use the [coordinated release checklist](community_acceptance_followup.md) to reconcile accepted changes while preserving newer source features.
 
 ## Updating channels after a new plugin release
 
@@ -188,16 +174,14 @@ The marketplace documents repository and direct-tree submissions but does not ex
 
 ### Hashgraph Awesome Codex Plugins
 
-Until issue `#430` is resolved, do not submit or update either plugin through an ambiguous repository-root entry.
+The supported convention is one separately named README entry per plugin, linking to the same source repository root. Both initial entries are already proposed in #599; continue that PR instead of opening duplicate submissions.
 
-After maintainers document a supported multi-plugin convention:
-
-1. Follow that convention independently for the changed plugin and retain its direct package boundary.
-2. Run the scanner version and commands currently pinned by the contribution guide against the exact released package; meet the current score and severity thresholds.
-3. If the plugin is not listed, fork the catalogue, add one alphabetized README entry in the correct category, and open one focused PR containing the source URL and scanner evidence. Do not commit generated mirror/catalog files.
-4. If the plugin is already listed, first verify whether the generator has mirrored the new default-branch version automatically. If it has, validate the mirrored manifest/version and no PR is needed.
-5. If the mirror is stale, use the current maintainer-documented refresh process. If none exists, ask on the existing PR/issue before changing the catalogue entry or opening a refresh PR.
-6. Verify the generated mirror, catalogue version, install source, and public registry entry after refresh.
+1. Re-read the guide and inspect the current listing, generator dependencies, and contribution gate. Keep source-owner copy confirmation separate from installed-bundle/security acceptance.
+2. Record the exact source commit in addition to each manifest version. Root links fetch the default branch, which can contain unreleased changes.
+3. Run the currently pinned scanner against that source and both actual package boundaries. Record findings and unavailable integrations; use the current admission threshold.
+4. Verify the corrected and reconciled generator preserves distinct package paths, all declared assets, skill references, and complete file inventories. Recheck the pending generator fixes before final acceptance.
+5. After a source release, inspect the actual mirror rather than assuming refresh. The current sync workflow runs on catalogue-side changes or manual dispatch; a source-side release alone does not trigger it. If stale, request the documented maintainer refresh on the existing thread before opening another PR.
+6. After merge/refresh, verify each upstream package, catalogue identity, install flow, and any public registry listing independently. Record missing or pending surfaces without treating them as published.
 
 ### OpenAI Community Plugins
 
@@ -219,3 +203,5 @@ After maintainers document a supported multi-plugin convention:
 - Record the public listing URL only after independently opening it and verifying the displayed plugin identity and version.
 - Re-check open reviews and issues before posting. Never duplicate an existing submission or response because a local record is stale.
 - Preserve released tags. Channel-specific corrections that alter plugin content require a new release, not an overwritten artifact.
+
+Local scanner reports, file inventories, and upstream patch snapshots may be kept in the Git-ignored `docs/submissions/evidence/` and `docs/submissions/patches/` directories. These are disposable working artifacts; committed records must remain useful without them. Preserve upstream PR links, dated outcomes, blockers, and next steps in the documents.

@@ -16,3 +16,7 @@ __pycache__/
 /.agents/skills/
 /docs/plans/
 /TODO.txt
+
+# Local submission reports and upstream patch snapshots
+/docs/submissions/evidence/
+/docs/submissions/patches/

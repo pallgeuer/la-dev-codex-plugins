@@ -73,6 +73,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - Required an explicit setup choice between the default 85% and full 100% ding amplitude when Codex runs the steps, applying the choice consistently to completion, approval, and question sounds.
 - Extended the standalone sound helper with generated lifecycle hooks for approval requests and structured questions, preserving per-chat pitch and independent playback for each event; documented hook trust, coverage limits, and Linux output routing.
 
+#### Plugin publication
+
+- Updated submission status and pending review gates for Hashgraph and Community Plugins, and clarified coordinated release reconciliation to preserve newer source features.
+
 #### Repository setup
 
 - Made optional machine-level ding setup explicit in the new-repository recipe, with full/completion-only/skip choices, explicit amplitude selection, preservation of working installations, and bundled attention-sound guidance.
