@@ -164,7 +164,7 @@ The 13 notes are C4, C#4, D4, D#4, E4, F4, F#4, G4, G#4, A4, A#4, B4, and C5 (ap
 
 Each tone combines a fundamental and a quiet second harmonic. It has an 8 ms attack, a 200 ms sustained body, an exponential decay with a 220 ms time constant, and a final 25 ms fade. A 250 ms silent lead-in gives output paths such as HDMI time to start; the tone itself lasts 1.1 seconds. The WAV is mono, 44.1 kHz, signed 16-bit PCM.
 
-Completion notifications require `agent-turn-complete` and a nonempty string `thread-id`. In `--hook` mode, permission and question events use `session_id` with the same pitch mapping. Malformed or unsupported events and interruptions are ignored. Normal hook execution is quiet and best effort; use the interactive tools for failures. WAV files are created in a private temporary directory and cleaned up after playback. A player gets at most three seconds, with an eight-second total playback budget across fallback attempts. No messages or notification payloads are logged or sent to the audio tools. Backend discovery and command construction share one ordered set of definitions. For `ffplay`, fallback also recognizes known fatal audio-open, SDL initialization, and file/filtergraph diagnostics, because some versions exit zero after these failures. Unrecognized diagnostics with a zero exit status do not trigger fallback, reducing the risk of a second tone after successful playback; this cannot detect every playback failure. Captured backend diagnostics remain internal, and preview reports generic failure descriptions.
+Completion notifications require `agent-turn-complete` and a nonempty string `thread-id`. In `--hook` mode, permission and question events use `session_id` with the same pitch mapping. Malformed or unsupported events and interruptions are ignored. Normal hook execution is quiet and best effort; use the interactive tools for failures. WAV files are created in a private temporary directory and cleaned up after playback. A player gets at most three seconds, with an eight-second total playback budget across fallback attempts. PulseAudio playback requests a 100 ms buffer so default buffering and drain delays do not consume the short notification budget. A timed-out player may already have emitted the sound, so timeouts stop playback without retrying another backend; definite launch failures, nonzero exits, and recognized fatal diagnostics still permit fallback. No messages or notification payloads are logged or sent to the audio tools. Backend discovery and command construction share one ordered set of definitions. For `ffplay`, fallback also recognizes known fatal audio-open, SDL initialization, and file/filtergraph diagnostics, because some versions exit zero after these failures. Unrecognized diagnostics with a zero exit status do not trigger fallback, reducing the risk of a second tone after successful playback; this cannot detect every playback failure. Captured backend diagnostics remain internal, and preview reports generic failure descriptions.
 
 ## Select an output device
 
@@ -180,12 +180,28 @@ This selects a sink for `paplay`, not every fallback backend. A failure that fal
 
 ## Troubleshoot
 
+- To diagnose duplicate or missing sounds, enable the optional logging described below. One event can reach the helper more than once, or one helper invocation can attempt multiple audio players; the log distinguishes these cases.
 - Run `--diagnose` to inspect Python and available players. It reports executable availability, not audio-server connectivity. Run `--preview` to test the complete path; it reports a failure and exits nonzero if all players fail.
 - If short sounds disappear but sustained audio works, the output may need time to wake. The default lead-in and sustained body help, but some hardware needs longer startup. Compare normal audio on the same device before increasing amplitude.
 - If sound goes to headphones or another output, check system audio settings and saved application routing. PulseAudio identifies the stream as **Codex ding**. Select the desired output there; the helper follows player routing and does not force a device. For local Linux testing, standard player environment settings such as `PULSE_SINK` can select an output for `paplay` without hardcoding that device in this project.
 - If everything is faint, check monitor, speaker, headphone, mixer, and per-application volume. Increasing the helper past full scale is not supported and would cause clipping.
 - SSH sessions, containers, and headless hosts may have no usable audio session. Playback occurs on the machine running Codex; the helper does not forward sound to your laptop. A terminal bell does not provide the required per-chat pitch and is not used as a fallback.
 - If manual previews work but notifications do not, check the top-level configuration placement, active `CODEX_HOME`, installed paths, Python availability, and restart Codex. Retain existing TUI notifications or deliberately adjust them separately if your terminal also makes a sound.
+
+### Optional diagnostic logging
+
+Logging is disabled by default. To enable it for already-installed completion and lifecycle handlers without changing trusted hooks or restarting an affected chat, create an empty regular file named `codex_turn_ding.log` beside the installed script:
+
+```bash
+touch "$codex_ding_home/hooks/codex_turn_ding.log"
+chmod 600 "$codex_ding_home/hooks/codex_turn_ding.log"
+```
+
+The helper appends JSONL records only while that file exists. Remove or rename it to disable logging; subsequent invocations will not recreate it. Alternatively, use `--log-file /absolute/path/diagnostics.jsonl` for an explicit destination, including with `--print-config` and `--print-hooks`. Explicit destinations are created if necessary, with private permissions for new files; their parent directory must already exist. An explicit destination takes precedence over the adjacent file. Existing destinations retain their permissions. Logging failures are ignored, and symlinks and non-regular log targets are rejected.
+
+Records contain timestamps, invocation IDs, process and parent IDs, the parent executable when available on Linux, script fingerprints, event/session/turn/tool identifiers, a SHA-256 payload fingerprint, completion-filter decisions, audio routing overrides, and player attempts, return codes, durations, and timeouts. Audio-player stderr is included up to 2 KiB per attempt. Prompt text, tool arguments, question text, and full notification payloads are excluded. These are local diagnostic files, not telemetry; they can still identify chats and local paths. Logging does not rotate or expire files automatically.
+
+Group records by `invocation_id`: two different invocation IDs with the same event identifiers and payload fingerprint indicate repeated delivery. Multiple `player_start` records in one invocation indicate fallback. A timeout records `player_error` with `error_type="TimeoutExpired"` and `playback_uncertain` with `fallback=false`: the first player may already have emitted sound, so another backend is not tried. Older versions retried after timeouts, which could play the same notification twice. A player exit status alone cannot prove that speakers produced audible sound. Distinct question and completion events can legitimately produce two sounds.
 
 ## Update or remove
 

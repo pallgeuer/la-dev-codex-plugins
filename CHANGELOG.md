@@ -35,6 +35,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 #### Codex notifications
 
+- Prevented duplicate sounds after audio-player timeouts by stopping fallback when playback is uncertain, and requested a short PulseAudio buffer to avoid normal drain delays exceeding the playback deadline.
 - Retained completion alerts when state-directory resolution fails, including relative paths after the working directory is deleted, and skipped state lookups and retries for muted notifications.
 - Preserved whitespace in configured state-directory environment paths and rejected non-regular state databases without falling back to stale records or blocking on FIFOs.
 - Rejected unrepresentable installation paths consistently for generated completion and lifecycle-hook configuration.
@@ -51,6 +52,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 #### Codex notifications
 
+- Added opt-in local diagnostic logging to distinguish duplicate event delivery from audio-player fallback, with live activation for installed handlers and no conversation-text logging.
 - Added a standalone, standard-library-only completion-sound helper with stable per-chat musical pitches, Linux/macOS player detection, adjustable amplitude, previews, diagnostics, and generated user-level configuration.
 - Documented installation from an existing Codex-managed marketplace checkout or a separate clone, playback requirements, troubleshooting, updates, and removal without requiring a marketplace plugin or Python package installation.
 

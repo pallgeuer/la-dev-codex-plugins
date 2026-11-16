@@ -507,6 +507,128 @@ def test_hook_volume_zero_does_not_play(ding, monkeypatch):
     assert ding.main(["--hook", "--volume", "0"]) == 0
 
 
+def test_diagnostic_logging_is_opt_in_and_can_be_enabled_without_config_changes(ding, tmp_path, monkeypatch, capsys):
+    installed = tmp_path / "ding.py"
+    installed.write_bytes(SCRIPT.read_bytes())
+    monkeypatch.setattr(ding, "__file__", str(installed))
+    event = json.dumps({"hook_event_name": "PermissionRequest", "session_id": "chat", "tool_input": {"secret": "PRIVATE-COMMAND"}})
+    monkeypatch.setattr(ding, "play_tone", lambda *_args: (True, []))
+    logfile = installed.with_suffix(".log")
+    monkeypatch.setattr(ding.sys, "stdin", io.StringIO(event))
+    assert ding.main(["--hook"]) == 0
+    assert not logfile.exists()
+    logfile.touch(mode=0o600)
+    for _attempt in range(2):
+        monkeypatch.setattr(ding.sys, "stdin", io.StringIO(event))
+        assert ding.main(["--hook"]) == 0
+    records = [json.loads(line) for line in logfile.read_text().splitlines()]
+    inputs = [record for record in records if record["event"] == "input"]
+    assert len(inputs) == 2
+    assert inputs[0]["session_id"] == "chat"
+    assert inputs[0]["payload_sha256"] == inputs[1]["payload_sha256"]
+    assert inputs[0]["invocation_id"] != inputs[1]["invocation_id"]
+    assert all(record["pid"] == os.getpid() and record["ppid"] == os.getppid() for record in records)
+    assert "PRIVATE-COMMAND" not in logfile.read_text()
+    assert ding._DIAGNOSTICS.path is None
+    assert capsys.readouterr() == ("", "")
+
+
+def test_diagnostics_distinguish_player_retry_from_duplicate_invocation(ding, tmp_path, monkeypatch):
+    logfile = tmp_path / "diagnostics.jsonl"
+    monkeypatch.setattr(ding, "available_players", lambda: [(backend(ding, "paplay"), "/paplay"), (backend(ding, "aplay"), "/aplay")])
+
+    def play(command, **kwargs):
+        assert kwargs["stderr"] == subprocess.PIPE
+        if command[0] == "/paplay":
+            raise FileNotFoundError("player disappeared")
+        return subprocess.CompletedProcess(command, 0, stderr=b"backend diagnostic")
+
+    monkeypatch.setattr(ding.subprocess, "run", play)
+    monkeypatch.setattr(ding.sys, "stdin", io.StringIO(json.dumps({"hook_event_name": "PermissionRequest", "session_id": "chat"})))
+    assert ding.main(["--hook", "--log-file", str(logfile)]) == 0
+    records = [json.loads(line) for line in logfile.read_text().splitlines()]
+    assert len({record["invocation_id"] for record in records}) == 1
+    assert [record["backend"] for record in records if record["event"] == "player_start"] == ["paplay", "aplay"]
+    assert [record["error_type"] for record in records if record["event"] == "player_error"] == ["FileNotFoundError"]
+    successes = [record for record in records if record["event"] == "playback_success"]
+    assert len(successes) == 1
+    assert successes[0]["attempt"] == 2
+    assert logfile.stat().st_mode & 0o777 == 0o600
+
+
+@pytest.mark.parametrize("logging", [False, True])
+def test_timeout_after_possible_playback_never_replays_with_another_backend(ding, tmp_path, monkeypatch, logging):
+    logfile = tmp_path / "diagnostics.jsonl"
+    marker = tmp_path / "played"
+    monkeypatch.setattr(ding, "available_players", lambda: [(backend(ding, "paplay"), sys.executable), (backend(ding, "aplay"), "/unexpected-fallback")])
+    monkeypatch.setattr(ding, "ATTEMPT_SECONDS", 1.0)
+
+    def command(_backend, executable, _path):
+        assert executable == sys.executable
+        return [executable, "-I", "-c", "import pathlib,sys,time; pathlib.Path(sys.argv[1]).write_text('played'); time.sleep(10)", str(marker)]
+
+    monkeypatch.setattr(ding, "player_command", command)
+    monkeypatch.setattr(ding.sys, "stdin", io.StringIO(json.dumps({"hook_event_name": "PermissionRequest", "session_id": "chat"})))
+    arguments = ["--hook", "--log-file", str(logfile)] if logging else ["--hook"]
+    assert ding.main(arguments) == 0
+    assert marker.read_text() == "played"
+    if logging:
+        records = [json.loads(line) for line in logfile.read_text().splitlines()]
+        assert [record["backend"] for record in records if record["event"] == "player_start"] == ["paplay"]
+        uncertain = [record for record in records if record["event"] == "playback_uncertain"]
+        assert len(uncertain) == 1
+        assert uncertain[0]["fallback"] is False
+
+
+@pytest.mark.parametrize("target", ["directory", "missing-parent", "fifo", "symlink"])
+def test_diagnostic_log_errors_do_not_prevent_playback(ding, tmp_path, monkeypatch, capsys, target):
+    logfile = tmp_path / "log"
+    if target == "directory":
+        logfile.mkdir()
+    elif target == "missing-parent":
+        logfile = logfile / "missing" / "diagnostics.jsonl"
+    elif target == "fifo":
+        os.mkfifo(str(logfile))
+    else:
+        logfile.symlink_to(tmp_path / "untouched")
+    calls = []
+    monkeypatch.setattr(ding, "play_tone", lambda *args: (calls.append(args) or True, []))
+    assert ding.main(["--log-file", str(logfile), notification()]) == 0
+    assert calls == [(ding.note_index("chat-one"), ding.DEFAULT_VOLUME)]
+    assert not (tmp_path / "untouched").exists()
+    assert capsys.readouterr() == ("", "")
+
+
+def test_concurrent_diagnostics_keep_independent_event_records(tmp_path):
+    logfile = tmp_path / "diagnostics.jsonl"
+    processes = [
+        subprocess.Popen([sys.executable, str(SCRIPT), "--log-file", str(logfile), "--volume", "0", notification(**{"turn-id": str(index)})], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        for index in range(12)
+    ]
+    try:
+        for process in processes:
+            assert process.communicate(timeout=10) == (b"", b"")
+            assert process.returncode == 0
+    finally:
+        for process in processes:
+            if process.poll() is None:
+                process.kill()
+                process.wait()
+    records = [json.loads(line) for line in logfile.read_text().splitlines()]
+    assert len({record["invocation_id"] for record in records}) == 12
+    assert {record["turn-id"] for record in records if record["event"] == "input"} == {str(index) for index in range(12)}
+    assert sum(record["event"] == "exit" for record in records) == 12
+
+
+@pytest.mark.parametrize("mode", ["--print-config", "--print-hooks"])
+def test_generated_configuration_preserves_explicit_log_file(ding, tmp_path, monkeypatch, capsys, mode):
+    monkeypatch.chdir(tmp_path)
+    assert ding.main([mode, "--log-file", "diagnostics.jsonl"]) == 0
+    output = capsys.readouterr().out
+    command = tomli.loads(output)["notify"] if mode == "--print-config" else shlex.split(json.loads(output)["hooks"]["PermissionRequest"][0]["hooks"][0]["command"])
+    assert command[command.index("--log-file") + 1] == str(tmp_path / "diagnostics.jsonl")
+
+
 @pytest.mark.parametrize(
     "payload",
     [
@@ -601,7 +723,7 @@ def test_player_discovery_and_order(ding, monkeypatch, platform, expected):
 
 @pytest.mark.parametrize(
     ("name", "options"),
-    [("afplay", []), ("paplay", ["--client-name=Codex ding"]), ("pw-play", []), ("aplay", ["-q"]), ("ffplay", ["-nodisp", "-autoexit", "-loglevel", "error"]), ("play", ["-q"])],
+    [("afplay", []), ("paplay", ["--client-name=Codex ding", "--latency-msec=100"]), ("pw-play", []), ("aplay", ["-q"]), ("ffplay", ["-nodisp", "-autoexit", "-loglevel", "error"]), ("play", ["-q"])],
 )
 def test_player_commands_preserve_literal_paths(ding, name, options):
     path = pathlib.Path('/tmp/with spaces/"$(unsafe)\u00e9.wav')
@@ -631,8 +753,8 @@ def test_playback_fallback_and_cleanup(ding, monkeypatch, failure):
 
     monkeypatch.setattr(ding.subprocess, "run", run)
     success, failures = ding.play_tone(6, 0.85)
-    assert success
-    assert len(paths) == (1 if failure == "success" else 2)
+    assert success == (failure != "timeout")
+    assert len(paths) == (1 if failure in ("success", "timeout") else 2)
     assert bool(failures) == (failure != "success")
     assert all(not path.parent.exists() for path in paths)
 
@@ -647,7 +769,7 @@ def test_playback_budget_and_failed_hook_are_quiet(ding, monkeypatch, capsys):
     def fail(command, **kwargs):
         timeouts.append(kwargs["timeout"])
         paths.append(pathlib.Path(command[-1]))
-        raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+        raise OSError("player unavailable")
 
     monkeypatch.setattr(ding.subprocess, "run", fail)
     assert ding.main([notification()]) == 0

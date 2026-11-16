@@ -3,6 +3,7 @@
 
 import argparse
 import collections
+import contextlib
 import hashlib
 import json
 import math
@@ -12,11 +13,13 @@ import re
 import shlex
 import shutil
 import sqlite3
+import stat
 import struct
 import subprocess
 import sys
 import tempfile
 import time
+import uuid
 import wave
 
 SAMPLE_RATE = 44100
@@ -30,12 +33,79 @@ LOOKUP_TIMEOUT_SECONDS = 0.1
 RECORD_RETRY_SECONDS = 0.05
 QUESTION_TOOL_PATTERN = r"^(?:functions[._]?)?request_user_input(?:_async)?$"
 
+
+class DiagnosticLog:
+    """Best-effort JSONL event logging, with one append write per record."""
+
+    def __init__(self):
+        self.path = None
+        self.create = False
+        self.invocation_id = None
+
+    @contextlib.contextmanager
+    def configured(self, path, create):
+        """Temporarily configure one invocation and restore the previous logging context."""
+        previous = self.path, self.create, self.invocation_id
+        self.path, self.create = path, create
+        self.invocation_id = uuid.uuid4().hex if path is not None else None
+        try:
+            yield
+        finally:
+            self.path, self.create, self.invocation_id = previous
+
+    def emit(self, event, **fields):
+        """Append operational metadata without affecting notification handling on failure."""
+        if self.path is None:
+            return
+        descriptor = None
+        try:
+            flags = os.O_WRONLY | os.O_APPEND | os.O_NONBLOCK | getattr(os, "O_NOFOLLOW", 0)
+            if self.create:
+                flags |= os.O_CREAT
+            descriptor = os.open(str(self.path), flags, 0o600)
+            if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+                return
+            record = dict(fields, event=event, timestamp=time.time(), monotonic=time.monotonic(), pid=os.getpid(), ppid=os.getppid(), invocation_id=self.invocation_id)
+            os.write(descriptor, (json.dumps(record, ensure_ascii=True, sort_keys=True) + "\n").encode("ascii"))
+        except (OSError, ValueError, UnicodeError):
+            pass
+        finally:
+            if descriptor is not None:
+                with contextlib.suppress(OSError):
+                    os.close(descriptor)
+
+
+_DIAGNOSTICS = DiagnosticLog()
+
+
+def log_event(event, **fields):
+    """Record diagnostics only while explicitly enabled for this invocation."""
+    if _DIAGNOSTICS.path is not None:
+        _DIAGNOSTICS.emit(event, **fields)
+
+
+def log_payload(mode, payload):
+    """Record event identifiers and a payload fingerprint, never prompt, question, or tool arguments."""
+    if _DIAGNOSTICS.path is None:
+        return
+    fields = {"mode": mode, "payload_sha256": hashlib.sha256(payload.encode("utf-8", errors="surrogatepass")).hexdigest()}
+    try:
+        data = json.loads(payload)
+        if isinstance(data, dict):
+            for name in ("type", "thread-id", "turn-id", "hook_event_name", "session_id", "tool_name", "tool_use_id", "hook_id"):
+                if isinstance(data.get(name), str):
+                    fields[name] = data[name][:256]
+    except (ValueError, RecursionError):
+        fields["malformed"] = True
+    log_event("input", **fields)
+
+
 PlayerBackend = collections.namedtuple("PlayerBackend", "name platforms options failure_markers")
 PlayerBackend.__doc__ = "A player name, supported platforms, argv options, and lowercase fatal stderr markers."
 # Table order determines preference after filtering by platform; markers enable internal stderr capture.
 PLAYER_BACKENDS = (
     PlayerBackend("afplay", ("darwin",), (), ()),
-    PlayerBackend("paplay", ("linux",), ("--client-name=Codex ding",), ()),
+    PlayerBackend("paplay", ("linux",), ("--client-name=Codex ding", "--latency-msec=100"), ()),
     PlayerBackend("pw-play", ("linux",), (), ()),
     PlayerBackend("aplay", ("linux",), ("-q",), ()),
     PlayerBackend("ffplay", ("darwin", "linux"), ("-nodisp", "-autoexit", "-loglevel", "error"), (b"audio open failed", b"failed to open file", b"could not initialize sdl", b"sdl_openaudio (")),
@@ -97,8 +167,9 @@ def player_command(backend, executable, path):
 
 
 def play_tone(index, volume):
-    """Play one synthesized note; return success and safe backend failure descriptions."""
+    """Play one note with fallback on clear failures; stop on timeouts where playback is uncertain."""
     players = available_players()
+    log_event("playback_start", note=index, volume=volume, players=[backend.name for backend, _executable in players])
     if not players:
         return False, ["No supported audio player found; run --diagnose and see the setup guide"]
     failures = []
@@ -106,29 +177,47 @@ def play_tone(index, volume):
         path = pathlib.Path(folder) / "ding.wav"
         write_tone(path, index, volume)
         deadline = time.monotonic() + PLAYBACK_SECONDS
-        for backend, executable in players:
+        for attempt, (backend, executable) in enumerate(players, 1):
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 failures.append("Playback time budget exhausted")
+                log_event("playback_budget_exhausted")
                 break
+            started = time.monotonic() if _DIAGNOSTICS.path is not None else None
+            log_event("player_start", backend=backend.name, executable=executable, attempt=attempt, timeout=min(ATTEMPT_SECONDS, remaining))
             try:
                 result = subprocess.run(
                     player_command(backend, executable, path),
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE if backend.failure_markers else subprocess.DEVNULL,
+                    stderr=subprocess.PIPE if backend.failure_markers or _DIAGNOSTICS.path is not None else subprocess.DEVNULL,
                     timeout=min(ATTEMPT_SECONDS, remaining),
                     check=False,
                 )
-            except (OSError, subprocess.TimeoutExpired):
-                failures.append("{} unavailable or timed out".format(backend.name))
+            except subprocess.TimeoutExpired:
+                failures.append("{} timed out; playback may already have occurred".format(backend.name))
+                log_event("player_error", backend=backend.name, error_type="TimeoutExpired", elapsed=time.monotonic() - started if started is not None else None)
+                log_event("playback_uncertain", backend=backend.name, reason="timeout", fallback=False)
+                return False, failures
+            except OSError as exc:
+                failures.append("{} unavailable".format(backend.name))
+                log_event("player_error", backend=backend.name, error_type=type(exc).__name__, errno=getattr(exc, "errno", None), elapsed=time.monotonic() - started if started is not None else None)
             else:
+                log_event(
+                    "player_exit",
+                    backend=backend.name,
+                    returncode=result.returncode,
+                    stderr=(result.stderr or b"")[:2048].decode("utf-8", errors="replace") if _DIAGNOSTICS.path is not None else None,
+                    elapsed=time.monotonic() - started if started is not None else None,
+                )
                 if backend.failure_markers and any(marker in (result.stderr or b"").lower() for marker in backend.failure_markers):
                     failures.append("{} reported a playback failure".format(backend.name))
                 elif result.returncode == 0:
+                    log_event("playback_success", backend=backend.name, attempt=attempt)
                     return True, failures
                 else:
                     failures.append("{} exited with status {}".format(backend.name, result.returncode))
+    log_event("playback_failed", failures=failures)
     return False, failures
 
 
@@ -165,7 +254,9 @@ def open_state_database(path):
 def completion_allowed(thread_id, sqlite_home=None):
     """Resolve optional state home and suppress background completions, retaining alerts on lookup failures."""
     try:
-        connection = open_state_database(state_database(sqlite_directory(sqlite_home)))
+        path = state_database(sqlite_directory(sqlite_home))
+        log_event("state_database", path=str(path))
+        connection = open_state_database(path)
         try:
             for attempt in range(3):
                 row = connection.execute("SELECT source FROM threads WHERE id = ?", (thread_id,)).fetchone()
@@ -175,17 +266,22 @@ def completion_allowed(thread_id, sqlite_home=None):
                     time.sleep(RECORD_RETRY_SECONDS)
         finally:
             connection.close()
-    except (OSError, ValueError, UnicodeError, sqlite3.Error):
+    except (OSError, ValueError, UnicodeError, sqlite3.Error) as exc:
+        log_event("completion_filter", allowed=True, reason="lookup_error", error_type=type(exc).__name__)
         return True
     if row is None:
+        log_event("completion_filter", allowed=False, reason="absent_record")
         return False
     try:
         source = json.loads(row[0])
     except (TypeError, ValueError, UnicodeError, RecursionError):
+        log_event("completion_filter", allowed=True, reason="unrecognized_source")
         return True
     # /review also has coarse thread_source="subagent". Only thread_spawn is delegated work.
     subagent = source.get("subagent") if isinstance(source, dict) else None
-    return not (isinstance(subagent, dict) and isinstance(subagent.get("thread_spawn"), dict))
+    allowed = not (isinstance(subagent, dict) and isinstance(subagent.get("thread_spawn"), dict))
+    log_event("completion_filter", allowed=allowed, reason="recorded_thread" if allowed else "delegated_thread")
+    return allowed
 
 
 def diagnose_state(sqlite_home=None):
@@ -240,9 +336,9 @@ def hook_note(payload):
         return None
 
 
-def hook_configuration(volume):
-    """Return user-level lifecycle hook JSON using this interpreter, script, and amplitude."""
-    command = configuration_command(volume, hook=True)
+def hook_configuration(volume, log_file=None):
+    """Return lifecycle hook JSON with optional diagnostic logging and the selected amplitude."""
+    command = configuration_command(volume, hook=True, log_file=log_file)
     handler = {"type": "command", "command": " ".join(shlex.quote(argument) for argument in command), "async": True, "timeout": 10}
     return json.dumps({"hooks": {"PermissionRequest": [{"hooks": [handler]}], "PreToolUse": [{"matcher": QUESTION_TOOL_PATTERN, "hooks": [handler]}]}}, indent=2, ensure_ascii=True)
 
@@ -281,8 +377,8 @@ def toml_string(value):
     return '"' + "".join(escaped) + '"'
 
 
-def configuration_command(volume, hook=False, sqlite_home=None):
-    """Build validated argv for completion or hook playback, with completion-only state discovery."""
+def configuration_command(volume, hook=False, sqlite_home=None, log_file=None):
+    """Build validated playback argv with optional logging and completion-only state discovery."""
     command = [str(pathlib.Path(sys.executable).absolute()), "-I", str(pathlib.Path(__file__).resolve())]
     if hook:
         command.append("--hook")
@@ -290,14 +386,16 @@ def configuration_command(volume, hook=False, sqlite_home=None):
         command.extend(["--sqlite-home", str(sqlite_directory(sqlite_home))])
     if volume != DEFAULT_VOLUME:
         command.extend(["--volume", str(volume)])
+    if log_file is not None:
+        command.extend(["--log-file", str(pathlib.Path(log_file).absolute())])
     for argument in command:
         validate_scalar_string(argument)
     return command
 
 
-def configuration(volume, sqlite_home=None):
-    """Return a TOML root notify entry with optional explicit SQLite directory and amplitude."""
-    command = configuration_command(volume, sqlite_home=sqlite_home)
+def configuration(volume, sqlite_home=None, log_file=None):
+    """Return a TOML root notify entry with optional state directory, logging, and amplitude."""
+    command = configuration_command(volume, sqlite_home=sqlite_home, log_file=log_file)
     return "notify = [" + ", ".join(toml_string(argument) for argument in command) + "]"
 
 
@@ -307,6 +405,7 @@ def main(argv=None):
     parser.add_argument("notification", nargs="?", help="Codex's appended notification JSON")
     parser.add_argument("--volume", type=volume_argument, default=DEFAULT_VOLUME, help="Synthesis amplitude from 0 to 1 (default: 0.85)")
     parser.add_argument("--sqlite-home", help="Codex state directory (otherwise CODEX_SQLITE_HOME, CODEX_HOME, or ~/.codex)")
+    parser.add_argument("--log-file", help="Append diagnostic JSONL metadata to this file (otherwise logging requires an existing .log file beside the script)")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--hook", action="store_true", help="Read a permission or question lifecycle event as JSON on standard input")
     mode.add_argument("--print-hooks", action="store_true", help="Print hooks.json for approval and question sounds alongside notify")
@@ -317,9 +416,44 @@ def main(argv=None):
     interactive = args.preview or args.diagnose or args.print_config or args.print_hooks or args.hook
     if interactive and args.notification is not None:
         parser.error("Utility modes do not accept a notification argument")
+    try:
+        path = pathlib.Path(args.log_file) if args.log_file is not None else pathlib.Path(__file__).resolve().with_suffix(".log")
+        if args.log_file is None and not path.is_file():
+            path = None
+    except (OSError, ValueError):
+        path = None
+    with _DIAGNOSTICS.configured(path, create=args.log_file is not None):
+        if _DIAGNOSTICS.path is not None:
+            try:
+                parent_executable = os.readlink("/proc/{}/exe".format(os.getppid()))
+            except OSError:
+                parent_executable = None
+            try:
+                script_sha256 = hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest()
+            except (OSError, ValueError):
+                script_sha256 = None
+            log_event(
+                "invocation",
+                script=str(__file__),
+                script_sha256=script_sha256,
+                interpreter=sys.executable,
+                parent_executable=parent_executable,
+                volume=args.volume,
+                hook=args.hook,
+                preview=args.preview,
+                routing={name: os.environ[name] for name in ("PULSE_SINK", "SDL_AUDIODRIVER", "ALSA_CONFIG_PATH") if name in os.environ},
+            )
+        try:
+            return run(args)
+        finally:
+            log_event("exit")
+
+
+def run(args):
+    """Dispatch parsed notification or utility arguments within the diagnostic context."""
     if args.print_hooks or args.print_config:
         try:
-            entry = hook_configuration(args.volume) if args.print_hooks else configuration(args.volume, args.sqlite_home)
+            entry = hook_configuration(args.volume, args.log_file) if args.print_hooks else configuration(args.volume, args.sqlite_home, args.log_file)
         except ValueError as exc:
             print("Could not generate configuration: {}".format(exc), file=sys.stderr)
             return 1
@@ -332,11 +466,16 @@ def main(argv=None):
         print("Output follows system/player routing; no device or system volume is changed.")
         diagnose_state(args.sqlite_home)
         return 0 if players else 1
+    if args.notification is not None:
+        log_payload("completion", args.notification)
     if args.volume == 0 and not args.preview:
+        log_event("ignored", reason="muted")
         return 0
     if args.hook:
         try:
-            index = hook_note(sys.stdin.read())
+            payload = sys.stdin.read()
+            log_payload("hook", payload)
+            index = hook_note(payload)
         except (OSError, UnicodeError):
             return 0
     else:
@@ -344,6 +483,7 @@ def main(argv=None):
     if args.preview:
         indices = range(len(NOTE_NAMES))
     elif index is None:
+        log_event("ignored", reason="filtered_or_invalid")
         return 0
     else:
         indices = (index,)
@@ -360,6 +500,7 @@ def main(argv=None):
             if args.preview and offset < len(NOTE_NAMES) - 1:
                 time.sleep(0.65)
     except (OSError, ValueError, wave.Error) as exc:
+        log_event("playback_error", error_type=type(exc).__name__)
         if args.preview:
             print("Could not play preview: {}".format(exc), file=sys.stderr)
             return 1
