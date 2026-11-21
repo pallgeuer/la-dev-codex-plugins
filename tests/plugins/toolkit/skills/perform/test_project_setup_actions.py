@@ -18,6 +18,8 @@ SETUP_DOCUMENTS = (
     "docs/new_repo_recipe.md",
     "docs/installation.md",
     "docs/recommended_setup.md",
+    "docs/computer_setup_recipe.md",
+    "docs/templates/computer_workspace.md",
     "docs/codex_notifications.md",
     "docs/project_setup_agnostic.md",
     "docs/project_setup_python.md",

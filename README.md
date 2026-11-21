@@ -138,6 +138,8 @@ The bundled `audit-test-performance[agnostic]` action measures a repository's te
 
 ## Recommended further setup
 
+For a persistent `~/Agents` workspace for computer administration, follow the [Computer administration workspace recipe](docs/computer_setup_recipe.md). It creates a small independent private repository from [starter templates](docs/templates/computer_workspace.md), preserving machine facts, confirmed preferences, and links to installation notes without requiring a plugin action.
+
 For optional per-chat completion, approval, and question sounds, see [Codex attention sounds](docs/codex_notifications.md). The standalone Python helper works independently of the plugins and Python package, with native-player detection for Linux and macOS.
 
 See [Recommended Codex setup](docs/recommended_setup.md) for optional user-level instructions, baseline sandbox and reasoning settings, network access, Python cache roots, model selection, and TUI configuration. For a new empty or essentially empty repository, follow the [New repository setup recipe](docs/new_repo_recipe.md). With Toolkit installed and enabled, start it in a Plan-mode chat with `$toolkit:perform setup-new-repo`. For an existing repository, follow [Language-agnostic project setup](docs/project_setup_agnostic.md) and, when applicable, [Python project setup](docs/project_setup_python.md) directly. To have Codex check an existing project against those guides, run `$toolkit:perform audit-project-setup[agnostic]` or `$toolkit:perform audit-project-setup[python]`.

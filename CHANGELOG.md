@@ -57,6 +57,12 @@ All notable changes to this project are documented here. The format follows [Kee
 - Added a standalone, standard-library-only completion-sound helper with stable per-chat musical pitches, Linux/macOS player detection, adjustable amplitude, previews, diagnostics, and generated user-level configuration.
 - Documented installation from an existing Codex-managed marketplace checkout or a separate clone, playback requirements, troubleshooting, updates, and removal without requiring a marketplace plugin or Python package installation.
 
+#### Computer administration
+
+- Added a reusable computer-administration workspace recipe and starter templates for independent private machine repositories, explicit change approvals, verified operational records, and integration with existing installation notes.
+- Linked the workspace workflow from the setup documentation and included matching offline references with the existing mirror checks.
+- Documented how verified local workspace improvements become reviewed upstream recipe/template updates, with source checkout provenance and explicit edit/publication boundaries.
+
 #### Repository setup
 
 - Added the interactive Plan-mode `setup-new-repo` Perform action, documented at the recipe's opening and across the setup guides, and backed by the complete setup recipe and a bundled, equivalence-tested set of guides and templates.

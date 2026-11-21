@@ -2,6 +2,7 @@
 
 ## Getting started
 
+- [Computer administration workspace recipe](computer_setup_recipe.md) sets up a reusable `~/Agents` entry point for machine maintenance, with [workspace templates](templates/computer_workspace.md), one private repository per computer, and links to existing installation notes. It is separate from development-project setup and needs no plugin action.
 - [New repository setup recipe](new_repo_recipe.md) contains machine-followable instructions for Codex to turn an empty or essentially empty directory and a project brief into an initial configured repository. With Toolkit installed and enabled, invoke `$toolkit:perform setup-new-repo` in Plan mode to follow it.
 - [Marketplace plugin installation](installation.md) covers marketplace refs, plugin installation and verification, Loupe permissions, and updates.
 - [Plugin FAQ](faq.md) answers common questions about choosing, installing, configuring, and trusting Loupe and Perform.
