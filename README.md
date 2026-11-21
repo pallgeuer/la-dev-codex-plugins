@@ -138,7 +138,7 @@ The bundled `audit-test-performance[agnostic]` action measures a repository's te
 
 ## Recommended further setup
 
-For a persistent `~/Agents` workspace for computer administration, follow the [Computer administration workspace recipe](docs/computer_setup_recipe.md). It creates a small independent private repository from [starter templates](docs/templates/computer_workspace.md), preserving machine facts, confirmed preferences, and links to installation notes without requiring a plugin action.
+For a persistent `~/Agents` workspace for computer administration, follow the [Computer administration workspace recipe](docs/computer_setup_recipe.md). It creates a small independent private repository from [starter templates](docs/templates/computer_workspace.md), preserving machine facts, confirmed preferences, and links to installation notes, with maintained scripts, desktop launchers, and service/timer definitions added as needed. No plugin action is required.
 
 For optional per-chat completion, approval, and question sounds, see [Codex attention sounds](docs/codex_notifications.md). The standalone Python helper works independently of the plugins and Python package, with native-player detection for Linux and macOS.
 

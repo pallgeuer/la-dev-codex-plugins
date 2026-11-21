@@ -2,7 +2,7 @@
 
 ## For humans: Start on a new computer
 
-Use `~/Agents` as the normal entry point for software installation, configuration, storage organization, networking, troubleshooting, and other computer maintenance. Its small Git repository records what is where, how it is managed, and the user's confirmed preferences. Each computer has an independent private repository; this recipe and its [workspace templates](templates/computer_workspace.md) supply the reusable structure. Neither marketplace plugins nor the Python distribution are required.
+Use `~/Agents` as the normal entry point for software installation, configuration, storage organization, networking, troubleshooting, and other computer maintenance. Its small Git repository records what is where, how it is managed, and the user's confirmed preferences, and can maintain PC-specific scripts, desktop launchers, and service/timer definitions. Each computer has an independent private repository; this recipe and its [workspace templates](templates/computer_workspace.md) supply the reusable structure. Neither marketplace plugins nor the Python distribution are required.
 
 Once Codex works, open a Plan-mode chat on the target computer and give it this prompt, adding any existing setup notes:
 
@@ -39,7 +39,7 @@ If importing preferences from another computer, select useful candidates and rec
 
 After approval, initialize Git at the agreed workspace root if needed. If it is already inside another repository, resolve that arrangement before creating a nested one. Preserve existing files, identities, remotes, user edits, and local resources. Merge the [templates](templates/computer_workspace.md) with the actual decisions; do not overwrite an established workspace with fresh copies.
 
-Create `AGENTS.md`, `machine.md`, `software.md`, `preferences.md`, `tasks.md`, and `.gitignore`. Keep `AGENTS.md` roughly 40-60 lines, with a reading map and operational rules rather than the inventory itself. Read the small machine summary at startup, then relevant topic documents on demand. Add topic files only when real content warrants them and link them from the map. This is a documentation repository; do not create a build system, environment, CI, or release process solely to fill a project template.
+Create `AGENTS.md`, `machine.md`, `software.md`, `automation.md`, `preferences.md`, `tasks.md`, and `.gitignore`. Initially record that no helpers are configured in `automation.md` unless existing automation has actually been inspected. Keep `AGENTS.md` roughly 40-60 lines, with a reading map and operational rules rather than the inventory itself. Read the small machine summary at startup, then relevant topic documents on demand. Add topic files only when real content warrants them and link them from the map. Keep the workspace small: versioned helper sources belong here alongside the records, but do not create a build system, environment, CI, or release process solely to fill a project template. Add test files/tooling only when executable helpers warrant them.
 
 Replace template placeholders with verified facts or explicit `Unknown`, `Not configured`, or `Pending confirmation` entries. Record only deliberately managed software and relevant services, rather than every dependency installed by the OS. Include exact commands when needed for reproduction, configuration locations, update mechanisms, and useful checks; link longer existing recipes.
 
@@ -72,9 +72,30 @@ Verify that the workspace is an independent Git repository with the agreed ident
 
 Start a new Codex session from `~/Agents` and check that it can identify the host, find relevant records and recipes, explain the confirmation policy, and distinguish unknown/pending information. This check must not install software or create a remote. Summarize created/changed files, checks, deviations, and deferred steps. Record any unavailable vault, permissions, authentication, or remote work with a precise resumption condition in `tasks.md`.
 
+## Machine-specific automation
+
+Maintain small helpers for this PC in the workspace rather than scattering their only source copies across the home directory. Useful examples include backup orchestration, audio-output selection, storage/network status checks, application-menu shortcuts, and explicitly scheduled maintenance. Keep larger independent applications in separate repositories and record their locations. Create optional directories only when real content needs them:
+
+- `scripts/`: Bash or system-Python helper sources.
+- `desktop/`: `.desktop` launcher sources.
+- `systemd/`: Service/timer source definitions, when systemd is appropriate for this host.
+- `tests/`: Meaningful isolated helper tests when needed.
+
+Use `automation.md` to inventory each helper's purpose, source, interpreter/dependencies, invocation/arguments, configuration/data locations, active links or deployed copies, required privileges, schedules, verification, and update/removal procedure. Distinguish a tracked source from an active installation. Add entries as helpers are approved; the directory layout is not approval to implement backup jobs, switch audio devices, install launchers, or enable schedules.
+
+For user helpers, prefer stable symlinks at agreed operating locations, such as `~/.local/bin` for commands and `~/.local/share/applications` for application-menu launchers. Keep source paths stable and verify each link resolves. Changes to a linked script affect its next invocation, so editing live helper sources is an operational change requiring the same explicit batch confirmation. Renames/removal must account for links, launchers, schedules, and running jobs. Installing/enabling a schedule is a separate approved action; editing a service definition may require a service-manager reload. Do not silently activate automation or change PATH/session startup settings.
+
+A desktop launcher can expose the same maintained command through the application menu, with terminal output when useful. Follow the [Desktop Entry Specification](https://specifications.freedesktop.org/desktop-entry/latest/exec-variables.html): use an explicit executable path and correctly quoted arguments; do not assume shell expansion of `~`, variables, pipes, or redirection in `Exec`. Keep shell logic in the script rather than embedding it in a launcher. Record the launcher/link and script relationship.
+
+Privileged services and scheduled jobs must execute reviewed root-owned deployed copies and trusted interpreters/configuration, not user-writable repository scripts or symlinks into the user's home. Record the source-to-deployment mapping and require an approved deployment after changes; ownership and executable permissions are part of verification. Keep secrets in the existing credential store or separately protected configuration, not in committed scripts or unit files.
+
+For small Python helpers, prefer the host's system `python3` and standard library; record the actual compatible version. Additional dependencies or a dedicated environment require agreement rather than modifying system Python with pip implicitly. Bash helpers should declare their interpreter. Make relevant paths explicit or resolve them from known locations instead of relying on the caller's working directory. Put logs, generated state, caches, and temporary evidence in documented ignored locations; keep maintained sources trackable.
+
+Check Bash syntax with `bash -n`; use ShellCheck when available. Check Python compilation without executing the module, and validate desktop entries with `desktop-file-validate` when available. Ask before installing missing tools. Use isolated fixtures or temporary directories for meaningful behavioral checks. Backup helpers need explicit source/destination/mount checks, retention/deletion policy, and a documented dry-run or equivalent non-destructive validation before activation. Never validate destructive behavior against real data merely to test a helper. Verify the active path, invocation, effective result, and removal/update steps before recording deployment as complete.
+
 ## Ongoing operation and reuse
 
-After each approved and verified batch, update affected Agents records and relevant installation recipes automatically, following destination instructions. Record current settings, important commands, checks, meaningful deviations, and who performed manual steps where useful. Do not claim planned commands ran or failed attempts succeeded. Keep longer debugging evidence in `local/`, useful resolutions in the relevant durable document, and unfinished work in `tasks.md`. Preserve evidence when it is still needed; prune redundant narrative only after extracting the useful facts.
+After each approved and verified batch, update affected Agents records (including the automation inventory and deployment status) and relevant installation recipes automatically, following destination instructions. Record current settings, important commands, checks, meaningful deviations, and who performed manual steps where useful. Do not claim planned commands ran or failed attempts succeeded. Keep longer debugging evidence in `local/`, useful resolutions in the relevant durable document, and unfinished work in `tasks.md`. Preserve evidence when it is still needed; prune redundant narrative only after extracting the useful facts.
 
 Show documentation changes and ask before committing or pushing. Remote authorization, system-change approval, and permission to update the records are separate scopes. Automatically maintaining the agreed records does not authorize unrelated documentation rewrites or another system change.
 
