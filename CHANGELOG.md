@@ -66,6 +66,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 #### Repository setup
 
+- Expanded Codex setup guidance with standalone and npm installation, optional NVM/Node setup for plugin dependencies, shell completion, terminal preferences, opt-in apps and memories, memory inspection/reset, model selection, and storage limits.
 - Added the interactive Plan-mode `setup-new-repo` Perform action, documented at the recipe's opening and across the setup guides, and backed by the complete setup recipe and a bundled, equivalence-tested set of guides and templates.
 - Added an empty-directory setup recipe with project intake, an ignored checkpoint journal, early Codex activation, verbatim permanent instructions, and final deferred-work/cleanup reporting.
 - Added release-diff examples and a complete reusable manual GitHub release template, linked from the setup recipe and Python guide.

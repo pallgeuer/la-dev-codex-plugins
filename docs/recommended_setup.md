@@ -44,13 +44,7 @@ network_access = true
 
 Command network access allows package managers such as `pip`, `uv`, `npm`, and `cargo` to query registries and download dependencies. Live web search and command network access both increase exposure to untrusted external content, so enable them deliberately.
 
-You can also opt in to pinning a preferred model with the following top-level setting:
-
-```toml
-model = "gpt-5.6-sol"
-```
-
-Use `/model` within Codex to select an available model and add or update this setting automatically, especially when switching to a newer model.
+Use `/model` within Codex to choose a model available to your signed-in account and set its reasoning effort. To pin a preferred model across sessions, save the selection when offered or add a top-level `model` setting using the exact available identifier. Revisit `/model` when switching to a newer model rather than copying an aging model name from a setup example. Keep default-mode reasoning at `medium` and Plan-mode reasoning at `high` as shown above.
 
 For projects using pre-commit, include its normal cache root. For Python development, add these writable roots to the same `[sandbox_workspace_write]` table to let `pip` and `uv` reuse their caches and let `uv` manage downloaded tools and Python installations:
 
@@ -70,9 +64,79 @@ The following is one possible TUI setup for a detailed status line and informati
 [tui]
 status_line = ["project-name", "git-branch", "model-with-reasoning", "run-state", "task-progress", "context-used", "total-input-tokens", "total-output-tokens", "five-hour-limit", "weekly-limit", "thread-title", "session-id"]
 terminal_title = ["activity", "project-name"]
+theme = "catppuccin-mocha"
+show_tooltips = false
+copy_on_select = "auto"
+right_click_paste = "off"
 ```
 
+These are optional personal preferences. Use `/theme` to preview and save another theme; `show_tooltips = false` hides welcome-screen onboarding tips. `copy_on_select = "auto"` copies mouse selections on release where Codex's terminal detection enables it. `right_click_paste = "off"` disables Codex's fullscreen right-click paste fallback, while the terminal's own paste binding remains available. Both mouse settings are current settings defined in [Codex's TUI configuration](https://github.com/openai/codex/blob/main/codex-rs/config/src/types.rs). Newer optional TUI settings may require a CLI newer than the marketplace's minimum supported version; update the CLI or omit an unsupported preference. See [CLI customization](https://learn.chatgpt.com/docs/cli-customization).
+
 See [Marketplace plugin installation](installation.md) if the `la-review` and `toolkit` plugins are not installed yet. After completing the user-level setup, continue with [Language-agnostic project setup](project_setup_agnostic.md) for each repository and then [Python project setup](project_setup_python.md) when applicable.
+
+## Optional apps and memories
+
+For a local coding setup, consider keeping app connectors and cross-chat memories off until you need them. Merge this table into `~/.codex/config.toml`, preserving unrelated feature settings:
+
+```toml
+[features]
+apps = false
+memories = false
+```
+
+`apps = false` disables app/connector integrations and avoids their associated tools and context when unnecessary. Codex then cannot use those connected services; opt in with `apps = true` when you need them. The amount of context avoided depends on the enabled integrations and CLI version. This flag does not disable all plugins, independently configured MCP servers, or web search. See the [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference).
+
+`memories = false` disables the local memory feature, including using learned context from earlier chats and generating new memories. You lose automatic cross-chat recall, but can still keep durable guidance in `AGENTS.md`. Opt in with `memories = true` if you want that recall. Disabling the feature does not delete stored memories or conversation history. Local Codex memory is separate from ChatGPT web memory. See [Memories](https://learn.chatgpt.com/docs/customization/memories).
+
+### Inspect existing memories
+
+Resolve the Codex home used by the client, then list generated memory files without printing their contents:
+
+```bash
+codex_setup_home="${CODEX_HOME:-$HOME/.codex}"
+printf 'Codex home: %s\n' "$codex_setup_home"
+for codex_memory_dir in "$codex_setup_home/memories" "$codex_setup_home/memories_v2" "$codex_setup_home/memories_extensions"; do
+    if [ -d "$codex_memory_dir" ]; then
+        find "$codex_memory_dir" -type f -print
+    fi
+done
+```
+
+Open selected files locally in your editor to review summaries and supporting evidence before sharing them. Older homes can use `memories/`, newer homes can use `memories_v2/`, and migration or extensions can leave multiple stores. Treat these files as generated state rather than hand-editing them as the primary control. When memories are enabled, `/memories` controls whether the current chat uses existing memories or contributes to future generation; it is not a memory-delete command.
+
+### Clear local memories
+
+In the ChatGPT desktop app, use **Settings > Personalization > Delete Codex memories** and confirm the selected machine. Where Computer History is available, this also clears it. This does not manage ChatGPT web memory, which has separate controls.
+
+For a terminal-only reset, Codex CLI `0.170.0` also has the hidden internal command below. It is version-dependent, not part of this marketplace's minimum CLI guarantee. First check availability without deleting anything:
+
+```bash
+codex debug clear-memories --help
+```
+
+Before actually resetting, stop affected Codex sessions and background clients, preserve any memory artifacts you want to keep, and confirm the Codex home displayed above is the intended one. Keep `features.memories = false` if you want memory use and generation to remain off. Run the reset from outside a repository with project-specific Codex settings, retaining the same `CODEX_HOME`, `CODEX_SQLITE_HOME`, or `sqlite_home` configuration as the client whose memories you intend to clear:
+
+```bash
+codex debug clear-memories
+```
+
+This clears generated memory directories and persisted memory-generation state, rather than deleting your conversations. OpenAI's [reset tests](https://github.com/openai/codex/blob/main/codex-rs/cli/tests/debug_clear_memories.rs) cover directory cleanup and persisted state. Deleting only one memory directory is incomplete because database state and other memory stores can remain. If the command is unavailable, use the desktop reset or update the CLI; do not delete whole Codex databases as a workaround.
+
+Check that the command exits successfully and reports the expected storage paths. Repeat the file listing to confirm generated artifacts are gone, then restart the client. Existing chats may already contain injected memory context, so use a new chat when checking the result. If memory generation is re-enabled later, eligible retained chats can contribute to new memories again.
+
+## Local storage
+
+The `[history]` example above retains prompt history with a 50 MiB (`52428800` byte) cap on the history file, dropping older entries as needed. It does not cap the entire Codex home or all conversation storage. Sessions, thread-history databases, SQLite companion files, logs, and generated memories have separate storage lifecycles. Disabling history persistence or clearing memories does not imply that all those files have been deleted.
+
+Inspect disk usage without modifying stored data:
+
+```bash
+codex_setup_home="${CODEX_HOME:-$HOME/.codex}"
+du -sh "$codex_setup_home"
+du -sh "$codex_setup_home"/*
+```
+
+The second command omits hidden entries. If you configured `CODEX_SQLITE_HOME` or `sqlite_home`, inspect that directory separately too. Use supported conversation and memory deletion controls for the data you intend to remove; do not remove active databases or their journal/WAL files merely to satisfy the history cap. See [history persistence](https://learn.chatgpt.com/docs/config-file/config-advanced#history-persistence) and [config and state locations](https://learn.chatgpt.com/docs/config-file/config-advanced#config-and-state-locations).
 
 ## Attention sounds
 
