@@ -138,6 +138,44 @@ du -sh "$codex_setup_home"/*
 
 The second command omits hidden entries. If you configured `CODEX_SQLITE_HOME` or `sqlite_home`, inspect that directory separately too. Use supported conversation and memory deletion controls for the data you intend to remove; do not remove active databases or their journal/WAL files merely to satisfy the history cap. See [history persistence](https://learn.chatgpt.com/docs/config-file/config-advanced#history-persistence) and [config and state locations](https://learn.chatgpt.com/docs/config-file/config-advanced#config-and-state-locations).
 
+### Measure and clean up stored sessions
+
+To measure saved session files and session-related databases, including archived conversations, run:
+
+```bash
+codex_setup_home="${CODEX_HOME:-$HOME/.codex}"
+codex_session_db_home="${CODEX_SQLITE_HOME:-$codex_setup_home}"
+for codex_session_path in "$codex_setup_home/sessions" "$codex_setup_home/archived_sessions" "$codex_session_db_home"/state_*.sqlite* "$codex_session_db_home"/thread_history_*.sqlite*; do
+    if [ -e "$codex_session_path" ]; then
+        du -sh "$codex_session_path"
+    fi
+done
+```
+
+If `sqlite_home` is configured in TOML instead of the environment, set `codex_session_db_home` to that directory. The state database also contains metadata beyond transcripts; these figures identify the main storage locations rather than an exact per-session accounting. Modern Codex can store history in databases, so measuring or deleting only `sessions/**/*.jsonl` is insufficient.
+
+Use Codex's built-in deletion controls rather than selecting sessions through an internal SQLite schema. In CLI `0.170.0`, `codex delete` accepts a session UUID or name, but has no delete-all or older-than option:
+
+```bash
+codex delete SESSION_UUID
+```
+
+Review the confirmation before deleting. Inside a session, `/delete` deletes the current chat. Deletion also removes delegated descendant sessions. Archiving only hides a session from active lists; it does not delete its stored history. See [Codex deletion commands](https://learn.chatgpt.com/docs/developer-commands?surface=cli#cli-codex-delete).
+
+For a built-in bulk option, use the ChatGPT desktop app's Codex chat history. Archive the chats you want to remove, then open **Settings > Archived chats > Delete all** and review the confirmation. This removes all archived chats in that scope, including project chats; chats still unarchived remain. Confirm that the app shows the intended machine/account's sessions before deleting: a separate app installation or Codex home may show different history. See OpenAI's [archiving and deletion guide](https://help.openai.com/en/articles/20001333-archiving-and-deleting-codex-chats-in-the-chatgpt-app). If the app does not expose your CLI sessions, use per-session CLI deletion; there is no equivalent supported bulk CLI command in the checked version.
+
+After deletion, stop affected Codex clients and background servers, then remove empty leftover directories below both session roots. The bottom-up traversal removes newly empty parents too, preserves the roots themselves, and does not follow symlinks:
+
+```bash
+for codex_session_dir in "$codex_setup_home/sessions" "$codex_setup_home/archived_sessions"; do
+    if [ -d "$codex_session_dir" ] && [ ! -L "$codex_session_dir" ]; then
+        find "$codex_session_dir" -depth -mindepth 1 -type d -empty -delete
+    fi
+done
+```
+
+Repeat the size check afterward. Deletion makes database pages reusable but may not immediately shrink SQLite files on disk. Clearing conversations is separate from clearing learned memories, the prompt-history file, and diagnostic logs. Removing only `sessions/` and `archived_sessions/` does not clear modern database-backed history, while removing the entire Codex home would also discard configuration, authentication, and plugin state. There is no simple supported CLI wipe of only all session history in the checked version; avoid direct database deletion or schema-dependent cleanup recipes.
+
 ## Attention sounds
 
 For optional sounds after completed conversation and built-in review turns, and when approvals or structured questions need attention, follow [Codex attention sounds](codex_notifications.md). Its standalone Python 3.6+ helper assigns a stable pitch per chat, detects Linux/macOS audio players, and includes preview and diagnostic commands. Completion sounds use the root `notify` entry; approval/question sounds additionally use optional lifecycle hooks that the user reviews and trusts through `/hooks`.
