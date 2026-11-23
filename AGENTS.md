@@ -86,3 +86,6 @@ Refer to `TESTING.md` for more details on linting, formatting, type checking, un
 - Interview me for relevant details when making plans, unless the details are quite clear already from the provided information.
 - When changing function signatures or class attributes, update all affected docstrings in the same change.
 - Update `CHANGELOG.md` under `Unreleased` when significant user-facing or development-workflow outcomes change, using `Added`/`Changed`/`Fixed`/`Removed` headings, short general level-four category headings, outcome bullets beneath those category headings, and horizontal rules between top-level changelog sections.
+
+- After significant work assess cleanup; when appropriate offer named disposable files with their purpose and why removal is useful. Await explicit deletion approval and preserve useful evidence/backups.
+- When changing workspace setup guidance/templates, update bundled source-relative mirrors and their exact payload checks together.

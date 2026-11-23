@@ -3,6 +3,7 @@
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -20,6 +21,17 @@ SETUP_DOCUMENTS = (
     "docs/recommended_setup.md",
     "docs/computer_setup_recipe.md",
     "docs/templates/computer_workspace.md",
+    "docs/templates/computer_workspace/instructions.md",
+    "docs/templates/computer_workspace/navigation.md",
+    "docs/templates/computer_workspace/system.md",
+    "docs/templates/computer_workspace/software.md",
+    "docs/templates/computer_workspace/automation.md",
+    "docs/templates/computer_workspace/history.md",
+    "docs/templates/computer_workspace/tasks.md",
+    "docs/templates/computer_workspace/artifacts.md",
+    "docs/templates/computer_workspace/installation.md",
+    "docs/templates/computer_workspace/maintenance.md",
+    "docs/templates/computer_workspace/maintainer.md",
     "docs/codex_notifications.md",
     "docs/project_setup_agnostic.md",
     "docs/project_setup_python.md",
@@ -126,3 +138,24 @@ def test_publish_release_remains_an_interactive_editing_action(load_catalog):
     assert fields["reasoning_effort"] == "high"
     assert fields["no_edits"] is False
     assert fields["requires_interactive"] is True
+
+
+def test_workspace_maintenance_template_is_a_valid_plan_action(load_catalog, tmp_path):
+    """Validate the reusable action payload through the real catalog loader."""
+    template = REPOSITORY_ROOT / "docs/templates/computer_workspace/maintenance.md"
+    blocks = re.findall(r"```json\n(.*?)\n```", template.read_text(encoding="utf-8"), re.DOTALL)
+    assert len(blocks) == 1
+    definition = json.loads(blocks[0])
+    (tmp_path / "actions.json").write_text(json.dumps(definition), encoding="utf-8")
+    catalog = load_catalog(tmp_path)
+    inspection = catalog.inspect("spring-clean-docs[agnostic]")
+    assert catalog.diagnostics == []
+    assert inspection.to_dict()["mode"] == "plan"
+    fields = inspection.action.fields
+    assert fields["model"] == "default"
+    assert fields["reasoning_effort"] == fields["plan_reasoning_effort"] == "high"
+    assert fields["no_edits"] is True
+    assert fields["plan_mode"] is True
+    assert fields["goal_mode"] is False
+    assert fields["requires_interactive"] is True
+    assert fields["notes"] == ""
