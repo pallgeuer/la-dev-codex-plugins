@@ -93,6 +93,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 #### Plugin publication
 
+- Recorded Hashgraph acceptance and verified separate Loupe/Perform installations, refreshed Community Plugins review gates, and explained expired historical workflow notifications.
 - Updated submission status and pending review gates for Hashgraph and Community Plugins, and clarified coordinated release reconciliation to preserve newer source features.
 
 #### Repository setup

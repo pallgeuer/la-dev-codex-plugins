@@ -4,9 +4,9 @@ This checklist begins when Loupe is merged into `openai/community-plugins`. Acce
 
 ## Current review gates
 
-As checked on 2026-10-31, both Community PRs are open at their recorded review-response heads. Both plugin suites, CLA, dependency review, marketplace catalogue/dispatcher, and the runner matrix pass. CDE review and disposition of unrelated Autodesk Fusion/ReviewOps dependency-audit failures remain pending. The approved follow-up replies were posted on 2026-10-31 and verified; their links are retained in the [Loupe dossier](loupe.md) and [Perform dossier](perform.md). Await maintainer responses.
+As checked on 2026-11-23, both Community PRs remain open. All 12 reported checks on each PR pass, including the previously failing Autodesk Fusion/ReviewOps jobs. Final CDE review and merge remain pending; no formal reviews or maintainer responses followed the approved November 16 pings. Current heads, follow-up links, and the superseded approval-expiry failure emails are recorded in the [shared channel record](published_channels.md#openai-community-plugins) and plugin dossiers.
 
-Hashgraph's combined HOL-authored [proposal #599](https://github.com/hashgraph-online/awesome-codex-plugins/pull/599) can proceed independently against current source main. Its dark-logo correction is published as [PR #624](https://github.com/hashgraph-online/awesome-codex-plugins/pull/624); generator reconciliation and independent acceptance remain tracked in the [shared channel record](published_channels.md). Hashgraph progress does not authorize an early source release.
+Hashgraph's [listing #599](https://github.com/hashgraph-online/awesome-codex-plugins/pull/599) merged on 2026-11-21, after the [dark-logo fix #624](https://github.com/hashgraph-online/awesome-codex-plugins/pull/624) merged on November 19. Both separate catalogue packages were verified and installed in isolated Codex state on November 23; the initial Hashgraph submission is complete. Future source releases still require mirror-refresh verification. Hashgraph acceptance does not authorize an early source release.
 
 ## After Loupe is accepted
 
@@ -36,7 +36,7 @@ Hashgraph's combined HOL-authored [proposal #599](https://github.com/hashgraph-o
 - [ ] For Perform, account for the `0.4.5` official-directory decision declining public inclusion. Ask separately whether to appeal that decision, pursue a new submission if the current channel rules permit, or leave the directory untouched; do not treat its draft as an existing published listing.
 - [ ] For each authorized Codex Plugin Marketplace update, submit the new immutable tag-tree URL, then verify the existing listing and install command.
 - [ ] Compare the merged Community Plugins packages with the released source trees. If the release changes a package beyond what community maintainers accepted, prepare one focused update PR for that plugin; otherwise record the accepted upstream version without a duplicate submission.
-- [ ] For Hashgraph, inspect actual upstream mirrors after release rather than assuming a source push triggers refresh. Request the maintainer refresh when needed, then verify both independent paths, complete assets, install flow, source commit, and any registry entry. Keep still-open initial acceptance separate from a published-channel update.
+- [ ] For Hashgraph, inspect actual upstream mirrors after release rather than assuming a source push triggers refresh. Request the maintainer refresh when needed, then verify both independent paths, complete assets, install flow, source commit, and any registry entry. Treat this as maintenance of the completed initial listing, not another initial submission.
 - [ ] Update both dossiers and the shared status table with exact dates, versions, artifact digests, submission or merge IDs, approval and publication states, and verified listing URLs.
 
 ## Retire this checklist

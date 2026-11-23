@@ -234,10 +234,11 @@ The direct public page was live on 2026-09-29. On 2026-09-30, submitting the new
 
 ### Hashgraph Awesome Codex Plugins
 
-- Proposal: [HOL-authored PR #599](https://github.com/hashgraph-online/awesome-codex-plugins/pull/599); open without reviews as checked on 2026-10-31.
-- Source: repository-root URL fetching `main`, checked at `61bbb45a0875279b97aa916e9e2a5a5230b243b6`; manifest `toolkit` `0.4.5`. This includes unreleased changes beyond `v0.5.5`.
-- Intended generated source: `./plugins/pallgeuer/la-dev-codex-plugins/plugins/toolkit`.
-- [Source-owner confirmation](https://github.com/hashgraph-online/awesome-codex-plugins/pull/599#issuecomment-6542661494) posted on 2026-10-31. Generator fixes, final bundle verification, and independent review remain pending; see the [shared channel record](published_channels.md#hashgraph-awesome-codex-plugins) for blockers and next steps.
+- Status on 2026-11-23: **Initial submission complete**, merged into the README and available marketplace catalogue; installation verified.
+- Listing: [HOL-authored PR #599](https://github.com/hashgraph-online/awesome-codex-plugins/pull/599), merged 2026-11-21 at `82bfc1d4fe96c7ce834a5fe9e2824022769d22d1`. The dark-logo correction [#624](https://github.com/hashgraph-online/awesome-codex-plugins/pull/624) merged 2026-11-19.
+- Published package: `toolkit` `0.4.5` at `./plugins/pallgeuer/la-dev-codex-plugins/plugins/toolkit`, checked at Hashgraph commit `9a2ab0090ae040abbca6bcc099501f70d9a2ac22`. All 57 files match source `148b349e8a46be89fcc18d18cba099f594a87171` in inventory and non-manifest bytes, with semantically equal manifests and the declared dark logo present. This includes unreleased source changes beyond `v0.5.5`.
+- Installed and listed successfully with Codex CLI `0.170.0` in isolated state from a local copy of the exact published package and catalogue entry; helper `--help` checks passed. Provider-backed execution and separate HOL registry discovery were not tested.
+- [Source-owner confirmation](https://github.com/hashgraph-online/awesome-codex-plugins/pull/599#issuecomment-6542661494) and the approved [November 16 follow-up](https://github.com/hashgraph-online/awesome-codex-plugins/pull/599#issuecomment-6915901746) are retained as history. Future source releases need actual mirror/installation verification; see the [shared channel record](published_channels.md#hashgraph-awesome-codex-plugins).
 
 ### OpenAI Community Plugins
 
@@ -250,6 +251,7 @@ The direct public page was live on 2026-09-29. On 2026-09-30, submitting the new
 - Maintainer response: `https://github.com/openai/community-plugins/pull/26#issuecomment-6267116889`
 - Current status on 2026-09-29: open, CLA passed, review required, no reviews
 - Current status on 2026-10-31: open at `cb0c0505398cfe279a0502419928c44f21f243fd`, revised package `0.4.6`, CLA and plugin/marketplace CI passed; CDE review and disposition of unrelated audit failures remain pending
+- Current status on 2026-11-23: open at `117b0b82f675d630f31c34073b3cb76ecb28b5ac`; all 12 reported checks pass, including Fusion and ReviewOps. Final CDE review and merge remain pending. No maintainer response or formal review followed the approved [November 16 ping](https://github.com/openai/community-plugins/pull/26#issuecomment-6915901212). The [shared record](published_channels.md#openai-community-plugins) explains the superseded approval-expiry failure emails.
 
 On 2026-10-13, the CDE collaborator requested that Perform show the selected action source and precedence before execution, make invalid-override/fallback behavior explicit, document permission and file/data boundaries in its packaged README, and add isolated tests for overrides, malformed configuration, strict selection, and safe catalog writes. The 2026-10-19 response at `cb0c0505398cfe279a0502419928c44f21f243fd` adds selected-definition source and precedence to inspection and rendering, blocks configured actions on malformed files, blocks ambiguous selection and invalid strict selectors when a parseable variant is invalid, and preserves unrelated actions and exact valid siblings. It documents the boundaries and adds offline cold-package integration coverage. The response also aligns the proposed community package with the current source baseline, version `0.4.6`, while retaining explicit `$toolkit:perform` starter prompts. Its [maintainer reply](https://github.com/openai/community-plugins/pull/26#issuecomment-6267116889) summarizes the changes. `npm run test:toolkit` passed all nine tests; marketplace validation, Ruff, ty, Vermin, and `git diff --check` passed locally. The full marketplace dispatcher passed its marketplace and Grafana suites, then stopped at the unrelated ReviewOps build because `ajv` was unavailable in the clean clone. The revised workflows subsequently ran; their October 21 results are summarized below. After both community contributions are accepted, reconcile their packages into one coordinated source release using [the post-acceptance checklist](community_acceptance_followup.md).
 
@@ -259,7 +261,7 @@ On 2026-10-31, the PR remained open without reviews or new maintainer feedback, 
 
 The source has since added `setup-new-repo` and relocated/expanded its bundled setup references. Reconcile accepted provenance and invalid-configuration behavior with current source using a three-way merge; do not replace the newer source payload with this older reviewed package.
 
-Posted a [CDE follow-up](https://github.com/openai/community-plugins/pull/26#issuecomment-6542657988) on 2026-10-31 requesting review and maintainer guidance on the unrelated failing checks. Await a response.
+Posted a [CDE follow-up](https://github.com/openai/community-plugins/pull/26#issuecomment-6542657988) on 2026-10-31 requesting review and maintainer guidance on the unrelated failing checks. The latest dated status above supersedes those historical check failures.
 
 Submitted pull-request title: `Add Perform Action Toolkit plugin`
 
