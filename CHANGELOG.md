@@ -59,6 +59,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 #### Computer administration
 
+- Required installation documents to remain actionable, extensively bullet-led recipes, keeping dated outcomes and completion narratives in reference/history records; aligned starter instructions, navigation and installation templates.
+
 - Extended the workspace recipe and templates with a helper inventory, optional script/launcher/service directories, explicit deployment and activation rules, and isolated validation guidance for machine-specific automation.
 - Added a reusable computer-administration workspace recipe and starter templates for independent private machine repositories, explicit change approvals, verified operational records, and integration with existing installation notes.
 - Linked the workspace workflow from the setup documentation and included matching offline references with the existing mirror checks.
