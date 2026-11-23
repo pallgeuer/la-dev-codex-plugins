@@ -74,6 +74,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
+#### Computer administration
+
+- Reworked Agents setup into a modular Markdown knowledgebase with explicit installation-document selection, tracked absolute external links, dated private evidence bundles, portable shared-document links, private Git publication and ongoing maintenance.
+- Split starter templates into focused source-relative guides, included repository spring-clean setup when Toolkit is available, and made maintainer feedback collection explicit opt-in.
+- Granted scoped template reuse without notice/license-file retention while preserving source provenance and unrelated MIT terms.
+
+
 #### Codex notifications
 
 - Renamed the PulseAudio application to "Codex ding" so notification playback is easier to identify in audio controls.
