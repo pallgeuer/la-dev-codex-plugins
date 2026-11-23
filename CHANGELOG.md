@@ -31,6 +31,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## Unreleased
 
+### Changed
+
+#### Computer administration
+
+- Made evidence retention depend on concrete active/recovery needs and review checkpoints, with completion review, separately approved cleanup and explicit backup decisions.
+- Ordered completed installation procedures before planned/OLD material and established early agent/workspace/documentation bootstrap with a verified temporary-to-canonical handoff.
+
 ### Fixed
 
 #### Codex notifications
