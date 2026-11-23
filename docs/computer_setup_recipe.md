@@ -62,6 +62,10 @@ After significant work assess cleanup. When appropriate offer exact disposable f
 
 AGENTS.md and README.md must identify installation.md and say to keep it current when relevant installation/reinstallation instructions, important machine-specific configuration or remaining setup steps change; if unsure whether or how a change belongs there, ask the user. It is not mandatory startup reading for unrelated work.
 
+- Maintain installation.md as an actionable recipe, using bullet points extensively for prerequisites, steps, commands, chosen settings, exceptions and verification steps to perform.
+- Put routine verification dates, observed-version snapshots, user-confirmation accounts and completion/work narratives in Agents topic references or dated history. Include a version/date in the recipe only when necessary for reproduction or compatibility; an observed version alone is not an instruction to pin it.
+- Keep unfinished steps explicitly planned. Once successful, remove the planned marker and retain the reusable procedure instead of adding a dated completion label. Ask the user when placement is unclear and follow external-document style conventions.
+
 Resolve any link to the actual destination before editing, explicitly read that destination's applicable instructions/overrides, obtain task-scoped permissions and edit deliberately without replacing the symlink. A link does not grant sandbox access or make external instructions load automatically. Never broaden home access or weaken approval/sandbox boundaries for convenience.
 
 Maintain affected topic records, paths.md, READMEs, incoming links, history and tasks after verified work. Update important path purpose/manager/sync/backup changes, not every temporary/versioned detail. Historical recipes are evidence, not proof of current state; investigate conflicts before reconciliation.
@@ -80,7 +84,7 @@ Review credential-helper changes and verify secure storage with `gh auth status`
 
 Create an explicitly private empty remote without a competing generated README/license/commit, verify its destination, then add the agreed origin. Commit the reviewed tree and push with tracking only within explicit authorization. Verify actual local/remote branch commit IDs, default branch, visibility, tracking and clean status. If authentication/network blocks publication, retain the local work and record the exact pending stage instead of claiming success.
 
-Record verified publication and close resolved tasks, keeping evidence-retention questions separate. A follow-up documentation commit can record a successful initial push without rewriting published history; verify that follow-up is pushed too. Publication does not authorize automatic future pushes, external-document publication or upstream-project changes. No repository-wide license is required merely to create this private workspace.
+Record verified publication results in history/topic references and close resolved tasks, keeping evidence-retention questions separate. Update installation.md with the reusable publication procedure rather than a dated delivery report. A follow-up documentation commit can record a successful initial push without rewriting published history; verify that follow-up is pushed too. Publication does not authorize automatic future pushes, external-document publication or upstream-project changes. No repository-wide license is required merely to create this private workspace.
 
 ## 6. Toolkit maintenance and optional maintainer work
 

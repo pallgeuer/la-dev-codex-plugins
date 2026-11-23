@@ -9,7 +9,7 @@ Copy only applicable blocks to the named workspace destinations. Replace placeho
 
 Start with [operating rules](AGENTS.md) and [host overview](system/overview.md).
 
-- [Installation instructions](installation.md): Keep current when relevant; ask the user if unsure whether or how to update them.
+- [Installation instructions](installation.md): Keep current as a bullet-led recipe, with dated results/work narratives in references/history; ask the user if unsure whether or how to update it.
 - [Important paths](paths.md), [system](system/README.md), [software](software/README.md), [automation](automation/README.md).
 - [History](history/README.md), [active work](tasks/README.md), [artifact conventions](local/README.md).
 
